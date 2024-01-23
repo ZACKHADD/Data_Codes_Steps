@@ -1,0 +1,34 @@
+IF (
+    MAXX (
+        FILTER ( 'FARO', 'FARO'[Email FARO] = USERPRINCIPALNAME () ),
+        'FARO'[Super User]
+    ) = 0,
+    IF (
+        USERPRINCIPALNAME () IN SELECTCOLUMNS ('FARO adj Super User',[Email FARO Adjoint]),
+        [FARO]
+            IN SELECTCOLUMNS (
+                FILTER (
+                    ADDCOLUMNS (
+                        CROSSJOIN (
+                            FILTER (
+                                'FARO adj Super User',
+                                'FARO adj Super User'[Email FARO Adjoint] = USERPRINCIPALNAME ()
+                            ),
+                            FARO
+                        ),
+                        "FARO Manager dans chemin", PATHCONTAINS ( FARO[Chemin], 'FARO adj Super User'[Faro Manager] )
+                    ),
+                    [FARO Manager dans chemin]
+                ),
+                [FARO]
+            ),
+        PATHCONTAINS (
+            'FARO'[Chemin],
+            MAXX (
+                FILTER ( 'FARO', 'FARO'[Email FARO] = USERPRINCIPALNAME () ),
+                'FARO'[FARO]
+            )
+        )
+    ),
+    1 = 1
+)
