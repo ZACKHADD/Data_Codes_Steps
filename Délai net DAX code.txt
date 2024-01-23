@@ -1,0 +1,55 @@
+Délai Net = 
+VAR _WorkStart =
+    TIME ( 9, 00, 0 )
+VAR _WorkFinish =
+    TIME ( 18, 00, 0 )
+VAR _1DayWorkingTime =
+    DATEDIFF ( _WorkStart, _WorkFinish, HOUR )
+VAR _StartDate =
+    DATEVALUE ( 'in'[Date de création] ) // Set the start Date column here
+VAR _EndDate =
+    DATEVALUE ( 'in'[Date de clôture technique] ) // Set the End Date column here
+VAR _StartDateTime =
+    TIMEVALUE ( 'in'[Heure de création] ) // Set the start Time column here
+VAR _EndDateTime =
+    TIMEVALUE ( 'in'[Heure de clôture technique] ) // Set the End Time column here
+VAR _DaysBetweenStartFinish =
+    ADDCOLUMNS ( '_Calendar', "DayN", WEEKDAY ( [Date], 2 ) ) // Use the Date table here
+VAR _WorkingDaysBetweenStartFinish =
+    COUNTX (
+        FILTER (
+            _DaysBetweenStartFinish,
+            [Date] > _StartDate
+                && [Date] < _EndDate
+                && [DayN] < 6
+                && ISBLANK(LOOKUPVALUE('Jours Fériés France'[Date],'Jours Fériés France'[Date],[Date]))
+        ),
+        [DayN]
+    ) // Sunday and Saturday are weekend days in this calculation
+VAR _Day1WorkingHour =
+    IF (
+        WEEKDAY ( _StartDate, 2 ) < 6
+        && ISBLANK(LOOKUPVALUE('Jours Fériés France'[Date],'Jours Fériés France'[Date],_StartDate)),
+        ( MAX ( _WorkFinish, _StartDateTime ) - MAX ( _StartDateTime, _WorkStart ) ) * 24,
+        0
+    )
+VAR _LastDayWorkingHour =
+    IF (
+        WEEKDAY ( _EndDate, 2 ) < 6
+        && ISBLANK(LOOKUPVALUE('Jours Fériés France'[Date],'Jours Fériés France'[Date],_EndDate)),
+        ( MIN ( _WorkFinish, _EndDateTime ) - MIN ( _EndDateTime, _WorkStart ) ) * 24,
+        0
+    )
+VAR _Duration =
+    IF (
+        _StartDate = _EndDate
+            && WEEKDAY ( _StartDate, 2 ) < 6
+            && ISBLANK(LOOKUPVALUE('Jours Fériés France'[Date],'Jours Fériés France'[Date],_StartDate)),
+        MAX (
+            ( MIN ( _WorkFinish, _EndDateTime ) - MAX ( _WorkStart, _StartDateTime ) ) * 24,
+            0
+        ),
+        _WorkingDaysBetweenStartFinish * _1DayWorkingTime + _Day1WorkingHour + _LastDayWorkingHour
+    )
+RETURN
+    _Duration
