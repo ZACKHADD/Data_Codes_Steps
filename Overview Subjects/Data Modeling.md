@@ -8,7 +8,7 @@ The main purpoe of data modeling is to give a deep comprehension of the data eco
 - Business rules for data : this is where we need to understand how the business handels the relationships between subjects. cardinalities, if a relation is mandatory or not, attributes allowed to be nulls, data change dynamics (referential integrity ex : if a row is deleted in a table the corresponding in other tables must be deleted etc).
 ## Modeling architectural options :
 Two major types:  
-- Data Modeling-specific (the focus in this document):
+- Data Modeling-specific (the focus in this document) Entity-Relationship:
     - Classic ER (Chen 1976) : Entity relashionchip using rectangles, oval and so on.
     - Post Classic ER (Crows Foot) : different notation enhanced version of calssic ER.
 - Systems modeling:
@@ -54,7 +54,33 @@ three major milestones:
       ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b1f8a689-b494-4d4c-b30b-a0450252d6ab)  
       in the crow's foot notation, the attribute is put between braces:
       
-      ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/1e752af8-2888-4ba8-bcfa-b8be3d08851d)
+      ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/1e752af8-2888-4ba8-bcfa-b8be3d08851d)  
+      the multivalued attributes notation is the most element diffrentiating between conceptual and logical model.
+  - Relationships :
+    It represents the link between two entities.
+    In the classic ER, it is represented by dimon shape with a name inside or outside of it:
+    ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/69b1f00f-5a7c-4862-9cee-5542fa2e80b8)
+    In the crow's foot it is just a line with a name obove it.
+
+- Cardinalities:
+  They refer to the real wolrd business rules in terms of relationship between entities. for example between classroom and teachers, can a teacher teach 0 calssrooms or at least 1. Can a classroom be teached by several teachers or at max 1 etc. So from this analysis we can enrich the relationship saying it is 0 to many, many to many many to 1 ...
+## Hierarchies for the entities:
+  Hierarchies are special types of relationchips that gives some differenciation between types of an entity. for example if we take the entity "Teacher" it can be a a full time teacher or a part time teacher in the faculty. Each of these two types has it's own detailed attributes.  
+  The objective of hierarchies is to represent the most all the constraints that should be applied on attributes and objects in the phisical model.
+  in classic ER, hierarchies are represented as follows :  
+  ![WhatsApp Image 2024-02-02 at 15 40 04](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5fa7c49a-3c75-4960-9109-6207a5fd993c)  
+  The principal entity is called supertype.  
+  ![WhatsApp Image 2024-02-02 at 15 40 03 (1)](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4f770420-41e5-4ad2-869a-06d8b998230d)  
+The principal entity is called childtype.  
+The relation can be either exclusive (X inside) meaning only one the object can be only one type of the childrentypes or inclusive (I inside) meaning it can be both.  
+  ![WhatsApp Image 2024-02-02 at 15 40 03](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c099c3d7-814a-42e6-8d0f-62e773835042)  
+In the crow's foot notation, hierarchies are represented as follows:  
+  ![WhatsApp Image 2024-02-02 at 15 40 04](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fbf4fbe0-2720-44ff-862d-87be6feef982)
+
+  
+  
+
+
 
 
   
