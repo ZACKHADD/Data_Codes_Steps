@@ -77,9 +77,16 @@ The relation can be either exclusive (X inside) meaning only one the object can 
 In the crow's foot notation, hierarchies are represented as follows:  
   ![WhatsApp Image 2024-02-02 at 15 40 04](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fbf4fbe0-2720-44ff-862d-87be6feef982)
 
-  
-  
-
+## Constraints on Attributes :
+Constraints on attributes is a powerful tool to contrôle data in the data model. it allows to define how these attributes should be built. For example : we can put some conditions on data type and size of the attribute, whether the NULL values are allowed or not and the permissible values (age > 18 for example) etc.  
+## Types of entities :
+We have two major types of entities : Strong & Weak Entities.  
+- Strong entity : an entity that does not need another entity to be defined or to exist.
+- Weak entity : an entity that depends on another entity to be identified or to exist.
+in terms of classic ER notation, they are represented with a double rectangle as follows :  
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7e7c811e-f22e-4cf3-af80-6a7c47a4805d)  
+the double diamon here represents the weak relationchip between a strong and weak entity.  
+in crow's foot notation, the weak entity is a rounded corner rectangle with no identifier (Primary key) (only at the conceptual level).  
 
 
 
