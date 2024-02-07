@@ -86,8 +86,47 @@ We have two major types of entities : Strong & Weak Entities.
 in terms of classic ER notation, they are represented with a double rectangle as follows :  
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7e7c811e-f22e-4cf3-af80-6a7c47a4805d)  
 the double diamon here represents the weak relationchip between a strong and weak entity.  
-in crow's foot notation, the weak entity is a rounded corner rectangle with no identifier (Primary key) (only at the conceptual level).  
+in crow's foot notation, the weak entity is a rounded corner rectangle with no identifier (Primary key) (only at the conceptual level).
+## Types of relationchips :
+We can have mainly three relationchips situations :
+- Multiple relationchips between two entities: for example teacher that teaches students but also can advise other students that he does not teach.
+- Recursive relationchips where an entity has a relation with itself : like when an entity called persons can have the father and son so the relation would be X son of Y and the relation goes out of the entity and return to it.
+- Ternary relationchips involving three entities (at conceptual level) :  
+  ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/12a5e608-571e-4060-9134-f08c0d679962)  
+- Relationchips like entities "Gerunds" : a relationchip that also acts like an entity. for example :  
+  ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9c2fb99f-f24f-4508-9b0d-2ea5f94df49f)
 
+## Cardinalities :
+simply the number of instances in both sides of a relationchip.  
+We represent in both sides maximum and minimum cardinality.  
+the maximum cardinality can be either a specific number (the exact maximum allowed) or M meaning many.  
+the minimum can be 0 or one (optional vs mandatory) or an explicit number (so rare) of min cardinality.  
+The cardinalities must be explicit in words like : the entity must or can have 0 or n instance from another entity.  
+In classic ER notation, cardinalities are represented as follows : 1-M ----- 0-M.
+In Crows foot the min and max cardinalities are represented as follows:  
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3d225719-d702-4f83-af54-80b61e292c57)  
+## Normalization when working with transactional DB:
+Normalisation helps modeling (the logical level) data for relational databases. 3 main forms of normalization are the most used :
+- 1st Normal form : every ro (tuple in modling language) must be unique. No repeating groups, each table cell should contain only a single value, and each column should have a unique name. The first normal form helps to eliminate duplicate data and simplify queries.
+- 2nd Normal form : eliminates redundant data by requiring that **each non-key attribute be dependent on the primary key (as a whole and not partially)**. This means that each column should be directly related to the composite primary key as a combination and not to a part of it.
+  Example : if we have a composite primary key of 3 identifiers, all the non-key columns shoud not be dependent only on one identifier but on the combination the 3 identifiers.
+- 3rd Normal form : builds on 2NF by requiring that **all non-key attributes are independent of each other**. This means that each column should be directly related to the primary key, and not to any other columns in the same table.  
+ **NB: for performance reasons, in OLAP DB we denormalize (with an acceptable level in dimensions) to avoid multiple joins in queries**
+## Many to many relationship solution (mainly in transactional BD):
+To adress the issue of many to many relationships, we add a **bridge entity** as follows :  
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f7ae64bf-6ac4-4465-bc25-c0d49ad2df41)  
+**Moving from conceptual to logical model, we add some constraints, foreing keys ..** 
+**From Logical to Physical model**
+The physical model will contain technical names, all constraints (PK, FK, Admissible values, NULL or not, size ..), indexes and all elements that will be technicaly implemented depending on the tool chosen.  
+We also, depending on the objective of our data, denormalize, create agregates, create materialized views ...  
+
+## Some data modeling tools:
+- VISIO
+- DRAWIO
+- CA ERwin
+- ER/Studio Data Architect
+- Redshift (online)
+- ...
 
 
   
