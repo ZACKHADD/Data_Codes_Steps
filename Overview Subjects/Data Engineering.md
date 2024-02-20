@@ -14,4 +14,7 @@ a table is a collection of culumns describing a certain class or subject. For ex
 it is a set of data corresponding to one particular characteristic. For example : Age, Name etc. A column is always homogenous in terms of what it decribes and also the type of data.
 
 ## 4) Row:
-a row is a single object described using all the columns of a table.
+a row is a single object described using all the columns of a table.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/673e1d33-b4ba-4b74-9b88-25076d3ff6a1)
+
