@@ -15,6 +15,9 @@ it is a set of data corresponding to one particular characteristic. For example 
 
 ## 4) Row:
 a row is a single object described using all the columns of a table.  
+## Surrogate Key:
+Added in the datawarehousing design to reduce the amount of data in a fact table. the surrogate key is always integer (lighter) in oppotistion to primary key which can be VARCHAR or NVARCHAR (heavier).  
+## Slowly Changing dimensions:
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/673e1d33-b4ba-4b74-9b88-25076d3ff6a1)
 
