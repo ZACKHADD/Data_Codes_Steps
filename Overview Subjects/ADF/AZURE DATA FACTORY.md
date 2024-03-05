@@ -10,6 +10,9 @@ Some tasks are not executable in stand alone mode and need to be inside a pipeli
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/1a5b368d-5dc8-40cd-9115-b0b12f22d77d)
 
+Two main tools to use with ADF : 
+- Azure Storage Explorer : to visualize more easily all the storages we have on azure.
+- Azure Data Studio : like SSMS makes it possible to write and run queries on SQL databases, for example, in azure.  
 ##### 1. ADF Main Functionnalities :
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7aade850-1a54-4bf4-93e7-7cd294c6ada0) 
 ##### 2. ADF Key components :
@@ -51,3 +54,20 @@ Another scenario, being the change in the content of our source. if we expect th
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d8f7b1fc-0969-4e63-a3f3-3b565fe4e3b0)  
 We can for example verify if the file has the number of column expected by using **Get File Metadate** and the ouptput will be evaluated using **If Condition** activity. we specify the condition expression and under **True** case we put the **Copy activity** while under the **False** case we put **Fail Activity** that throws an error.  
 
+##### 4. Delete activity :
+In some scenarios we are required to delete for example the file in the source after that the copy activity is done.  
+**we should note that till now ADF has not the move activity that's why it is handy to use the delete activity after the copy one**  
+In our last scenario we simply drag the delete activity after the copy one inside the True clause in IF condition activity.  
+
+##### 5. Triggers :
+ADF gives the possibility to run pipelines when a trigger is activated.  
+3 main types of triggers are available :  
+- Schedule trigger : runs on calendar/clock and we can have many pipelines attached to the same trigger and vice versa.
+- Tumbling window trigger : gives an alternative of schedule trigger if we want to execute a pipeline that has failed earlier for the data created in that periode of time in the past. the relation with pipelines is one to one.
+- Event trigger : runs pipelines in response to an event (creation or deletion of a blob that contains a file). Many to many relation with pipelines.
+Envent triggers are created under the Managed section (same as linked services).  
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5f0e40c5-c3da-4391-8454-f13e0f769130)
+**Note that the ressource provider of triggers should be registered in the subscription so that the trigger can work**
+  Once done, we go to the pipeline we want to attach the trigger to, and under the trigger button we choose the trigger we created and we pulish all to save the ADF project.
+  Under the monitor section, we can see all the componnents on run including triggers.
+  
