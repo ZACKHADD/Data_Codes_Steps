@@ -62,12 +62,27 @@ In our last scenario we simply drag the delete activity after the copy one insid
 ##### 5. Triggers :
 ADF gives the possibility to run pipelines when a trigger is activated.  
 3 main types of triggers are available :  
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3ed3c182-2957-464e-b3d6-9a5b0a13b7ac)  
+
 - Schedule trigger : runs on calendar/clock and we can have many pipelines attached to the same trigger and vice versa.
 - Tumbling window trigger : gives an alternative of schedule trigger if we want to execute a pipeline that has failed earlier for the data created in that periode of time in the past. the relation with pipelines is one to one.
 - Event trigger : runs pipelines in response to an event (creation or deletion of a blob that contains a file). Many to many relation with pipelines.
-Envent triggers are created under the Managed section (same as linked services).  
-![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5f0e40c5-c3da-4391-8454-f13e0f769130)
+Envent triggers are created under the Managed section (same as linked services).
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5f0e40c5-c3da-4391-8454-f13e0f769130)  
+
 **Note that the ressource provider of triggers should be registered in the subscription so that the trigger can work**
   Once done, we go to the pipeline we want to attach the trigger to, and under the trigger button we choose the trigger we created and we pulish all to save the ADF project.
   Under the monitor section, we can see all the componnents on run including triggers.
-  
+
+##### 6. Parameters and Variables :
+
+Parameters are used, like in any coding exercice, to reuse the same code over different specified values. The same can be done in ADF to reuse the same pipeline with different components as parameter (datasets, linked services ...).  
+For example, imagine that we have a dozen of datasets that need to be copied following the same pipeline as below :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/94a81c68-29f4-40e6-8e0c-8446ca994d7c)  
+by dupplicating the same pipeline for each dataset we will have an exessive amount of components, while we can simply create parameters that one pipeline will use the run for all the datasets we specify in those parameters.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3465f4e2-e2aa-43c7-adcb-954f896ed648)
+
+
