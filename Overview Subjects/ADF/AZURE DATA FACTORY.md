@@ -72,7 +72,7 @@ Envent triggers are created under the Managed section (same as linked services).
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5f0e40c5-c3da-4391-8454-f13e0f769130)  
 
 **Note that the ressource provider of triggers should be registered in the subscription so that the trigger can work**
-  Once done, we go to the pipeline we want to attach the trigger to, and under the trigger button we choose the trigger we created and we pulish all to save the ADF project.
+  Once done, we go to the pipeline **we want to attach the trigger** to, and under the **add trigger** button we choose the trigger we created and we pulish all to save the ADF project.
   Under the monitor section, we can see all the componnents on run including triggers.
 
 ##### 6. Parameters and Variables :
@@ -83,6 +83,77 @@ For example, imagine that we have a dozen of datasets that need to be copied fol
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/94a81c68-29f4-40e6-8e0c-8446ca994d7c)  
 by dupplicating the same pipeline for each dataset we will have an exessive amount of components, while we can simply create parameters that one pipeline will use the run for all the datasets we specify in those parameters.  
 
-![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3465f4e2-e2aa-43c7-adcb-954f896ed648)
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3465f4e2-e2aa-43c7-adcb-954f896ed648)  
+Variables have a similar approach but inside the pipeline to set values to be reused between activities.  
+
+The following figure shows the section where we can parametrize a pipeline :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8a726320-1c32-471c-9378-0e16b510ef33)  
+Now the pipeline is generic and can be reused for several datasources (files), and the values of the parameters can be specified at run time either **manually** or when a **trigger is launched.**Now what if we want to reuse the same pipeline for several parameters without creating too much triggers? that is where Control Flow activities come to the rescue.  
+We can also parametrize the linked services by creating parameters inside them to be sat before starting the pipeline. this parameters will passe the values to the datasets source and sink parameters (should be created) which will passe these values to pipeline parameters also (should be created).  
+
+##### 7. Control Flow Activities :
+We can create a json file for example that has all the sources names we want the pipeline to iterate over and we can use the **Lookup** activity to read inside the file:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/38e5f8ac-158e-434f-a160-6b3fa9b0fa65)  
+
+and then use the **Foreach** activity to loop over these values and copy data for example **(the copy data should be inside the Foreach activity    )**:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/24ad86c6-f9b8-44f0-acdf-e8f2b116b1af)  
+the foreach activity can loop over the items sequentialy or in parallel. We can also add inside the foreach activity a **set variable** one so we can see the output being used inside the foreachactivity :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b9ed041b-0e92-4820-9fa4-26afc80124c8)  
+
+### Data Transformation:
+
+The data transformation can be done in ADF using several tools including DataFlows, HDinsights and Databricks.  
+
+##### 8. Data Flows :  
+
+Data flows are a type of activities we can use to transform data **(Not recomanded for very complexed transformation, for that we code transformations in spark notebook for example)**.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0652a860-b33e-4e92-8f2e-ffb322e3a5e6)  
+
+Two types of dataflows are available, one for the stable data with a schema and the other for data wrangling generaly for data science purposes.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9bd1625e-00d4-44d8-b57d-e3f4e01e3754)  
+
+Data transformation debug in data flow requiers an integration runtime which is a spark one by default runs with 4 cores. We can however create an integration runtime that is suitable to our case.**Note that the spark engine for debugging is a paied service depending on the runinng duration**. It can be activated under data flow debug toggle button.  
+
+###### Source Transformation :  
+First thing needed to be created is source transformation. **we can either use the datasets already created at datafactory level as sources or create them inside the data flow transformation (what is called an INLINE) but they will not be reusable elsewhere**.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/07b9f136-03c0-4ebf-a9b8-417746e83ce1)  
+
+Under source settings we can specify the data source and what to respect as schema for the transformation to succeed (is schema isn't the same we accepte or reject transformation). For debugging purpose we can enable sa;pling to preview the result or we can specify a sample file under debug settings.  
+Under source options we can decide what to do with the file source once the transformation is done or which file to process depending on the last modified date.  
+Under projection we specify the type of columns or detect data type automatically, or import a projection.  
+Optimize makes it possible to modify the spark cluster configuration to execute the transformations (partitionning).  
+Data preview will give us a preview of data based on the default sample or the sample file.  
+###### Filter Transformation : 
+This is basically a filter task that makes it possible to filter data using expressions.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fdd4a69c-3116-4eea-8df0-0f8175e99f1c)  
+
+when we clic on Filter on we get a window (visual expression builder) where we can write our expression (based on scala) that uses intellesense to makes it easy to autocomplete the code,it's a little similar to power query.also we can preview the result of the filter.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/534cc7bc-6dde-4db7-bc94-a68269223131)
+
+###### Select Transformation : 
+This is a transformation where we can choose the columns to keep and if we would like to change names of the columns. we can either use fixed mapping or rule based mapping.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/168791a5-b906-4d44-ad0e-299fa6eb89f3)
+
+###### Pivot Transformation : 
+A little bit similar to power query, we create a pivot transformation by specifying the coloums to group data by and the remaining one will be pivoted.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/efc3a748-f815-4e67-827a-74034bc0ef8d)  
+
+Then we specify the values based on which the new columns will be added (if we don't specify anything ADF will do that automatically using distinct values).   
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6963182b-4327-4089-9b94-fbe35103c5e8)  
+
+Finally under Pivoted colums we must specify an expression that uses an agregation to be calculated inside the new pivoted columns.  
+
 
 
