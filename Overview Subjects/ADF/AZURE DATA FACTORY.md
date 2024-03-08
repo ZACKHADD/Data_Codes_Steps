@@ -144,6 +144,12 @@ This is a transformation where we can choose the columns to keep and if we would
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/168791a5-b906-4d44-ad0e-299fa6eb89f3)
 
+###### Derived column Transformation : 
+This transformation makes it possible to update or modify existing columns or create new ones.
+
+###### Aggregate Transformation : 
+Performs an aggregation on data using a group by clause and it is also possible to do in it the same as we can do in derived column transformation.
+
 ###### Pivot Transformation : 
 A little bit similar to power query, we create a pivot transformation by specifying the coloums to group data by and the remaining one will be pivoted.  
 
@@ -155,5 +161,40 @@ Then we specify the values based on which the new columns will be added (if we d
 
 Finally under Pivoted colums we must specify an expression that uses an agregation to be calculated inside the new pivoted columns.  
 
+###### Lookup Transformation : 
+This is a trnasformation that makes it possible to performe a lookup value (left outer join) between two datasets.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/1b7396cf-3763-4962-a3d1-55696508f818)  
+
+The lookup transformation retrieve all the column from the second dataset so to leave only the column wanted we should add another select transformation to remove the columns dupplicated or that we don't want keep. There is an option in Optimize that makes it possible to **broadcast** (save data in memory) data in the spark clusters so that the lookup (or joins) can be faster. We can either put it to auto and ADF decides what to broadcast or we can specify the fixed mode and choose what to broadcast.
+
+###### Join Transformation :
+Classic joins that we can perform on two datasources. Same possibility as lookup transformationif we want to broadcast.   
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/aa9d9bb8-a2db-4e95-a933-542077fba5dc)
+
+###### Sort Transformation :
+This transformation is suitable for sorting data.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/078d1db1-0c1c-41c5-9c0e-e234272711d6)  
+
+###### Split Transformation : 
+We can also split our streams if from the same file or source we want to create two files or sinks.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/762d5b04-0768-4a5c-ab03-2663e2f9ca30)
+
+
+###### Sink Transformation : 
+This is the last step of transformation that makes it possible to write into a source destination the result of all the transformations done. Only folders are specified as for the destination where to write the file for example.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d8a976c3-a8c7-4255-97b5-37782f02e633)  
+
+Since the transformation run on spark cluster (distributed) generally the file created at the sink level is processed in several parts but we can specify under settings to create only one single file **(slow performance however)**. we can also set a mapping to choose what columns to keep for the writing part and wether to respect a schema (if wew set one at the sink level) or accept drifts if there are any.  
+
+Once the data flow is done, it can't run in stand alone mode, it should be done inside a pipeline.  
+Once the pipeline is created and debuged, we should put off the Debug flow debug to save money, and create a trigger for the pipeline. ADF then create the spark cluster behind 9depending on what we specified in the DF settings) and destroy it once it's done so we won't be charged when the DF is not used.  
+
+##### 8. HDInsight :
+
+HDinsight is a tool that performs transformations (more complexed ones) just like data flows and gives access to several big data services such as Spark, Kafka, HDbase, Hadoop etc. One thing to bare in mind is that HDinsign datasources (datasets) requiers to write/read data into folders (not directly a specific file). in terms of read a hive engine builds the schema on folder to cover all the partitions of a file.
 
