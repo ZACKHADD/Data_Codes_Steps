@@ -194,7 +194,34 @@ Since the transformation run on spark cluster (distributed) generally the file c
 Once the data flow is done, it can't run in stand alone mode, it should be done inside a pipeline.  
 Once the pipeline is created and debuged, we should put off the Debug flow debug to save money, and create a trigger for the pipeline. ADF then create the spark cluster behind 9depending on what we specified in the DF settings) and destroy it once it's done so we won't be charged when the DF is not used.  
 
-##### 8. HDInsight :
+##### 8. HDInsight Activity:
 
-HDinsight is a tool that performs transformations (more complexed ones) just like data flows and gives access to several big data services such as Spark, Kafka, HDbase, Hadoop etc. One thing to bare in mind is that HDinsign datasources (datasets) requiers to write/read data into folders (not directly a specific file). in terms of read a hive engine builds the schema on folder to cover all the partitions of a file.
+HDinsight is a tool that performs transformations (more complexed ones) just like data flows and gives access to several big data services such as Spark, Kafka, HDbase, Hadoop etc. One thing to bare in mind is that HDinsign datasources (datasets) requiers to write/read data into folders (not directly a specific file). in terms of read a hive engine builds the schema on folder to cover all the partitions of a file.  
+
+First of all, in data factory, a HDinsight activity should be added but before that it requiers creating an HDinsight cluster. **Bare in mind that AZURE charges the HDinsight cluster ever when it is not used, so we should delete it once done.**  
+
+**HDinsignt does not have a direct access to AZURE ressources (like ADLS gen2), so we need to create a managed identity (it is a ressource, like a key)** that will access the AZURE ressource under the IAM section of that ressource (with a specific role : data owner for example) and then assign that managed identity to HDinsight. **The AZURE ressource and the HDinsight must be in the same region to attach them together**   
+
+While creating the HDinsight ressource we are asked to choose whitch cluster to create depending on what we need to performe :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9abe7383-828f-41bc-9a66-5fda18bd4109)  
+
+To interact with HDinsignt cluster, we use AMBARI which is a tool to orchestrate the cluser:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6ebe1d45-c55c-40c3-89b5-c1b9b33ba7d6)  
+
+If we want to query data with schema we can use HIVE.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/730cb829-3789-46fd-afbe-3948276ad688)  
+
+However the interface is not that user friendly. so we can use other tools (that use GDBC connector) such as : **Squirrel or dbvisualizer**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/54d7eeed-f937-4ccc-86da-7015dff2c092)  
+
+all the transformations in HDinsight are done using scripts. Like in this case we use a HIVE script to read data, transform it and then store it. The HDinsight activity then is executed inside ADF pipeline.  
+
+
+
+
+
 
