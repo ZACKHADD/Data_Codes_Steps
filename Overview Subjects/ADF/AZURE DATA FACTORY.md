@@ -220,6 +220,35 @@ However the interface is not that user friendly. so we can use other tools (that
 
 all the transformations in HDinsight are done using scripts. Like in this case we use a HIVE script to read data, transform it and then store it. The HDinsight activity then is executed inside ADF pipeline.  
 
+To do so, we create a pipeline and we drag the HDinsight activity we want, in this example HIVE:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e0a72c24-2f02-4f5b-a02f-4a20ae0a2672)  
+
+under HDI Cluster window we create or choose an already created HDI linked service. When creating HDI linked service we can either ask it to bring our HDI we created already (that we manage and we should delete once the transformations are done to not get charged) or to create an on-demand HDI cluster that get destroyed once the transformations are done which is the cost efficient way.  
+
+Under the Script tab, we need to specify where the script is so that the activity can read transformation from it.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a4a65781-32f4-4dad-b81f-525bd4503f4f)  
+
+**Remember to delete the HDI cluster after the end of transformations if we have our own HDI cluster because AZURE charges that even when it's not on run.**  
+
+##### 9. Databricks Activity:
+
+Just like in HDI, we can transform data using Databricks. we need to create an AZURE DATABRICKS ressource which is a Databricks Workspace (every thing is contained in Databricks and linked to AZURE).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9d282e9f-a468-4818-8adf-b3788b08c0ba)  
+
+When we click on our new databricks ressource, it brings us to the Databricks home page : 
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7e01abc3-6f33-497e-a875-55af88bf9e9c)  
+
+
+
+
+
+
+
+
 
 
 
