@@ -266,9 +266,47 @@ We can also specify time of inactivity after which we terminate the cluster so w
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/069314a3-caab-44a5-84b9-b65ed9d2b24f)  
 
-###### Attach Azure Data Lake Storage to Databricks : 
+###### Mount Azure Data Lake Storage containers in databricks : 
 
-![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ea064521-9858-4927-9d63-5545346bdbe7)
+Since Databricks is another provider and it's not a purely AZURE ressource, we will need to create a service principal that will have access to the ADLS and then we attach this service to Databricks workspace.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ea064521-9858-4927-9d63-5545346bdbe7)  
+
+This gives Application ID, tenant ID and the secret.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e9897964-4000-412c-b75f-ecddff5a1859)  
+
+Once this is done, we go to the ADLS and we create a new access role that (Contributor) that we grant to the service principal.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/77ceee33-9b77-402e-8146-193eeaf30118)  
+
+Now, from Databricks we can use a script (Python) that is going to do  access (**mount**) the ADLS using the configs (Application ID, tenant ID and the secret).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e30e92c1-ec40-4d88-95d2-124a2187661c)  
+
+**Note that the best secured way is to put the secret in key vault and use the key vault secret instead.**  
+
+Once all the containers are mounted, we can access their contents :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d6ac1b09-c013-43be-a658-52348b265d50)  
+
+After this we can delete the cluster we used for the mounting since we are going to use the trigger in Azure to run databricks that will create a job cluster to be deleted once the transformations are done.  
+All the transformations to do will be in python script (notebook) that will be stored in databricks workspace.  After that we can create at Azure level a Databricks activity that will run the transformations notebook in Databricks.  
+
+###### Create the pipeline for Databricks activity : 
+
+First of all and as always we create a linked service for our databricks workspace. for this we will need an access token that we can generate from our Databricks workspace under user settings.  
+Under cluster type, we choose new job cluster to optimize the cost since it is destroyed once transformations finished. **All the details regarding the cluster to be created are specified at the linked service creation level**.  
+
+Inside the pipeline, we create the Databricks activity we want, in our case a Notebook.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9ee5123e-516d-4598-b106-31f8d7a7af3e)  
+
+We specify the path to the notebook to run (our linked service gives us the possibility to connect to the workspace Databricks folders). After the tranformation is done we can access the job cluster to how it was doing the running, but we won't be ableto restart it.  
+
+##### 10. Copy Data To SQL Activity:
+
+After transforming all the data, we can copy it from ADLS to a SQL database. Dataflows allows to do that directly while creating the files in ADLS but HDI not.  
 
 
 
