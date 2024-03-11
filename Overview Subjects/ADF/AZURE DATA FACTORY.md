@@ -242,6 +242,32 @@ When we click on our new databricks ressource, it brings us to the Databricks ho
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7e01abc3-6f33-497e-a875-55af88bf9e9c)  
 
+We start by creating the cluster we need to do computations :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e0851284-42bb-4b7e-a29c-5870ab335e56)  
+
+Thre are two types of clusters :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/02da0607-5e08-4165-b492-61476d82dd8b)  
+
+###### All purpose / interactive Cluster :  
+Used to analyse data and interact with it using notebooks and gives the possibility to collaborate with other team members on the same notebooks. These clusters are manually created, terminated and restart.  
+
+###### Job Cluster :  
+Automatically created by Databricks job schedular when we run a job and they are automatically destroyed when the job is done.
+
+###### Create Interactive Cluster:  
+
+in the Databricks envirement, we can go to clusters and create an interactive cluster with all the characteristics we want. Note that it is suitable to select the runtime (scala and spark) that has long term support (LTS).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/49726cf0-f02b-4483-a04e-e65cee806928)  
+
+We can also specify time of inactivity after which we terminate the cluster so we can optimize in terms of expenses. We can also after the creation, clic on the cluster and modify, restart or terminate it.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/069314a3-caab-44a5-84b9-b65ed9d2b24f)  
+
+
+
 
 
 
