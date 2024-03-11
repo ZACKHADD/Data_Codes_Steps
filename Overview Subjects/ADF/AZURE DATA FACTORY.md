@@ -266,7 +266,9 @@ We can also specify time of inactivity after which we terminate the cluster so w
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/069314a3-caab-44a5-84b9-b65ed9d2b24f)  
 
+###### Attach Azure Data Lake Storage to Databricks : 
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ea064521-9858-4927-9d63-5545346bdbe7)
 
 
 
