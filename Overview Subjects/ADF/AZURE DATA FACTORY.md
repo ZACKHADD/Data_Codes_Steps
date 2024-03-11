@@ -306,7 +306,18 @@ We specify the path to the notebook to run (our linked service gives us the poss
 
 ##### 10. Copy Data To SQL Activity:
 
-After transforming all the data, we can copy it from ADLS to a SQL database. Dataflows allows to do that directly while creating the files in ADLS but HDI not.  
+After transforming all the data, we can copy it from ADLS to a SQL database. Dataflows allows to do that directly while creating the files in ADLS (byadding copy activity to SQL) but HDI not.  
+One thing to bare in mind when we copy data from ADLS to SQL db, if the data are in several files inside the same folder (folder written data) we should wildcard file path and specify * so it can load all the files in that folder.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/65bd7c3b-00a4-4756-b361-9be1145c5ef9)  
+
+In the sink settings we can specify a stored procedure if we have one or we can use a pre-copy script to execute before starting the copy activity. There is also the possibility to let the activity auto create the table if we don't already have it but the risk is that most of the time the columns are **strings and varchar types.** And we can also do a mapping in case the source columns are different (or with no headers) from the sink one.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f9875d19-0153-472c-b645-ae76a2681e47)  
+
+
+
+
 
 
 
