@@ -401,6 +401,26 @@ In the logs analytics workspace, we cam query the logs using **KUSTO query langu
 
 
 ##### 13. CI/CD :
+In this section, we get to dive in the process of CI/CD (one of the Devops practices) in ADF. The overall process is as follows:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/872c017b-d679-4e98-ba83-4ec33e2df35c)  
+
+Traditionally, companies seperated the Development and Operations teams. The dev team completed the development **(writing code and testing it)** first then the Operations (Deployment and code maintenance at run) team makes the release to production ==> this generated a lot of problems : Lack of coordination, delay in reaching the market, toomuch bugs etc.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e3aad20d-ef36-40b6-9f09-b45efd39b76d)  
+
+To solve these issues, companies started bringing the two teams together and the intersection between the two is called Devops. This needs :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b965faaf-d48d-4ee8-9b88-edf64c441564)
+
+Generally in an IT project we have several steps where we clearly can see the role of CI and CD. In an ADF project we have the same logic.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/38e44885-1950-42d4-a953-a52236512c22)  
+
+The coding files are json files (maintained using GIT) and the build files in ADF are called ARM files (Azure Ressource Management).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/effb47c9-f801-4260-8567-ee21a2859146)
+
 
 
 
