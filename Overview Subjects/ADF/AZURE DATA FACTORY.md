@@ -332,7 +332,85 @@ We can group pipelines (Datasets and Data flows also) by subject :
 
 ###### Pipelines dependency : 
 
-in order to execute pipelines in a precise order we can create a **Parent pipeline** and create inside it an Execute pipeline activity
+in order to execute pipelines in a precise order we can create a **Parent pipeline** and create inside it an Execute pipeline activity :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/40ee6741-192c-4124-9d7b-f142e1efabb2)  
+
+After that we create a trigger for the parent pipeline that will invoke the first execute pipeline activity in the pipeline. Note that if we had already a trigger for the first pipeline we should delete it. Unfortunatly ADF does not allow renaming triggers so we should delete the first and create another one.  
+
+###### Triggers dependency : 
+
+The dependency between triggers makes it possible to invoke a trigger after that another one was invoked. **Note that this is possible only with Thumbling Window Triggers.**  
+
+##### 12. Monitoring :
+
+The monitoring capability of ADF gives the possibility to follow up all the components in our Data Factory and we create and that they are running as required.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/51f7834f-4a98-40c6-9f70-988d3a165c5c)  
+
+**The monitoring can be done using ADF Monitoring section or also AZURE Monitoring**.  
+
+- ADF Monitor :
+
+  ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d7b9d35d-25a7-430b-8582-cfb232e0232b)
+
+- AZURE Monitor :
+
+  ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4f1999e4-ed93-4c26-b563-c057a14c3ceb)
+
+###### ADF Monitor : 
+At the ADF Monitor, we have a dashboard so we can see the components executed, the one scceeded and those who failed so we can rerun them. We can also see the history of triggers, pipelines, integration runtimes and data flows up to 45 days.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5edf4d9a-1f7f-4d12-a363-14fda4e780ec)  
+
+We can also create Alerts so in case of a fail we get notified.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/20d286d6-5615-46cc-9699-59bc581dd0d1)  
+
+We can specify for example to get alerted when a failure accurs, and set up the criteria that condition the alert (check for failure every 1 hour and give failures of the last houre ...)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/45a0a818-7db5-4039-9ce5-e2125a4c4a93)  
+
+We can then set up the notification type : SMS, email ... Once created, we can enable and disable the alert as we wish.  
+**In case of a failure in a pipeline, we can either rerun the whole pipeline or only the failed activities. Note however that reruning the activity is concidered as manual so the trigger will still show failure (this is a quite a bug in ADF),we should rerun the trigger again. This causes a problem when we have triggers dependencies because the next one won't get invoked unless the previous has suceeded**  
+
+If we need more metrics to follow, we can use AZURE monitor and specify that we want to see the ADF we created.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/589eba36-53a2-4b70-bbcc-5053771bfa2d)  
+
+We can then create charts and pin them to the dashboard.
+
+###### AZURE Monitor : 
+We can monitor our ADF using AZURE monitor.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/70f57ac9-d635-4a1f-a190-6ddc00366352)  
+
+Once we choose the ADF we can add some diagnostic settings:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e8b60c40-724d-4def-8dea-72d5a71acb3b)  
+
+This gets the logs we specify and the metrics we choose. We can send these logs and metrics to Logs analytics, storage account or event hub, and also specify the retantion policy (how many days to keep these logs, 0 means forever)  
+
+We can also use **Log Analytics** to store the logs and metrics and query the database. We can specify that all the logs and metrics get stored in a single table **azure diagnostics** or inseperate tables **resource specific**.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e2adaed0-ab39-43e4-b2cf-5fc4bb465bb2)  
+
+In the logs analytics workspace, we cam query the logs using **KUSTO query language.** We can also create visuals and pin them to the azure project dashboard.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/289d1ba6-baca-45c8-b908-a9a222bdf2cd)  
+
+
+##### 13. CI/CD :
+
+
+
+
+
+
+
+
+
+
 
 
 
