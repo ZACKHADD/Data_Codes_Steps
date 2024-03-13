@@ -421,6 +421,29 @@ The coding files are json files (maintained using GIT) and the build files in AD
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/effb47c9-f801-4260-8567-ee21a2859146)
 
+Test automation in ADF is difficult so most of the tests are manual.  
+
+The build can be done following 3 ways :  
+
+- ADF Publish (still used) : Using the ADF Publish button to deploy.
+- Automated deployment (the most used in large projects) : Using GIT and builf files.
+- ADF third party tools.
+
+###### ADF Publish Button : 
+
+Developing in ADF directly (live mode connection to ADF production repository) is suitable for small projects and when we don't have more than one developer.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/1448ab2e-8009-4d4b-a88d-20a5088c0f60)  
+
+For large projects with more than one developer we need to have code version control suchas GIT.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d33ea030-8552-4eb0-9c3e-973125070bc6)  
+
+The publish here is still a manual process but the CD one is automated.  
+
+
+
+
 
 
 
