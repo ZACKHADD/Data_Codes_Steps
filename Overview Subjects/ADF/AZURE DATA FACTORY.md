@@ -316,7 +316,23 @@ In the sink settings we can specify a stored procedure if we have one or we can 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f9875d19-0153-472c-b645-ae76a2681e47)  
 
 
+##### 11. Data Orchestration:
 
+Data Orchestration is needed to set the order of execution of the activities inside a pipeline but also between pipelines. Some of the orchestration requirements can be:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fde28241-144b-441f-9579-df43c8398eed)  
+
+On the other hand, the capabilities of ADF to achieve this are :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/56f724c7-4cb0-44ce-a6a7-bf994d466929)  
+
+We can group pipelines (Datasets and Data flows also) by subject :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/185aab65-3120-48fc-8b64-ceda1a1b6a80)  
+
+###### Pipelines dependency : 
+
+in order to execute pipelines in a precise order we can create a **Parent pipeline** and create inside it an Execute pipeline activity
 
 
 
