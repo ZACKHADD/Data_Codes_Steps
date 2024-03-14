@@ -479,6 +479,8 @@ One we create all the ADF ressources of the envirements we need, we can create a
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/cce50ab3-6444-47f7-a972-b90600e25586)  
 
+###### CI :
+
 The default bransh is **main** (master if we create the git from ADF) and since this bransh is the one that get published to the build and release it should not accept any direct coding and we should set a bransh policy that will prevent direct coding and accept only merges after a pull request.  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d02a7468-8f3a-4332-a1af-5e4ddab244de)
@@ -527,7 +529,52 @@ One it is ok for us we can publish the changes to the live Mode, and this will c
   
 We can see that the ARM files are in a folder and we have two files inside one for the template factory and the other for parameters. The role of parameter is simply to change the name of the ADF ressource we want to deploy the files to. for example change the [factoryName] of the ressource from dev to test and we can build the project in it.  
 
-![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/411e4868-e678-4d49-9e12-e72e151336cb)
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/411e4868-e678-4d49-9e12-e72e151336cb)  
+
+###### CD :
+
+After generating the build files (ARM in our case), we can start the release phase. The general process of release can be automated (Netflix does that) but most of the companies use a manual one by adding an Approve step before releasing to production.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/78f0da5d-afdf-402e-8152-8d9b9ab400c0)  
+
+For ADF, the deployment to the test and prod envirements is done via **ARM deployment**. Unfortunatly, this tool has many limitations such not being able to delete an artifact (pipeline for example) and it doesn't allow the update of triggers in run. So microsoft team provided two powershell scripts to handl these limitations : Pre Deployment and Post Deployment Scripts (for the triggers, it simply stops thems and rerun them once the update is done).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/760d6a5a-311d-444f-800a-851df9db72a2)  
+
+These deployment steps are grouped in a stage and can be reused to deploy in the production envirement. The only difference is that the production deployment needs an approval from the user and waits for the test to complete.  
+
+To build the release pipeline we do that in Azure Devops:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/726ff27f-bf71-4afb-ad5f-091f796ceb82)  
+
+This gives the possibility to create a release pipeline either from scratch (empty pipeline) or using a template.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b4dc42f0-234b-480b-a0fc-47790af6b12b)  
+
+In the empty job, we have to specify two components, the artifacts and the stages (test and prod). Artifacts are simply the build files of the project we created (in this case ARM files). In the artifacts we select the git repo option since the build we have is manual,and we select the git repo and the publish bransh containing the ARM files.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7c02d42e-3ac9-42ef-825b-d23f285a8f43)  
+
+Inside the stages we can create tasks. In our case the ARM template deployment and the pre and post deployment scripts.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/1872d085-2447-4f91-a4f1-9675ccfd5316)  
+
+
+Once created, we can set the ARM to connect to our ressource, since it will acces it. we don't want to authorize the ARM to access all the subscription so we click on advance to choose the specific ressource to deploy to (In our case it's the test ADF ressource). This will simply create a service principle for ARM with a contributor role.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b643caed-b1fd-4226-b00b-7520d661b623)  
+
+At the Azure IAM ressource level this role looks as follows :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b38dc501-bdb2-45c6-858a-266aa6d32e98)  
+
+After that we specify several information such as the action to perform (create and update or delete), the template and the template parameters which are the ARM files. 
+
+
+
+
+
+
 
 
 
