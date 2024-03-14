@@ -441,6 +441,120 @@ For large projects with more than one developer we need to have code version con
 
 The publish here is still a manual process but the CD one is automated.  
 
+###### AZURE DEVOPS :
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/74a95396-021f-4bf5-be82-bda4df267b66)  
+
+Five main services are provided by Azure Devops :  
+- Boards: supports all the tools of project management and agile methodology to follow the project.
+- Repos: versioning tools such as GIT.
+- Pipelines: which handel the build and release phases for automated CI/CD.
+- Test plans: Browse based test management testing to set up tests and so on.
+- Artifact: a library to store packages and developed artifacts that can be shared or used inside a CI/CD pipeline for example.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/786d5eb7-b485-44d0-b795-02d2a4de1518)  
+
+The structure of Azure Devops, figure bellow, has two levels : the organization (container of several projects) and the project.  
+An organization is simply a department, the whole company or a business unit etc. This means we can have several organizations. Inside of the organization we can create multiple projects. We can also create teams that can work on several projects.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fd7fb4c3-693c-40dc-affd-2d3b4d7f0ee6)  
+
+To use azure devops we should sign in to dev.azure.com with the same account we have under AZURE. Then we should **specify the Azure active directory** (we can find it bellow the profile picture in azure portal) we are working on (that will contain the organization) which needs to be the same as the directory holding our azure ressources.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/67b1208c-f16b-4c39-b56a-ccc88f5e2087)  
+
+This step creates the organization inside which we are going to create our projects. Under the organization settings we can set all the options and billings strategy we want.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7d34bbe5-a452-4c6d-90f5-50fc300cd596)  
+
+We can specify also which version control to use GIT or Team version control and also which Project management process to use Agile, Basic, Scrum etc. this will condition the boards part of the project. Once created we can start working on our project.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5f49d92a-c330-42f5-9053-1e5ee06a469f)  
+
+If we take ADF as an example, generaly we set 3 envirements (meaning 3 ADF ressources) for Dev, test and production. The test part can have two or more ressources like for integration tests and user acceptance tests. **GIT is enabled only for Dev envirement.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/91b8a05e-a344-454e-a153-e19c5847129b)  
+
+One we create all the ADF ressources of the envirements we need, we can create a GIT repository in AZURE Devops (It can also be done from ADF Dev ressource directly) that we will link to the Dev envirement. This can be done under the Repos rubric.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/cce50ab3-6444-47f7-a972-b90600e25586)  
+
+The default bransh is **main** (master if we create the git from ADF) and since this bransh is the one that get published to the build and release it should not accept any direct coding and we should set a bransh policy that will prevent direct coding and accept only merges after a pull request.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d02a7468-8f3a-4332-a1af-5e4ddab244de)
+
+A lot of choices are available, but the main thing is to require a minimum number of reviewers before the code changes can be accepted.  
+
+We can then in ADF dev ressource, configure the GIT repository (**here we use Azure Devops GIT but we can use Github also**): 
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5e14f14a-2e8a-4e74-b562-6dc715ec29ae)  
+
+**Note that the Publish bransh is the one that will contain the ARM files for the build and release, while the collaborative bransh is the one holding the code that we collaborate on using pull requests**.  
+ Now our ADF project is connected to our Azure Devops and we can see on the top of the ADF screen the Bransh (we click on it to create a new bransh or a pull request) of GIT we are working on. If we still don't have any feature branshs by default we will have the main one, but we can't develop directly in this bransh since we set a policy on it. We should create feature branshs to make our developments and then merge to the main one via a pull request.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d6930af1-95d9-40e8-9346-1480f14a9770)  
+
+**Note that we can organise the branshs using folders by simply adding /.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8b0339a2-df5c-4260-b784-0a844112f7da)  
+
+**Note that beafore linking ADF to GIT we were saving changes directly by using the Publish button, while nowwe can use Save or Save All since the publish button is only available in the main bransh which will create the ARM files for the build and release.**  
+
+Once we save the pipeline for example in ADF dev, a json file is generated (or updated if already exist) containing all the details of the objects in Azure Devops. It is basicaly a commit command behind the scene.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2cbd49c4-79cb-4a3f-b573-c544e9d240ce)  
+
+We can create a pull request from the azure devops or directly from the ADF studio. Both options give a form to validate the creation of the pull request in Azure Devops. The form specify the name and description of the pull request and the reviewers that must validate the code.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fe586204-cbbe-468a-9e9a-e2daffaf58b4)  
+
+If we were assigned to be reviewers we can see the code changes under Files(Old Code and New Code) tab as follows :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b87b6002-d90b-4eb4-b260-67e52f8702fb)  
+
+
+Once the changes are validated we can merge the feature bransh with the main one by clicking on Complete pull request.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5cd1028a-4d4e-4ba6-82e7-56a50f9e6ba6)  
+
+We have several options such as the type of merge, complete the associated work (if we assigned a task in the board pane) and also if we want to delete the feature bransh once the merge is done. Now we can see the pipeline in the main bransh.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/cb1a725a-6a08-4a8a-86e3-380d6cee22ad)  
+
+One it is ok for us we can publish the changes to the live Mode, and this will create a new Bransh called **Publish_Bransh** that will contain the ARM files for Build.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7186857c-3941-48d9-b29c-ade8a519ab92)
+  
+We can see that the ARM files are in a folder and we have two files inside one for the template factory and the other for parameters. The role of parameter is simply to change the name of the ADF ressource we want to deploy the files to. for example change the [factoryName] of the ressource from dev to test and we can build the project in it.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/411e4868-e678-4d49-9e12-e72e151336cb)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
