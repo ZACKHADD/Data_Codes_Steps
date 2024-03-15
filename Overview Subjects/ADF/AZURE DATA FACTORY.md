@@ -598,6 +598,74 @@ Now we need to rectify our pipeline since as we said before the ARM deployment d
 
 **Link to the scripts : https://github.com/Azure/Azure-DataFactory/tree/main/SamplesV2/ContinuousIntegrationAndDelivery**  
 
+There are two versions, 1 and 2. the second is more efficient since it only deactivate the triggers to be updated and not all the triggers.  
+We should download the file and upload it to the Devops GIT repository so we can use it in the release pipeline. For that we create a feature bransh (since we can't modify directlyin the main bransh only after a pull request) in devops and we upload the file and make a pull request.  
+
+Now we add the scripts to the release pipeline artifacts by clicking on edit.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/053164a8-3bc1-4537-87d6-7dd59bd3a4c3)  
+
+Note that the two artifacts we have are from different sources, the first is Publish bransh since it's ARM files getting updated each time, but the scripts are in the main bransh since it does not change and it's not part of the publish process in ADF. No trigger to set the second artifact since we don't have the release to be triggered when w change occurs in the main bransh but only in the publish bransh.  
+To use the scripts we need to add an **Azure Powershell Task** in the stage area.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b40bdf51-e683-4d92-8322-770907d5f4bf)  
+
+Some settings need to be done such as using inline script of a file path (which the case here).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/97c48eee-a443-4517-9a81-0718f1037b0b)  
+
+**We need also to specify the Script arguments that we can copy from : https://learn.microsoft.com/en-us/azure/data-factory/continuous-integration-delivery-sample-script**,and we need to replace the values with the parameters we have in our pipeline (we can also use variables).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/993d1664-ab10-4ef8-b2b9-0a9322876956)  
+
+Now that the Pre deployment is ready, we need to drag it up before the ARM deployment.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4998fede-6d3a-4ba1-bded-27665e3c7447)  
+
+To create the Post deployment task we can right click on the pre depolyment task and clone it, place it after the ARM deployment and make the changes in the settings including the Script Arguments. Then we go back to the release pipeline view and save the work.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4988dd05-4fea-4847-a5af-ca410fb5f48a)  
+
+
+Now if we change the ADF project, commit (via a pull request) the changes to the main bransh, publish the changes to the build phase we are going to see the release triggered as it should with no errors if am active trigger was modified and if an object was deleted, we can see it in the test envirement.  
+
+###### Variables :
+
+To extend the pipeline we created to the production stage without creating a new one just by reusing the test one, we need to create variables to replace the hard coded parameters such as the data factory name and so on. To do so, under the variables tab in the release pipeline section in Azure Devops we add variables:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2a07f671-c70d-4482-82e3-500da014e5d1)  
+
+Note that we need to specify the scopes of the variables to the right stage, since the values are only applicable to the Test scope (the two stages prod and test can have different locations for example). After that we change the Pre and Post scripts and the ARM to replace the hard coded values with the variables using the syntax : **$(variablename)**
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/aefd7058-90e3-4404-9fc8-1217f824ec48)  
+
+Now we can create a production stage, by cloning the test one and changing the variables. The only difference between the two stages is that the production will need to wait for an approval before being triggered.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/466b7605-d5cb-41c1-bc9b-73144a42b801)  
+
+The clone creates a new stage with the same tasks.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7c5c0619-5d07-452e-ac43-cd6498e789e2)  
+
+Then we can changes the variables inside the tasks to the production ones (The variables are created automaticaly when cloning the stage).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9ae7fdbe-86c4-420b-8289-8d869c2234da)  
+
+We should just change the values of the variables newly created after the cloning.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/df116489-af15-4e5b-85ba-af405e647457)  
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
