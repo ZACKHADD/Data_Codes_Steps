@@ -841,12 +841,30 @@ We select then the managed identity of our ADF:
 
 **the same should be done for all the other envirements (test and production).** Now each ADF envirement has access using managed identity to the corresponding data lake.  
 
-Now in the the dev ADF, when we create the linked service to access data (read and write) we use authentication type as **systeme assigned managed identity**. so no credential will be needed.  
+Now in the the dev ADF **(the same one linked in our CI/CD process)**, **using a feature bransh** when we create the linked service to access data (read and write) we use authentication type as **systeme assigned managed identity**. so no credential will be needed.  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/810d3721-6c30-4fbf-867c-b7f65dc03f84)  
 
 One thing to notice is that the creation of objects in ADF now is saved to GIT repository since it's linked to our Azure Devops GIT.  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a427b3af-777a-4a3c-9107-7e62b4da81fe)  
+
+We can now create a pipeline to copy data from a source dataset to a sink detaset. Once saved and the pull request is created to merge with the main bransh, this is what we see in the repository in Azure Devops:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ed9b7b9c-068a-4e17-ac00-c31f4519d43f)  
+
+We can see all the objects json files : datasets, linkedservice and the pipline. This of course is going to trigger the build pipeline and then the release pipeline to deploy in test and prod ressource groups.  
+
+**Every thing will go as it should but if we run the pipeline inside the two envirements test and prod it will fail, since their linked sevices (URLs) are pointing to dev ressource group for which they don't have access.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/015137a1-4ff6-4999-9299-b714a4eee692)  
+
+The solution is to override the URL of linked services parameters. How do we know that? is by checking the ARM files in the build pipeline (we can download them if can't browse them in devops):  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/42dffd2d-4c94-4de4-ac41-d219e58d86d0)  
+
+we have already overrided the first one which is the factoryName, now we should override the managed identity url value.  
+
+
 
 
