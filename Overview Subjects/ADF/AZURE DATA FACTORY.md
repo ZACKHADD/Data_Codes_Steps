@@ -824,7 +824,7 @@ The access to the ressources can be done using :
 
 It is recomanded to use the managed identities whenever possible since they are more secured.  
 
-###### Managed identity : 
+###### Managed identity (to authenticate to Azure ressources): 
 
 By default for each ressource, such as ADF, azure creates a system managed identity (we can create our own if we want using user managed identity)
 We can grant access to the data lakes of each ressource group using these managed indentities :  
@@ -870,7 +870,62 @@ to do so, we simply go to the release pipeline and we add the variables of manag
 
 **Now under ARM deployment task of each stage, we will override the parameters using the variables we created.**  
 
-![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5b58e967-b21c-4441-ac4e-9292a7561757)  
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3dfb6087-a6a2-431f-855f-3867c4045a08)  
+
+**No line break between parameters**  
 
 So at run time, the parameters will be modified using the variables we specified.  
+We can see after the release is done that in the test ADF envirement for example, the linked service URL is pointing to test data lake.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/312c5356-605b-4b13-8dce-09c17c28af78)  
+
+###### Using Access Keys (to authenticate to Azure ressources): 
+
+We can also use Access keys to authenticate to Azure ressources such as Data Lakes (similar to what we did with Managed identities).  
+This can be done in two ways: 
+- The first one is by storing the keys of Dev Data lakes in the Dev data factory Linked service itselfd (and not in GIT since it is not a secured approach). The ADF autopublish the changes to the Dev envirement and GIT with the values of the keys as Blank, so no keys exposition. However the release in test and prod will carry the keys as blanks also and they will not be able to access the corresponding data lakes.
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/53cbfc97-c426-44e5-b72d-0f78e4306664)  
+
+To rectify this we can store the keys of each envirement in key vaults and ask the release pipeline to read the keys from the key vaults to override the parameters with the actual keys. **the problem with this approach is that keys expires (keys rotation to ensure that they are not compromised) and updating them in the test and prod envirement will need a deployment that is not necessary and can harm the whole process. Also in this case the ADF carries an autopublish of the linked service changes which is not a good practice since any publish should be done via a pull request**  
+
+- The second option **(the efficient one)** is to store the keys in key vauls and get the ADF envirements (dev, test and prod) to get the keys from these key vaults whenever it is needed at run time. With this approach, we only need to update the key vaults when the keys are rotated and we avoid the problems of the first approach.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8d66386c-c2a9-4b51-8579-36f596c5f532)  
+
+so we create key vauls one per envirement (dev, test and prod):  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f5fea37f-e1d5-4c30-bd2f-a76b4127e9bb)  
+
+Note that we set also the duration upon which the key vault expires.  
+We should also check the Vault access policy:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/91d2bd3b-d2c3-4595-9215-a6790a9604d4)  
+
+Once created, we go the Key vault ressource to give access to ADF so it can access the Key Vault and read the keys. this is done under Access policies section:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c774e326-2aa2-4144-ace4-ee5b350970bc)  
+
+The access needed is Get and List of secret permissions:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f3de7100-2465-4a7e-aa47-3ae8bb2b71d6)  
+
+Then we choose the corresponding ADF:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9501b954-c84e-4bc7-a678-5d4c8733498c)  
+
+Now we need to create the secret (the key) that will be hold in the key vault. Under the Secrets section we Click on Generate/Import:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/400ce361-82dd-4534-b517-bb25c714eebd)  
+
+We can name the secret and specify the access key of the Ressource (Data Lake in our case).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d34e48e8-3d32-43b0-b33b-53ab8a08b9e2)  
+
+To get the Access key, we go to the ressource in our case the data lake and under the Access keys section we show the key.  
+
+
+
+
+
 
