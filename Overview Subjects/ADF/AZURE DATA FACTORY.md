@@ -859,12 +859,18 @@ We can see all the objects json files : datasets, linkedservice and the pipline.
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/015137a1-4ff6-4999-9299-b714a4eee692)  
 
-The solution is to override the URL of linked services parameters. How do we know that? is by checking the ARM files in the build pipeline (we can download them if can't browse them in devops):  
+The solution is to override, in the release pipeline, the URL of linked services parameters. How do we know that? is by checking the ARM files in the build pipeline (we can download them if can't browse them in devops):  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/42dffd2d-4c94-4de4-ac41-d219e58d86d0)  
 
 we have already overrided the first one which is the factoryName, now we should override the managed identity url value.  
+to do so, we simply go to the release pipeline and we add the variables of managed identities for each envirement Dev, Test and Prod. since we are going to change only part of the url which is the datalake name we can create these corresponding variables and define their scopes as follows :  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/371018a2-7a71-45a4-8928-0c0795c0a581)  
 
+**Now under ARM deployment task of each stage, we will override the parameters using the variables we created.**  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5b58e967-b21c-4441-ac4e-9292a7561757)  
+
+So at run time, the parameters will be modified using the variables we specified.  
 
