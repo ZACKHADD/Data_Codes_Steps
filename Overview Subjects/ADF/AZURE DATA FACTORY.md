@@ -816,4 +816,37 @@ Instead, we want the test and prosuction to write data in their respective data 
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0db7c823-a07b-4df0-95b6-7953525add9f)  
 
-The access to the ressources can be done 
+The access to the ressources can be done using :  
+- Access Keys
+- Service principal identity
+- System assigned managed identity
+- User assigned managed identity  
+
+It is recomanded to use the managed identities whenever possible since they are more secured.  
+
+###### Managed identity : 
+
+By default for each ressource, such as ADF, azure creates a system managed identity (we can create our own if we want using user managed identity)
+We can grant access to the data lakes of each ressource group using these managed indentities :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/974a5eaa-d4c9-46ce-a16e-ff6c6fd67d65)  
+
+In the IAM section of the data lake storage we grant access to the ADF ressource managed identity as **blob contributor so it can read and write data in it.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/25930bca-d92b-47e8-be52-fb5a5a5baeeb)  
+
+We select then the managed identity of our ADF:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e8a32874-fb71-40bc-97fd-ed540ca01aa5)  
+
+**the same should be done for all the other envirements (test and production).** Now each ADF envirement has access using managed identity to the corresponding data lake.  
+
+Now in the the dev ADF, when we create the linked service to access data (read and write) we use authentication type as **systeme assigned managed identity**. so no credential will be needed.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/810d3721-6c30-4fbf-867c-b7f65dc03f84)  
+
+One thing to notice is that the creation of objects in ADF now is saved to GIT repository since it's linked to our Azure Devops GIT.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a427b3af-777a-4a3c-9107-7e62b4da81fe)  
+
+
