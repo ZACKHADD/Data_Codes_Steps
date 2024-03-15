@@ -568,7 +568,43 @@ At the Azure IAM ressource level this role looks as follows :
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b38dc501-bdb2-45c6-858a-266aa6d32e98)  
 
-After that we specify several information such as the action to perform (create and update or delete), the template and the template parameters which are the ARM files. 
+After that we specify several information such as the action to perform (create and update or delete), the template and the template parameters which are the ARM files. Also we have override parameters section where we can change the name of the ressource destination of our release : in our example replace dev ressource with test.  
+
+We can also, instead of hard coding the options for the release pipeline, use variables so that we can reuse the same pipeline for several ressources (test, test integration , Prod ..).  
+
+**Note that the deployment mode has 3 values and that we need to specify the incremental one which update the ressource group with the ARM files. The complete mode however deletes all the ressources and build the ressource group using the ARM files and we don't want to do that !!!**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9e3e032b-f57e-4bb3-97bb-977ca87ab0d7)  
+
+Now we can trigger the release pipeline using the trigger button on the artifact part and enable the trigger and also filter on the publish bransh to include in the release and we save the whole pipeline. you will notice under the enabled toggle it states that every time a GIT push occurs in the selected repository, a realease is automaticaly created.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a2c19154-fdc7-403e-8432-b56d980e1046)  
+
+We can also create the releases manually using the **Create Release** button.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f82bbf71-5974-4f9e-8192-c0f3a716d2aa)  
+
+We can also see the details and logs of the release created.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/cd89e0dd-057d-451c-9cb7-f4bcd631bcc6)  
+
+Now we have the continous deployment built.  
+
+###### Pre an Post deployment tasks :
+
+Now we need to rectify our pipeline since as we said before the ARM deployment does not support : Deleting objects (Does not generate an error in logs deployment but no deleting happens in the destination ressource) or Updating active triggers (does generate an error in the logs and the release fails).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a2b370f0-5ead-4d3d-b413-7c488eeedaef)  
+
+**Link to the scripts : https://github.com/Azure/Azure-DataFactory/tree/main/SamplesV2/ContinuousIntegrationAndDelivery**  
+
+
+
+
+
+
+
+
 
 
 
