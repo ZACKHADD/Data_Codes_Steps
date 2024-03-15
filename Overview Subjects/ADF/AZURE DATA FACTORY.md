@@ -705,8 +705,60 @@ This means that after a pull request the whole pipeline gets triggered automatic
 
 To create the pipeline in azure devops, either we use interface as usual or we can use **YAML configuration files (just like json)**. **The npm package should be a json file (simply containing the instruction to install the ADF utilities npm package) in the azure devops repository.**  
 
-**the yaml configuration file needs to be modified to point on the dev envirement using variable we can add inside it to replace the hard coded values inside the code. The YAML file is provided in the ADF folder**   
+**the yaml configuration file needs to be modified to point on the dev ressource group using variable we can add inside it to replace the hard coded values inside the code. The YAML file is provided in the ADF folder**   
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b24b64f5-066a-4f8e-bf8d-a07b95c31962)  
+
+Once the files are modified we need to upload them in Azure Devops main bransh, as always since the main bransh needs a pull request to be modified, we need to add a new feature bransh, add the files in it and then make a pull request to merge with the main branch.  
+**Note that the folder containing the files should be named the same as the yaml configuration file.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/343883d9-2748-4cc7-b792-d0ac3776f448)  
+
+Now we need to create the build pipeline to replace the Publish button. Note that beafore we were creating release pipelines under the release section, now we need a build pipeline that we can create under build section.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5fac978e-5eb0-48e9-9434-c83d87a52f2d)  
+
+Now we specify where the build code is (YAML file):  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3b163898-bd91-4385-a900-ff9d0e9be08a)  
+
+Note also in the bottom, we have the possibility to use the classic editor to create the build pipelines just like we did with the release one. Herewe use the configuration files instead.  
+
+By clicking on the GIT repository option, we have possibility to use prebuilt Node.js (since pipeline in Devops are Node.js projects) templates (with angular, react, Vue ...), start a new one from scratch or use the YAML file and that is our option here.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3c31abb6-6c7c-4da7-b442-66dc95da0b45)  
+
+We need then to specify the bransh and path for our YAML file.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/02f87729-cab4-4283-8692-e5549429412e)  
+
+We can review the code and save it (by clicking on the arrow next to the run button and choosing save).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/506544f6-ebf4-4417-a841-bf7362c4a760)  
+
+Once saved, we can see the pipeline. we can rename it and so on.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8baa9e7e-ef69-404a-ab7d-bc5a05a381dc)  
+
+To test it, we can either run it manually or make some changes in the ADF and commit these changes to the main bransh and the build pipeline get released automaticaly (that is beacause in the YAML file we specified the **trigger : -main** meaning upon every change in the main bransh). on run we can see the logs of each step.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/60265f43-43ca-453e-8b83-29ce8095da29)  
+
+This publishs the artifacts that our realease pipeline can consume.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7742ac86-998d-44e6-9a51-8446b4989c9d)  
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
