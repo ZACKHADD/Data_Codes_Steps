@@ -425,8 +425,8 @@ Test automation in ADF is difficult so most of the tests are manual.
 
 The build can be done following 3 ways :  
 
-- ADF Publish (still used) : Using the ADF Publish button to deploy.
-- Automated deployment (the most used in large projects) : Using GIT and builf files.
+- ADF Publish Button (still used) : Using the ADF Publish button to deploy.
+- Automated deployment (the most used in large projects) : Using GIT and build files.
 - ADF third party tools.
 
 ###### ADF Publish Button : 
@@ -655,81 +655,58 @@ We should just change the values of the variables newly created after the clonin
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/df116489-af15-4e5b-85ba-af405e647457)  
 
+**One important thing needs to be done since we cloned the Stage, is to give the ARM connection (the principal service) access as contributor role to the production ADF ressource so it can build the release in it just like in the test one.** We do that at the ADF studio under IAM of the Production ressource.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fcdd580e-0c9f-4d3c-a9da-6d6d6fcbf6c3)  
 
+**We can find the name of the service principale by clicking on the manage button next to azure ressource manager connection**  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9bceef3e-5958-4464-80d3-52c1ce476289)  
 
+In the ressource Group (or ressource depending on what we created) under IAM section we add new role assignement and we search for the service principal we want.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/767f5248-7a13-40b7-8529-136ee2707d52)  
 
+One thing left to do is to add an approval step before triggering the production stage.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/08984b3e-9180-49ba-b9a6-2505421153d5)  
 
+We select the persons to approve the triggering and also a timeout after which if it is not approved the production stage will not be triggered.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2591e06f-effb-4c50-b6b5-117498c665a8)  
 
+Save the work and add comments if we like. If some changes are commited, this is how the whole release pipeline will be:  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5519f50e-c238-4fc1-8628-368dcf713a55)  
 
+Note the the production stage states that we have a pending approval and who can approve.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ea39f80a-dd9a-4334-95e3-0b88f6b18033)  
 
+An email will be sent to the approvers so they can approve the production phase.  
 
+ ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fbeab586-62f8-44b5-93bb-4550f3fb6f54)
 
+Once we approve the production is triggered.  
 
+###### Automate the build phase (Replace the publish button) :
 
+Till now, we used the publish button to do the the build phase, but we can also automate that using **npm package in ADF Utilities**.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e44c138b-2042-4566-8021-c40d1c3c2089)  
 
+We can build a devops pipeline that will invoke the ADF utilities npm package and on succes the npm will create the ARM files inside the ARM artifacts in the devops pipeline.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/11599031-9653-4e7f-8895-1c048cca385b)  
 
+This means that after a pull request the whole pipeline gets triggered automaticaly and the only thing to do manually is the production approval.  
 
+**The npm package and it's documentation is available here: https://learn.microsoft.com/en-us/azure/data-factory/continuous-integration-delivery-improvements**  
 
+To create the pipeline in azure devops, either we use interface as usual or we can use **YAML configuration files (just like json)**. **The npm package should be a json file (simply containing the instruction to install the ADF utilities npm package) in the azure devops repository.**  
 
+**the yaml configuration file needs to be modified to point on the dev envirement using variable we can add inside it to replace the hard coded values inside the code. The YAML file is provided in the ADF folder**   
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b24b64f5-066a-4f8e-bf8d-a07b95c31962)  
 
 
