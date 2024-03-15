@@ -749,16 +749,71 @@ This publishs the artifacts that our realease pipeline can consume.
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7742ac86-998d-44e6-9a51-8446b4989c9d)  
 
 
+Now we can simply change the Artifacts part in our release pipeline with the new ones of the build pipeline.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e4bfa455-1f5f-4ce8-9ae1-443356816c8d)  
+
+We can delete the first artifacts coming from the ADF publish bransh and replace them with a new one based on the build pipeline.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/032946a7-e42e-4088-aad2-42b3fbf80142)  
+
+**Note that in opposition to previous ADF publish bransh artifacts, here we don't specify the Azure Repo as source type, but the Build one.**  
+
+We should change also the tasks inside the stage area so they can point on the new artifacts.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/91cd9b09-3c8f-410b-9b9c-5514873923a5)  
+
+In the ARM deployment task we need to change the template and parameters section to point on the new artifacts in the build folder of our new build pipeline.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f6b56062-a762-4dd9-863d-d6b4951669ae)  
+
+The same thing should be done in the pre and post deployment tasks of the **test and production stages** by modifying the Script arguments previously pointing on the publish bransh of ADF **(we cancopy the path from the ARM template deployment task)**.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ddef336a-3fe5-4cde-901c-b4a1a8d2c355)  
+
+**Previously, with the Publish button was liked by default to the dev ressource groupe (since we were publishing inside it) so that the build of the files is done there. Now since we created our own build pipeline we should link it to the dev envirement so the the release can be done in this order: dev, test and then production after approval.**  
+We create w new stage called dev the same way as the previous stages **(we can simply clone the test one and change the variables)**.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5fdb34e6-8076-426d-ae7a-04daed78f947)  
+
+Now we need to change the order of execution. To do that we first switch the test stage to manual **(Just to be sure the change works fine)**.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/012a5bcd-7bf3-4958-a50d-fa137636408b)  
+
+Switch the dev to be after release:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c2c93b87-56f9-4e55-b3dc-458397b9ef30)  
+
+And come back to Test to switch it to be after dev.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c3d2343e-4ae6-47be-823a-8aef28bab396)  
+
+**The last thing to do, since we created a new stage in Azure Devops which is Dev and it should access it and write in ite, is to give access in the Dev ressource group to the service principal we are using in Devops as contributor role, just like we did for test and prod.**  
+Also we need to enable the continous deployment in our new Build pipeline so that it is triggered once a change is made in the main bransh.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/48bdbbfc-65bb-4c67-8623-d4d232688ea2)  
+
+**Now when we create a release, we can see changes in the Dev ressource group under live mode and also the same for the others test and prod.  
+Now the whole process is triggered once we make a change in the main bransh (using a feature bransh), which triggers the build pipeline in Azure Devops. This latter build the ARM files needed for the release, and since we have the CD enabled, the new build files are detected and a new release is created.  
+the release is then done in Dev, then test and after approval in production ressource groupe.**  
+
+##### 14. Some Real CI/CD Scenarios : 
+
+In the real wolrd the CI/CD is done on ADF pipelines that are accessing other ressources in azure and not only the self containd ADF ressources. For example Data lake storage, SQL databases, computing ressources such as Databricks and HDinsight.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/cb19269d-f6b7-4785-94e5-efbfc3e1fe00)  
+
+For example imagine that we have an ADF project that writes data in a Dev data lake. once released, the test and production will also write in the dev data lake since no changes were made inside the ADF project depending on the stage.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/30b349f0-9520-4f44-9181-25f2073739c6)  
+
+Instead, we want the test and prosuction to write data in their respective data lake storages.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/beda9638-967b-4f84-bfdb-61ee56476f55)  
 
 
+**Two things are needed to be done : override the ARM parameters depending on the stage (dev, test and prod) and handeling the access to teh data lakes.**  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0db7c823-a07b-4df0-95b6-7953525add9f)  
 
-
-
-
-
-
-
-
-
-
+The access to the ressources can be done 
