@@ -918,14 +918,51 @@ Now we need to create the secret (the key) that will be hold in the key vault. U
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/400ce361-82dd-4534-b517-bb25c714eebd)  
 
-We can name the secret and specify the access key of the Ressource (Data Lake in our case).  
+We can name the secret **(No envirement name here just a meaninful name for the secret and it can be the same name for all envirements)** and specify the access key of the Ressource (Data Lake in our case).  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d34e48e8-3d32-43b0-b33b-53ab8a08b9e2)  
 
-To get the Access key, we go to the ressource in our case the data lake and under the Access keys section we show the key.  
+To get the Access key, we go to the ressource in our case the data lake and under the Access keys section we show the key and copy it.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8aa9506b-12c6-4b1f-9fcc-20819ca1bcfe)  
 
+Then we past the key in the secret value of the key vault in creation:  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9f7c6407-8da3-4ce0-bb07-91c96f951882)  
 
+**This is done for the 3 ADF envirements.**  
 
+Now in the ADF dev envirement we create our new linked service based on the corresponding key vaul we created. **The step here is to specify that the autentication type is Account key and that the account selection to be entered manually and not from the Azure subscription.** this will show us the Key vault option. **We should specify also the URL for our ressource (We can copy it from the ressource under Endpoints section)**  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/cdd14b59-fcb3-4030-893a-5f6d8292a9dd)  
+
+We should then select the corresponding key vault. **But since the key vault is a ressource itself, it needs a linked service to access to it, so we create one for it by clicking on new that has a system managed identity authentication type**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/cff3226c-b2d2-404a-8192-a1fbcb112e49)  
+  
+**The logic here is that ADF will use the link service to access the data lake storage using the key vaul key. But to access the key it uses the linked service of the key vaul that has a managed identity authentication type.**  
+
+Now once we create a pipeline (using a feature bransh) and its datasets (Sourceand sink of the same data lake) that are attached to the new linked services (having the key vaults), we do a pull request and that will trigger the release. **We will however note a problem in the test and prod envirement, is that the Key vaults that will be created will be pointing to the Dev key vault URL since we didn't override this parameter yet in the ARM files**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fb35aa85-ba82-4475-8f31-1cf8ff585d5e)  
+
+In our ARM files we will find the parameter json containing also the URL for the key vault:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f5341052-bd4a-4c1e-be22-a90e89e1f636)  
+
+Note the in the figure we two values for the data lake url, one using managed identity(already overriten using a variable) and the other using access key (no need to create a variable for it we reuse the variable of the managed identity since it is the same value of the URL).**Now in the release pipeline we need to create key vault URL variable for each stage**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9722f96c-4f13-49c3-8eb1-d41b415f47c0)  
+
+Now as usual, we go and to the **ARM deployment task of each stage** and override the parameters using our new variables, **the rule is always -NameOfParameter ''value with $(variable name)''**:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e7fa8c76-58dc-4326-80a8-24f1714ed092)  
+
+**We can copy these overriten parameters to past theme in the other ARM tasks of the test and prod stages.**  
+**Note that for the access key data lake value we simply reused the variable of the manadeg identity**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/208d83ee-25ed-4dce-a15e-39a94ee459bf)  
+
+Now we can create a new release or just makes changes in our pipelien so the whole process can be triggered.  
+
+#### And that is all for this ADF Scope.
