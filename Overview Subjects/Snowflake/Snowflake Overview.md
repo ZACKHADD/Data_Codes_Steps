@@ -98,6 +98,13 @@ We can also alter tables :
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0b03561f-13b5-462d-ab6b-5a1abe70837a)  
 
+### Insert Data :  
 
+We can insert data in many ways such as :  
+- Using an **INSERT** statement from the Worksheet. 
+- Using the Load Data Wizard.
+- Using **COPY INTO** statements.
+
+**INSERT** statement gives the possibility to add a row in a time. If we would like to insert multiple rows in a time, we use **insert into**.
 
 
