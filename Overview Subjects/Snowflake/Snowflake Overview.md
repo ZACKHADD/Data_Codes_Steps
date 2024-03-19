@@ -107,4 +107,31 @@ We can insert data in many ways such as :
 
 **INSERT** statement gives the possibility to add a row in a time. If we would like to insert multiple rows in a time, we use **insert into**.
 
+## 5. Data Warehouse in Snowflake :
+
+The concept of Data warehouse in Snowflake is different from the one we traditionally know as in Business Intelligence.  
+In Snowflake a **Warehouse is simply a computing Workforce** that executes tasks on **seperately stored data**. Meaning that a **warehouse here does not store data**, it only perform tasks on data.  
+**Snowflake Warehouses can be Scaled up and down by changing the number of servers working and also Scale out automatically by adding/removing clusters during a peak workload.**  
+**Scale up: Increase in compute capacity by increasing the server strength keeping cluster count same. Scale out: Increase in cluster count keeping compute capacity of each cluster same.**  
+**The scaling up and down must be done manually (Depending on the queued queries). The scale out and in is automatic (But we should set the Max and Min number of clusters).**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/63636323-30ab-4b75-b852-485141fd1fce)  
+
+We can follow if any queries are queued in the query diagram:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c54a299e-b6b2-4408-8bea-7e93fb80ae74)  
+
+However, when a Snowflake virtual warehouse is resized, only subsequent queries will make use of the new size. Any queries already running will finish running while any queued queries will run on the newly sized virtual ware‐ house. Scaling a virtual warehouse UP will increase the number of servers.  
+
+
+In Snowflake also, there no data silos concept in like in traditional datawarehouses where we can create datamarts that are separated (so that the access to it would be more fast).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/643505db-860d-4619-a7f1-faf5982f26d5)  
+
+The problem with datamarts is that they are **silos** and do not communicate with each other. Data engineers can put the subsets of data needed to complete the vision but then we would have several version (figures) of the same info.  
+Snowflake create multiple robust computing warehouses that grab data from the same source, so no need for replication, and each department can his owon warehouse (own size and capacity ==> scale up and down) that retrieve the data effeciently.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4577bbd0-8765-40fa-a8d0-fd05bc06e922)  
+
+**Functionally, a Snowflake Warehouse is more like a laptop CPU.**  
 
