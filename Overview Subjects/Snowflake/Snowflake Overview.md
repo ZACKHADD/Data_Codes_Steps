@@ -137,3 +137,12 @@ Snowflake create multiple robust computing warehouses that grab data from the sa
 
 **More details:** https://community.snowflake.com/s/article/Snowflake-What-the-Cluster.  
 
+To control the cost of our data warehouses we have a section under Admin that help us in terms of cost management:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8ca80d72-4f78-47ab-974d-5f561b663ab8)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b3e0ea81-881a-4a31-a093-2e328aeab46d)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c70ab488-2092-40e4-bb56-61f294390140)  
+
+
