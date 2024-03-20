@@ -174,7 +174,7 @@ When loading the file we can catch the query generated behind so we can reuse:
                            PURGE=TRUE*
 ```
 
-We can also create a file from an existing table:  
+We can also create a **file format**  so that we can load the data into tables using this format (it is like a file type definition, cvs, tsv ...):  
 
                         *create file format garden_plants.veggies.PIPECOLSEP_ONEHEADROW 
                             TYPE = 'CSV'--csv is used for any flat file (tsv, pipe-separated, etc)
@@ -190,7 +190,7 @@ We can also create a file from an existing table:
                             FIELD_OPTIONALLY_ENCLOSED_BY = '"' --this means that some values will be wrapped in double-quotes bc they have commas in them
                             ;*
 
-Once created, we can see the files inside our schema under a new section (after the table section) called **File Formats** :  
+Once created, we can see the file formats inside our schema under a new section (after the table section) called **File Formats** :  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f4f66538-f831-497f-8b3a-9edda449feda)  
 
@@ -213,7 +213,20 @@ the stage definition is simply a Snowflake object that contains the references t
 Except for S3 storages where we have to be precise regarding the names of the files.  
 
 To load data from staging area to snowflake tables we run a **COPY INTO** command which is not a SQL command:  
+```
+                                        COPY INTO WEIGTH_INGEST -- The table to load files to
+                                        FROM @MY_S3_BUCKET/load/
+                                        FILES = ('WEIGTH.txt')
+                                        FILE_FORMAT = (FORMAT_NAME = USDA_FILE_FORMAT);
+```
+The file format is the format from which the data are coming from in the staging.  
 
-COPY INTO WEITH_INGEST
-FROM @MY_S3_BUCKET/load/
+**Note that the snowflake Account can be based on AWS but can load data from external storage such as Azure and GCP.**  
 
+We can view the data in the source files before loading it into the Snowflake tables:  
+```
+                                        select $1, $2, $3
+                                        from @util_db.public.like_a_window_into_an_s3_bucket/LU_SOIL_TYPE.tsv
+                                        (file_format => garden_plants.veggies.COMMASEP_DBLQUOT_ONEHEADROW);
+```
+The select with numbers here referes to how many column we want the data to be shown in (since we don't have a schema yet). we need also to s[ecify the file format (the data devider).  
