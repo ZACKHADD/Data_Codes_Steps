@@ -150,3 +150,70 @@ To control the cost of our data warehouses we have a section under Admin that he
 
 We can also get notifications when we reach the limit and set the profile so that we get email alerts about Resource Monitors.
 
+When loading the file we can catch the query generated behind so we can reuse:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b8758bc3-582c-43ff-ad6c-06c74d2a7d4b)  
+
+**Query :**  
+```
+                           *COPY INTO "GARDEN_PLANTS"."VEGGIES"."VEGETABLE_DETAILS"
+                           FROM '@"GARDEN_PLANTS"."VEGGIES"."%VEGETABLE_DETAILS"/__snowflake_temp_import_files__/'
+                           FILES = ('veggie_details_k_to_z_pipe.csv')
+                           FILE_FORMAT = (
+                               TYPE=CSV,
+                               SKIP_HEADER=1,
+                               FIELD_DELIMITER=',',
+                               TRIM_SPACE=FALSE,
+                               FIELD_OPTIONALLY_ENCLOSED_BY=NONE,
+                               REPLACE_INVALID_CHARACTERS=TRUE,
+                               DATE_FORMAT=AUTO,
+                               TIME_FORMAT=AUTO,
+                               TIMESTAMP_FORMAT=AUTO
+                           )
+                           ON_ERROR=ABORT_STATEMENT
+                           PURGE=TRUE*
+```
+
+We can also create a file from an existing table:  
+
+                        *create file format garden_plants.veggies.PIPECOLSEP_ONEHEADROW 
+                            TYPE = 'CSV'--csv is used for any flat file (tsv, pipe-separated, etc)
+                            FIELD_DELIMITER = '|' --pipes as column separators
+                            SKIP_HEADER = 1 --one header row to skip
+                            ;*
+                        
+                        We can specify only the agrguments that we requier:  
+                        
+                        *create file format garden_plants.veggies.COMMASEP_DBLQUOT_ONEHEADROW 
+                            TYPE = 'CSV'--csv for comma separated files
+                            SKIP_HEADER = 1 --one header row  
+                            FIELD_OPTIONALLY_ENCLOSED_BY = '"' --this means that some values will be wrapped in double-quotes bc they have commas in them
+                            ;*
+
+Once created, we can see the files inside our schema under a new section (after the table section) called **File Formats** :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f4f66538-f831-497f-8b3a-9edda449feda)  
+
+**This ability distenguishes Snowflak from the other SGBDs.**  
+
+## 6. Staging :
+
+Staging, with the same logic of a real world staging, is a place to put data in to be stored in a convinient way later. It is simply a middle stop between OLTP and the OLAP.  
+Snowflake stores data in the staging area in a form of files to be used later in the databases similiraly to a FTP process. We can have either internal staging (local in snowflake) or external using one of the 3 cloud providers.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ab155a49-fc60-4f7c-bc87-6503f5965f2c)  
+
+To create an external cloud staging area we need 3 main things:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8397deb6-1aae-4ed9-aed6-36ae399ae09c)  
+
+the stage definition is simply a Snowflake object that contains the references to the cloud location and the cloud access credentials.  
+
+**Note that snoflake is case insensitive (Unless you use quotes when creating things, and then you'll have to use quotes forever after that to deal with the object.)**  
+Except for S3 storages where we have to be precise regarding the names of the files.  
+
+To load data from staging area to snowflake tables we run a **COPY INTO** command which is not a SQL command:  
+
+COPY INTO WEITH_INGEST
+FROM @MY_S3_BUCKET/load/
+
