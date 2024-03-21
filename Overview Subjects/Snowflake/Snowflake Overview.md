@@ -230,3 +230,41 @@ We can view the data in the source files before loading it into the Snowflake ta
                                         (file_format => garden_plants.veggies.COMMASEP_DBLQUOT_ONEHEADROW);
 ```
 The select with numbers here referes to how many column we want the data to be shown in (since we don't have a schema yet). we need also to s[ecify the file format (the data devider).  
+
+#### Sequencers:  
+
+**Sequencers** can be created to incremental an id column for example when loading.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6c44597b-2359-477f-b8b7-93ff06075ae3)  
+
+Once created, we can use **.nextval** 
+```
+                                     INSERT INTO AUTHOR(AUTHOR_UID,FIRST_NAME,MIDDLE_NAME, LAST_NAME) 
+                                     Values
+                                     (SEQ_AUTHOR_UID.nextval, 'Laura', 'K','Egendorf')
+                                     ,(SEQ_AUTHOR_UID.nextval, 'Jan', '','Grover')
+                                     ,(SEQ_AUTHOR_UID.nextval, 'Jennifer', '','Clapp')
+                                     ,(SEQ_AUTHOR_UID.nextval, 'Kathleen', '','Petelinsek');
+```
+
+It can also be used as a default value when creating a new table so that the id will be added in an incremental way.  
+
+```
+                                     CREATE OR REPLACE TABLE BOOK
+                                    ( BOOK_UID NUMBER DEFAULT SEQ_BOOK_UID.nextval
+                                     ,TITLE VARCHAR(50)
+                                     ,YEAR_PUBLISHED NUMBER(4,0)
+                                    );
+```
+
+#### Ingesting semi and unstructured data:  
+
+For Data Science purposes we can ingest non structured data such json files as the are for an later use.  
+**The data (the whole file content) are ingested into a table in a single column.**  
+using a suitable file format to load (visualize before loading also) the data in the table we can either set the **STRIP_OUTER_ARRAY** to **FALSE** to have the data in a single row or to **TRUE** to have a dictionary per row:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/70ef7f45-dedd-47ad-92f1-4a84b69a8d52)  
+
+Ingesting data into Snowflake using the **STRIP_OUTER_ARRAY = TRUE** makes it possible later to query the data using **SQL**.  
+
+
