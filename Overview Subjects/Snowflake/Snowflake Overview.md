@@ -260,11 +260,56 @@ It can also be used as a default value when creating a new table so that the id 
 #### Ingesting semi and unstructured data:  
 
 For Data Science purposes we can ingest non structured data such json files as the are for an later use.  
-**The data (the whole file content) are ingested into a table in a single column.**  
+**The data (the whole file content) are ingested into a table in a single column ==> It is the VARIANT data type which is the key in snowflake of querying non structured data.**  
 using a suitable file format to load (visualize before loading also) the data in the table we can either set the **STRIP_OUTER_ARRAY** to **FALSE** to have the data in a single row or to **TRUE** to have a dictionary per row:  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/70ef7f45-dedd-47ad-92f1-4a84b69a8d52)  
 
 Ingesting data into Snowflake using the **STRIP_OUTER_ARRAY = TRUE** makes it possible later to query the data using **SQL**.  
 
+For example we can read data using SQL quering conventions to render it like a normalized table:  
+
+```
+                                    //returns AUTHOR_UID value from top-level object's attribute
+                                    select raw_author:AUTHOR_UID
+                                    from author_ingest_json;
+                                    
+                                    //returns the data in a way that makes it look like a normalized table
+                                    SELECT 
+                                     raw_author:AUTHOR_UID
+                                    ,raw_author:FIRST_NAME::STRING as FIRST_NAME
+                                    ,raw_author:MIDDLE_NAME::STRING as MIDDLE_NAME
+                                    ,raw_author:LAST_NAME::STRING as LAST_NAME
+                                    FROM AUTHOR_INGEST_JSON;
+```
+**The string here change the type of the data from the original (VARIANT) to STRING (VARCHAR also possible) to remove the quotes. It is simply like if we used CAST() function to change data type.**  
+
+#### Ingesting Nested Semi structered data: 
+
+The nested data are simply more complexed json (for example) format where we will find dictionaries inside others. We can use the same process as we did above to reach each level we want, for example :  
+
+```
+                                  select raw_author:BOOKS:YEAR_PUBLISH:AUTHORS
+                                  from author_ingest_json;
+```
+**However if we want to retrieve specific data that is not a level (dictionary) we need either to specify the rank we want to retrieve by specifying it between brakets ([0],[1]..) before we specify the value we want.**  
+
+```
+                                SELECT RAW_NESTED_BOOK:authors[1].first_name
+                                FROM NESTED_INGEST_JSON;
+```
+
+**Or we use a function called FLATTEN (in two ways) that will read all the values at once (like if perform a loop on all the values in Python).**  
+
+```
+                               //Use these example flatten commands to explore flattening the nested book and author data
+                               SELECT value:first_name
+                               FROM NESTED_INGEST_JSON
+                               ,LATERAL FLATTEN(input => RAW_NESTED_BOOK:authors);
+                               
+                               SELECT value:first_name
+                               FROM NESTED_INGEST_JSON
+                               ,table(flatten(RAW_NESTED_BOOK:authors));
+
+```
 
