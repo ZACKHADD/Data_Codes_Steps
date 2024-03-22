@@ -469,5 +469,39 @@ In the same manner as granting access to an object, we can grant access to a fun
                                              to SYSADMIN; -- here we grant usage to a SYSADMIN Role.
 ```
 
-#### Costs Estimation: 
+#### Costs Estimation and Management: 
+
+We can monitor the cost of our data warehouses using the **Cost Management** section that shows during a period how much we spent in terms of **Computing** and **Cloud** (Storage).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/37578331-6722-49d5-ad88-0893f9cff2d4)  
+
+the link here gives an idea regarding the cost conversion in USD per region. **Note that we should pay attention to the region and the cloud provider**
+The same way we create databases, we can create Data warehouses:  
+
+```
+                                             create warehouse INTL_WH 
+                                             with 
+                                             warehouse_size = 'XSMALL' 
+                                             warehouse_type = 'STANDARD' 
+                                             auto_suspend = 600 --600 seconds/10 mins
+                                             auto_resume = TRUE;
+```
+
+Also the stages can be created either using the wizard or the code:  
+
+```
+                                             create stage util_db.public.aws_s3_bucket url = 's3://uni-cmcw';
+```
+
+When we use a lot the same select to retrieve data, we can wrap it in a view and query it like a table:  
+
+```
+                                             create view intl_db.public.NATIONS_SAMPLE_PLUS_ISO 
+                                             ( iso_country_name
+                                               ,country_name_official
+                                               ,alpha_code_2digit
+                                               ,region) AS
+                                               <put select statement here>
+                                             ;
+```
 
