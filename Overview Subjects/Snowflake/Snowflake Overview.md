@@ -294,10 +294,21 @@ The nested data are simply more complexed json (for example) format where we wil
 ```
 **However if we want to retrieve specific data that is not a level (dictionary) we need either to specify the rank we want to retrieve by specifying it between brakets ([0],[1]..) before we specify the value we want.**  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/998819fb-70fb-4d7b-a911-91a43978579f)  
+
+**We can not retrieve Fiona and Gian in the same time using the rank specification method.**  
+
 ```
                                 SELECT RAW_NESTED_BOOK:authors[1].first_name
                                 FROM NESTED_INGEST_JSON;
 ```
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2e2d5b0a-3ad7-451c-b9dd-43061a50d543)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0488a2c7-4a6f-4ce8-9715-a5733a3c8206)  
+
+
+**Note that only the first appearances of the level we are at will be displayed**  
 
 **Or we use a function called FLATTEN (in two ways) that will read all the values at once (like if perform a loop on all the values in Python).**  
 
@@ -312,4 +323,109 @@ The nested data are simply more complexed json (for example) format where we wil
                                ,table(flatten(RAW_NESTED_BOOK:authors));
 
 ```
+**Note here that all the appearances of the level we are at will be displayed.**  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3028778c-0602-4e30-b256-bb1bfe90ec35)  
+
+**We can also retrieve several values field at once, renaming the colums displayed and casting them to a data type different than VARIANT (to remove quotes).**  
+
+```
+                               //Add a CAST command to the fields returned
+                               SELECT value:first_name::VARCHAR, value:last_name::VARCHAR
+                               FROM NESTED_INGEST_JSON
+                               ,LATERAL FLATTEN(input => RAW_NESTED_BOOK:authors);
+                               
+                               //Assign new column  names to the columns using "AS"
+                               SELECT value:first_name::VARCHAR AS FIRST_NM
+                               , value:last_name::VARCHAR AS LAST_NM
+                               FROM NESTED_INGEST_JSON
+                               ,LATERAL FLATTEN(input => RAW_NESTED_BOOK:authors);
+```
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f2f38b77-a18d-4580-90f1-874fd23af874)  
+
+We can also query data like we normaly do with normalized one using conditions etc:  
+
+```
+
+                                 //select statements as seen in the video
+                                 SELECT RAW_STATUS
+                                 FROM TWEET_INGEST;
+                                 
+                                 SELECT RAW_STATUS:entities
+                                 FROM TWEET_INGEST;
+                                 
+                                 SELECT RAW_STATUS:entities:hashtags
+                                 FROM TWEET_INGEST;
+                                 
+                                 //Explore looking at specific hashtags by adding bracketed numbers
+                                 //This query returns just the first hashtag in each tweet
+                                 SELECT RAW_STATUS:entities:hashtags[0].text
+                                 FROM TWEET_INGEST;
+                                 
+                                 //This version adds a WHERE clause to get rid of any tweet that 
+                                 //doesn't include any hashtags
+                                 SELECT RAW_STATUS:entities:hashtags[0].text
+                                 FROM TWEET_INGEST
+                                 WHERE RAW_STATUS:entities:hashtags[0].text is not null;
+                                 
+                                 //Perform a simple CAST on the created_at key
+                                 //Add an ORDER BY clause to sort by the tweet's creation date
+                                 SELECT RAW_STATUS:created_at::DATE
+                                 FROM TWEET_INGEST
+                                 ORDER BY RAW_STATUS:created_at::DATE;
+                                 
+                                 //Flatten statements that return the whole hashtag entity
+                                 SELECT value
+                                 FROM TWEET_INGEST
+                                 ,LATERAL FLATTEN
+                                 (input => RAW_STATUS:entities:hashtags);
+                                 
+                                 SELECT value
+                                 FROM TWEET_INGEST
+                                 ,TABLE(FLATTEN(RAW_STATUS:entities:hashtags));
+                                 
+                                 //Flatten statement that restricts the value to just the TEXT of the hashtag
+                                 SELECT value:text
+                                 FROM TWEET_INGEST
+                                 ,LATERAL FLATTEN
+                                 (input => RAW_STATUS:entities:hashtags);
+                                 
+                                 
+                                 //Flatten and return just the hashtag text, CAST the text as VARCHAR
+                                 SELECT value:text::VARCHAR
+                                 FROM TWEET_INGEST
+                                 ,LATERAL FLATTEN
+                                 (input => RAW_STATUS:entities:hashtags);
+                                 
+                                 //Flatten and return just the hashtag text, CAST the text as VARCHAR
+                                 // Use the AS command to name the column
+                                 SELECT value:text::VARCHAR AS THE_HASHTAG
+                                 FROM TWEET_INGEST
+                                 ,LATERAL FLATTEN
+                                 (input => RAW_STATUS:entities:hashtags);
+                                 
+                                 //Add the Tweet ID and User ID to the returned table
+                                 SELECT RAW_STATUS:user:id AS USER_ID
+                                 ,RAW_STATUS:id AS TWEET_ID
+                                 ,value:text::VARCHAR AS HASHTAG_TEXT
+                                 FROM TWEET_INGEST
+                                 ,LATERAL FLATTEN
+                                 (input => RAW_STATUS:entities:hashtags);
+```
+**From these queries we can create a view that we can use to have a normalized presentation of the json data and we can also use it to populate real tables. This ability to process and store non structured data using the VARIANT type of data is a game changer when it comes to normalizing non structured data in warehouses. A thing that was extreamly difficult in the classic tools of data warhousing.**  
+
+```
+                                create or replace view SOCIAL_MEDIA_FLOODGATES.PUBLIC.HASHTAGS_NORMALIZED as
+                                (SELECT RAW_STATUS:user:id AS USER_ID
+                                ,RAW_STATUS:id AS TWEET_ID
+                                ,value:text::VARCHAR AS HASHTAG_TEXT
+                                FROM TWEET_INGEST
+                                ,LATERAL FLATTEN
+                                (input => RAW_STATUS:entities:hashtags)
+                                );
+```
+
+## 7. Collaboration, Marketplace & Cost Estimation:  
+
+in this workshop, we review all the aspects related to collaboration, marketplace and cost estimation in Snowflake.  
