@@ -429,3 +429,45 @@ We can also query data like we normaly do with normalized one using conditions e
 ## 7. Collaboration, Marketplace & Cost Estimation:  
 
 in this workshop, we review all the aspects related to collaboration, marketplace and cost estimation in Snowflake.  
+
+#### Share:
+
+Snowflake makes it possible to secure share data with tiers. It already does this with all customers by sharing the **ACCOUNT_USAGE** that provide data to the **SNOWFLAKE** (A db provided by default in the account) database called also **the Account Usage Share.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ce42f16b-ec27-4ce9-8869-fb633fa68411)  
+
+To get the Data from a share, we click on Download button: 
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a2a96e3e-5dd9-4e67-bbe7-f4f0899d1416)  
+
+This will create a database that reads directly from the share. After that we just name the database and the role who can access it.  
+**Note that the database will query this shared data. This database will not take up any storage space in your account.**  
+
+We can grant access to databases using the code sample below:  
+
+```
+                                             grant imported privileges
+                                             on database SNOWFLAKE_SAMPLE_DATA
+                                             to role SYSADMIN;
+```
+
+Note that we mentioned **imported privileges** because privileges for a shared database are pre-defined for maximum data security.  
+
+We can query the shared data by querying the database built on them. We can also export the results of the queries to CSV and so on.  
+**The real value of consuming shared data is:**
+- Someone else will maintain it over time and keep it fresh.
+- Someone else will pay to store it (in the snowflake Data Cloud).
+- You will only pay to query it (we pay the data provider andsnowflake for every query we perform).
+
+**Bare inmind that every user has a default role and a default werhouse for computing. So the management of these warehouses and their affectation must be an ADMIN task.**  
+
+In the same manner as granting access to an object, we can grant access to a function but only using code (no button for that):  
+
+```
+                                             grant usage 
+                                             on function UTIL_DB.PUBLIC.GRADER(VARCHAR, BOOLEAN, NUMBER, NUMBER, VARCHAR) 
+                                             to SYSADMIN; -- here we grant usage to a SYSADMIN Role.
+```
+
+#### Costs Estimation: 
+
