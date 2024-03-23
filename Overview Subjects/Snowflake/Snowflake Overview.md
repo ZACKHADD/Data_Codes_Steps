@@ -505,3 +505,79 @@ When we use a lot the same select to retrieve data, we can wrap it in a view and
                                              ;
 ```
 
+#### Sharing Data with others: 
+
+in opposition to data shared with us that we can find in **Private Sharing** section, we can also share data with others using the section **Provider Studio**.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ec9f0a24-6148-4f8a-8e47-ae3d4e4d178c)  
+
+Once the listing is named and we specify that it is only accessible by specific accounts, we define what this listing should contain:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e74618d3-f188-43ed-ade1-c4618a6ed1f5)  
+
+Note that the objects in the listing should be owned and have access roles as we want since it will be inhereted. If we would like change this setting after creating the listing and adding the object, we should remove it first, set the roles and then add it again.  
+
+After choosing what to include in the listing, we should specify waht are the accounts to share data with:  
+
+ ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b885d7bb-b0ec-40bb-a351-3203387f6b58)  
+
+ ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2ddc6ae9-3469-4770-842f-1b1cafcabf2a)  
+
+ Once the sharing is done, we can access it from the other account in the **Private Sharing** section where we can follow the same steps we did previously to get the data from the sharing to a database:  
+
+ ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/1dfc54b0-6279-4555-9c56-ef133934c5b4)  
+
+How it works: 
+
+**Because your trial account (WDE) and your ACME account are on different clouds, in different regions, Snowflake will automatically perform replication to the other cloud/region.  
+This will be a cost that WDE/Osiris covers. If Osiris doesn't want to cover that cost, he could insist that Lottie's team get a Snowflake account on the same cloud and in the same region as his primary account. This may become part of their negotiations.**  
+
+**The replication accross different Cloud Provides and regions is done based on a database that was automaticaly created at the data provider account level:**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4522f67b-6cb7-481b-987b-667329887a9d)  
+
+This how the listing looks like at the provider's level and what it contains:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/48b6ef7d-8787-4f88-bd66-543c3d82bc82)  
+
+A listing not only allows for a nicer name, you can also add information into the listing that will make it much easier for consumers to use your data.  
+One thing that might make the data easier to use would be adding a Data Dictionary.  
+This can be done at the optional information level:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2f78fa4d-94f5-4ab2-a349-e1d040d66ef4)  
+
+We can add the dictionnary to every table if we like, and it gives a detailed description of the columns:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/47a2dd82-a148-43d4-8fee-e345f524abe5)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/000a2448-704f-49b5-8103-2a5892cc0a08)  
+
+We can add also some sample queries:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7060ec2f-14ec-4323-bf7c-860ecb39922c)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2eba0c01-1945-4c96-a2d9-ac7de1f48e1b)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d47b37b2-a133-4361-9910-9f8210e35ecb)  
+
+This is what we see at the customer level once the secure share is replicated:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e203e9ab-7b91-4f4b-83cf-9638dd6255a1)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/849e1cd8-f15c-476f-8c2e-1351537375c2)  
+
+Once we click on **Get**, we specify the roles to grant access to along with ACCOUNTADMIN, we can start querying data:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/72184128-d85b-4034-a904-26629e0c8691)  
+
+This will automaticaly open a new worksheet with the sample query we have.  
+
+We can also check the database created from the share, and check if all the roles we want have usage access to the data:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a8e44118-796c-43fc-8c6f-478220855ea0)  
+
+
+
+
+
+
