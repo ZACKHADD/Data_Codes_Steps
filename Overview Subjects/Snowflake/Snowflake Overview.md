@@ -576,8 +576,28 @@ We can also check the database created from the share, and check if all the role
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a8e44118-796c-43fc-8c6f-478220855ea0)  
 
+If we want to add views also to the secure share, we need to alter them and the the secure property:  
 
+```
+                                          alter view intl_db.public.NATIONS_SAMPLE_PLUS_ISO
+                                          set secure; 
+```
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/19f2ee1d-95b7-4b45-a055-0eee3e2f723d)  
 
+**Note however, that the views should refere only to the tables already shared, if a view is a join of data from different databases/tables that are not in the secure share, they will not be added.**  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/da62cfeb-ae84-48cb-8d7e-ca8ea41a6aee)  
+
+**Note also, that we can not share an already shared database (Share) like for example the SNOWFLAKE share. Simply the shares will not be displyed among choices to add in the share.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/026f8c1a-0757-4ad1-866f-30a0a86f6c9f)  
+
+We can now monitor all the accounts we have to see our comsumption per type of workload:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2308dfb2-9331-4371-8771-37da4bbb5040)  
+
+To see all the metadata regarding the organization accounts and activity, we can query the SNOWFLAKE database that keeps track of everything done in the organisation.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/621e560e-6560-4dc2-b557-ca5d29c12e6a)  
 
