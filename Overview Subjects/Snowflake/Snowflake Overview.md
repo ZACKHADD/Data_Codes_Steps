@@ -613,3 +613,32 @@ Thanks to Role-Based Access Control, most corporate workers using Snowflake will
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5e516d42-430e-4d95-9629-ef403f3ee319)  
 
 **The monitoring ressource can be set on the Account level or on the Warehouse level.** and we can set the quota.  
+In addition to the monitoring part, we can use **Budgets** so that we view the projections of our costs:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3cc11129-d8f7-42e2-aafc-89b80ce45410)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6d52b5e4-d60b-44ac-8edd-dba641bff096)  
+
+**Relevent Query** : we can read the and query the result of query (that is stored in memory) using the following query:  
+
+```
+                                 result_scan(last_query_id()) -- This query needs to be run immediatly after the query we want to analyse.
+```
+
+#### Snowflake Market Place:  
+
+The snowflake marketplace is like a mall of data and apps where we can purchase data (get an access, a share access, to it without a need to download it).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8285996e-57ea-4a13-80a2-715ba8734418)  
+
+Some data can have a free access:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/44352d41-a29e-43da-a942-80186ea98668)  
+
+For example, the weather data share is free, and once obtained we can query the data using the query sample already existing:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/89d506de-4211-40a0-bc3b-02e78fdf9fb9)  
+
+
+
+
