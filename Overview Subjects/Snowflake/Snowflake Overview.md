@@ -601,3 +601,15 @@ To see all the metadata regarding the organization accounts and activity, we can
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/621e560e-6560-4dc2-b557-ca5d29c12e6a)  
 
+#### Snowflake Costing:  
+
+To undersand how snowflake is billing it's serveces, here it is a guide : https://www.snowflake.com/pricing/pricing-guide/  
+**We have several costs types such as : Storage, Computing, serverless cost(Replication, Clustering ...) and Cloud services (permanent state management and overall coordination of Snowflake.). The sahred data does not cost anything for the end user, only for the one sharing it.**  
+**Note that the cost varies depending or regions and the category of cost : https://www.snowflake.com/pricing/  
+To estimate the computing cost we can check the the credit used per hour that depends on the size of the warehouse.**  
+
+Thanks to Role-Based Access Control, most corporate workers using Snowflake will not be able to change warehouses capacities and cost the company a lot of money. **The ressource monitors makes it possible to set alerts on costs.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5e516d42-430e-4d95-9629-ef403f3ee319)  
+
+**The monitoring ressource can be set on the Account level or on the Warehouse level.** and we can set the quota.  
