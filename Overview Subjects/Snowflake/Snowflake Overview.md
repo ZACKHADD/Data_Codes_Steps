@@ -601,6 +601,8 @@ To see all the metadata regarding the organization accounts and activity, we can
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/621e560e-6560-4dc2-b557-ca5d29c12e6a)  
 
+**Note that when the share is done between two accounts with different cloud providers, Snowflake will create a new database called SNOWFLAKE$GDS and use it to automate the replication needed.**  
+
 #### Snowflake Costing:  
 
 To undersand how snowflake is billing it's serveces, here it is a guide : https://www.snowflake.com/pricing/pricing-guide/  
@@ -639,6 +641,131 @@ For example, the weather data share is free, and once obtained we can query the 
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/89d506de-4211-40a0-bc3b-02e78fdf9fb9)  
 
+#### User-Defined (Table) Function:  
 
+**Remember that when we set a variable we should use $ to call it and select it's content, as below :**  
 
+```
+                                 -- Set the variable
+                                 
+                                 set sample_vin = 'SAJAJ4FX8LCP55916';
+                                 
+                                 
+                                 -- Select the variable
+                                 
+                                 select $sample_vin;
+                                 
+                                 -- Use the variable in a complexed query
+                                 
+                                 select VIN
+                                 , manuf_name
+                                 , vehicle_type
+                                 , make_name
+                                 , plant_name
+                                 , model_year_name as model_year
+                                 , model_name
+                                 , desc1
+                                 , desc2
+                                 , desc3
+                                 , desc4
+                                 , desc5
+                                 , engine
+                                 , drive_type
+                                 , transmission
+                                 , mpg
+                                 from
+                                   ( SELECT $sample_vin as VIN
+                                   , LEFT($sample_vin,3) as WMI
+                                   , SUBSTR($sample_vin,4,5) as VDS
+                                   , SUBSTR($sample_vin,10,1) as model_year_code
+                                   , SUBSTR($sample_vin,11,1) as plant_code
+                                   ) vin
+                                 JOIN vin.decode.wmi_to_manuf w 
+                                     ON vin.wmi = w.wmi
+                                 JOIN vin.decode.manuf_to_make m
+                                     ON w.manuf_id=m.manuf_id
+                                 JOIN vin.decode.manuf_plants p
+                                     ON vin.plant_code=p.plant_code
+                                     AND m.make_id=p.make_id
+                                 JOIN vin.decode.model_year y
+                                     ON vin.model_year_code=y.model_year_code
+                                 JOIN vin.decode.make_model_vds vds
+                                     ON vds.vds=vin.vds 
+                                     AND vds.make_id = m.make_id;
+```
+
+**To create a function:**  
+
+- Give the function a name.  
+- Tell the function what information you will be passing into it. 
+- Tell the function what type of information you expect it to pass back to you (Return).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a1871730-a6d8-4377-83fb-5ca1c0229ea3)  
+
+Example:  
+
+the following function accepts a variable and returns a table (could be one row per value of the variable).  
+
+Note that that the function is put to secure since we will share it.  
+
+```
+                          create or replace secure function vin.decode.parse_and_enhance_vin(this_vin varchar(25))
+                          returns table (
+                              VIN varchar(25)
+                              , manuf_name varchar(25)
+                              , vehicle_type varchar(25)
+                              , make_name varchar(25)
+                              , plant_name varchar(25)
+                              , model_year varchar(25)
+                              , model_name varchar(25)
+                              , desc1 varchar(25)
+                              , desc2 varchar(25)
+                              , desc3 varchar(25)
+                              , desc4 varchar(25)
+                              , desc5 varchar(25)
+                              , engine varchar(25)
+                              , drive_type varchar(25)
+                              , transmission varchar(25)
+                              , mpg varchar(25)
+                          )
+                          as $$
+                          
+                              select VIN
+                          , manuf_name
+                          , vehicle_type
+                          , make_name
+                          , plant_name
+                          , model_year_name as model_year
+                          , model_name
+                          , desc1
+                          , desc2
+                          , desc3
+                          , desc4
+                          , desc5
+                          , engine
+                          , drive_type
+                          , transmission
+                          , mpg
+                          from
+                            ( SELECT this_vin as VIN  --here we didn't use a $ since it is not a local variable (it is autodeclared in the function)
+                            , LEFT(this_vin,3) as WMI
+                            , SUBSTR(this_vin,4,5) as VDS
+                            , SUBSTR(this_vin,10,1) as model_year_code
+                            , SUBSTR(this_vin,11,1) as plant_code
+                            ) vin
+                          JOIN vin.decode.wmi_to_manuf w 
+                              ON vin.wmi = w.wmi
+                          JOIN vin.decode.manuf_to_make m
+                              ON w.manuf_id=m.manuf_id
+                          JOIN vin.decode.manuf_plants p
+                              ON vin.plant_code=p.plant_code
+                              AND m.make_id=p.make_id
+                          JOIN vin.decode.model_year y
+                              ON vin.model_year_code=y.model_year_code
+                          JOIN vin.decode.make_model_vds vds
+                              ON vds.vds=vin.vds 
+                              AND vds.make_id = m.make_id    
+                           
+                          $$;
+```
 
