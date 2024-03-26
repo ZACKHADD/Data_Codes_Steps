@@ -769,3 +769,164 @@ Note that that the function is put to secure since we will share it.
                           $$;
 ```
 
+**What is we want to load a file with 3 columns into a table with more columns?.** We just need to precise in the properties, **of the file format**, that we want to parse the file so Snowflake can find the columns with the matching headers and to set error_on_mismatch to FALSE so that it throw an error for the files it doesn't find:  
+**we also don't use the skip header property!!!**  
+
+```
+                          CREATE FILE FORMAT util_db.public.CSV_COL_COUNT_DIFF 
+                          type = 'CSV' 
+                          field_delimiter = ',' 
+                          record_delimiter = '\n' 
+                          field_optionally_enclosed_by = '"'
+                          trim_space = TRUE
+                          error_on_column_count_mismatch = FALSE
+                          parse_header = TRUE;
+```
+
+**This file format is only valid for loading data and not reading it as we did before.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d7f711ad-3617-4229-be45-57bfb3b3e783)  
+
+**it is because another property (match_by_column_name) is needed and it is defined in the copy into query:**  
+
+```
+                          copy into stock.unsold.lotstock
+                          from @stock.unsold.aws_s3_bucket/Lotties_LotStock_Data.csv
+                          file_format = (format_name = util_db.public.csv_col_count_diff)
+                          match_by_column_name='CASE_INSENSITIVE';
+```
+
+Now, the rest of the empty columns can be populated using the secure function that the ADU account shared with the ACME account!!  
+**Note that the function uses data from tables in the data logic of the first account to calculate and give outputs using data of the second account (this ons has access only to the function)!**  
+**The function takes the input from account 2 and run it against tables in account 1 and give the result in  account 2.**  
+====> this is the power of **Snowflake Collaboration**.  
+
+We can now use the function to select the results joined with the other tables we need:  
+
+'''
+                            set my_vin = '5J8YD4H86LL013641'; -- Variable for the value we want
+                            select $my_vin;
+                            
+                            -- the select satatement:
+                            
+                            select ls.vin, pf.manuf_name, pf.vehicle_type
+                                    , pf.make_name, pf.plant_name, pf.model_year
+                                    , pf.desc1, pf.desc2, pf.desc3, pf.desc4, pf.desc5
+                                    , pf.engine, pf.drive_type, pf.transmission, pf.mpg
+                            from stock.unsold.lotstock ls
+                            join 
+                                (   select 
+                                      vin, manuf_name, vehicle_type
+                                    , make_name, plant_name, model_year
+                                    , desc1, desc2, desc3, desc4, desc5
+                                    , engine, drive_type, transmission, mpg
+                                    from table(ADU_VIN.DECODE.PARSE_AND_ENHANCE_VIN($my_vin))
+                                ) pf
+                            on pf.vin = ls.vin;
+'''
+
+or we can use it directly to update the data in the target table we have:  
+
+```
+                            set my_vin = '5J8YD4H86LL013641'; -- Variable for the value we want
+                            select $my_vin;
+
+                          -- We're using "s" for "source." The joined data from the LotStock table and the parsing function will be a source of data for us. 
+                          -- We're using "t" for "target." The LotStock table is the target table we want to update.
+
+                          update stock.unsold.lotstock t
+                          set manuf_name = s.manuf_name
+                          , vehicle_type = s.vehicle_type
+                          , make_name = s.make_name
+                          , plant_name = s.plant_name
+                          , model_year = s.model_year
+                          , desc1 = s.desc1
+                          , desc2 = s.desc2
+                          , desc3 = s.desc3
+                          , desc4 = s.desc4
+                          , desc5 = s.desc5
+                          , engine = s.engine
+                          , drive_type = s.drive_type
+                          , transmission = s.transmission
+                          , mpg = s.mpg
+                          from 
+                          (
+                              select ls.vin, pf.manuf_name, pf.vehicle_type
+                                  , pf.make_name, pf.plant_name, pf.model_year
+                                  , pf.desc1, pf.desc2, pf.desc3, pf.desc4, pf.desc5
+                                  , pf.engine, pf.drive_type, pf.transmission, pf.mpg
+                              from stock.unsold.lotstock ls
+                              join 
+                              (   select 
+                                    vin, manuf_name, vehicle_type
+                                  , make_name, plant_name, model_year
+                                  , desc1, desc2, desc3, desc4, desc5
+                                  , engine, drive_type, transmission, mpg
+                                  from table(ADU_VIN.DECODE.PARSE_AND_ENHANCE_VIN($my_vin))
+                              ) pf
+                              on pf.vin = ls.vin
+                          ) s
+                          where t.vin = s.vin;
+```
+
+Now thet we know how it works, we can set a **script (Procedure)** that will automaticaly run the update query above **againt all the VIN values** we have, to store them all in the target table. We will use the **for each** clause in this script.  
+
+The components of stored procedures are like follows :  
+
+**Words like DECLARE, BEGIN, END, FOR are for "control of flow". They allow you to dictate which statements will take place in a certain order and be run one after another.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/cdc7b01d-c7a9-4968-9a52-fe46efeadf46)  
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/00e0bd26-5304-45bd-b641-56cf26520972)  
+
+The stored procedure:  
+
+```
+                          DECLARE
+                              update_stmt varchar(2000);
+                              res RESULTSET;
+                              cur CURSOR FOR select vin from stock.unsold.lotstock where manuf_name is null;
+                          BEGIN
+                              OPEN cur;
+                              FOR each_row IN cur DO
+                                  update_stmt := 'update stock.unsold.lotstock t '||
+                                      'set manuf_name = s.manuf_name ' ||
+                                      ', vehicle_type = s.vehicle_type ' ||
+                                      ', make_name = s.make_name ' ||
+                                      ', plant_name = s.plant_name ' ||
+                                      ', model_year = s.model_year ' ||
+                                      ', desc1 = s.desc1 ' ||
+                                      ', desc2 = s.desc2 ' ||
+                                      ', desc3 = s.desc3 ' ||
+                                      ', desc4 = s.desc4 ' ||
+                                      ', desc5 = s.desc5 ' ||
+                                      ', engine = s.engine ' ||
+                                      ', drive_type = s.drive_type ' ||
+                                      ', transmission = s.transmission ' ||
+                                      ', mpg = s.mpg ' ||
+                                      'from ' ||
+                                      '(       select ls.vin, pf.manuf_name, pf.vehicle_type ' ||
+                                              ', pf.make_name, pf.plant_name, pf.model_year ' ||
+                                              ', pf.desc1, pf.desc2, pf.desc3, pf.desc4, pf.desc5 ' ||
+                                              ', pf.engine, pf.drive_type, pf.transmission, pf.mpg ' ||
+                                          'from stock.unsold.lotstock ls ' ||
+                                          'join ' ||
+                                          '(   select' || 
+                                          '     vin, manuf_name, vehicle_type' ||
+                                          '    , make_name, plant_name, model_year ' ||
+                                          '    , desc1, desc2, desc3, desc4, desc5 ' ||
+                                          '    , engine, drive_type, transmission, mpg ' ||
+                                          '    from table(ADU_VIN.DECODE.PARSE_AND_ENHANCE_VIN(\'' ||
+                                            each_row.vin || '\')) ' ||
+                                          ') pf ' ||
+                                          'on pf.vin = ls.vin ' ||
+                                      ') s ' ||
+                                      'where t.vin = s.vin;';
+                                  res := (EXECUTE IMMEDIATE :update_stmt);
+                              END FOR;
+                              CLOSE cur;   
+                          END;
+```
+
+**Note that : this operation will be slow. Snowflake was originally optimized for bulk loading and bulk updating. it was designed for loading and updating large record sets with a single statement, not for updating one row at a time, using a FOR LOOP. There are more efficient ways to achieve the result we achieved above, but this lesson's example allowed you to see how each part became a building block for the next.**  
+**In the future Snowflake will offer a new table type that allows for these individual row update operations to run more quickly. For now, don't focus on the speed, just focus on understanding how the flow works.**  
+
