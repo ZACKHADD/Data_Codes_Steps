@@ -930,3 +930,76 @@ The stored procedure:
 **Note that : this operation will be slow. Snowflake was originally optimized for bulk loading and bulk updating. it was designed for loading and updating large record sets with a single statement, not for updating one row at a time, using a FOR LOOP. There are more efficient ways to achieve the result we achieved above, but this lesson's example allowed you to see how each part became a building block for the next.**  
 **In the future Snowflake will offer a new table type that allows for these individual row update operations to run more quickly. For now, don't focus on the speed, just focus on understanding how the flow works.**  
 
+## 8. Data Application Builders Workshop: 
+
+Working with data in production is so complex especially when we have a lot of senarios we want to test and visualize. This is true in data science field whre changing the parameters we work with is so frequent, and we will need to change the variables in the script and run it again and again.  
+The solution for this, is to create a web application that will do all of this for us with a front layer making it user friendly. However, using the classic, powerful tools would take too much time. We need a simple tool that will do this for us in a quick way.  
+**Stremlit** is a framework offering this solution for data projects. https://www.youtube.com/watch?v=R2nr1uZ8ffc&ab_channel=Streamlit    
+
+**Snowflake bought Streamlit (2022) and now there are two versions of Streamlit.**   
+One version of Streamlit (the original) is a standalone and you don't have to have a Snowflake Account to use it.  
+The other is a highly integrated tool called Streamlit in Snowflake (around here we call it "SiS"). **Easy to use and configure**  
+
+#### Create a Streamlit App in Snowflake:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a92b4506-72c7-46bb-a133-f51f9bab98ee)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6b01fc14-52b6-42b7-a550-a915b0cc0d51)  
+
+This automatically creates an app example in the database (a stage holding the streamlit files of the app) we choose and we can see the code generated behind which is a **Python** code.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/64144407-203e-42eb-97f5-0012fed8b969)  
+
+We can now edit the application as we wish by refering to the streamlit doc (snippet to use). for example to add a select box : https://docs.streamlit.io/library/api-reference/widgets/st.selectbox  
+
+We need now to render data from a database. First we create one and we load data in it.  
+**We can create an internal stage (like the external ones we used before) to hold our data files and call them from there instead of our laptop.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/1183c4e5-f418-4da3-b3da-8abe03ec5343)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5a38a541-6aff-47b5-92a8-009a9dc4330d)  
+
+Sometimes the order of columns in our source files is not the same as  our target table. We can reorder the columns during the COPY INTO loading phase:  
+https://docs.snowflake.com/en/user-guide/data-load-transform#reorder-csv-columns-during-a-load  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ab3d52cf-ec46-49e8-8b08-d42696debf5b)  
+
+The hack is to load from a select statement rather than the original file itself. we use the select $1, $2 mothod to reorder the columns and rename them as per the tagret table schema.  
+
+Once loaded into the database, we can now call the data to be rendered in our Streamlit App:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8eed0a20-ee12-4ca5-b4a5-f800fb7f423e)  
+
+We simply get the credentials to access the database using active_session and we create a dataframe from the table we choose.  
+
+We can then create a simple form that stores data in a table as shown bellow:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/22786af6-54d1-4b4a-8475-72304faf870e)  
+
+in the stage that was automatically created, we can find the code file (py) of our application:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/00ea38d8-3039-422c-a8f9-63552531a925)  
+
+**Note that streamlit apps uses a warehouse to keep the pages runing, so we need to leave the app page whenever we don't use it. We should also create a ressource monitoring alert.**  
+
+Since Snowpark is built on top of Python, many libraries are supported : https://repo.anaconda.com/pkgs/snowflake/  
+But, beware. Not all packages in the Anaconda channel for Snowpark can be used for SiS. Because of this, use the list as a starting point and then test the packages you want to use in your SiS app by typing in the import statement for the library you want to use.  
+If you don't see an error message about the package you just imported, you can use that package. 
+
+#### App development process:  
+
+In the 1980s and 1990s, teams used to spend months writing up an official Requirements Document and only when all stakeholders had "signed off" was the document passed to the developers. This was called a "Waterfall Method" -- you can research **SDLC Waterfall** Method and read more about it if you are curious. **SDLC stands for Systems Development Life Cycle** and just means "process or method for developing software."
+
+Then, Rapid Prototyping (RAD, Agile, and others) became more popular. In our exampl we are using an ITERATIVE SDLC, and it's based on RAPID PROTOTYPING.  
+Many times a customer will "gold plate" requirements when they are expressing how they want an app to look or behave. A good developer or requirements analyst will be able to track the different requirements according to whether they are "must haves" or "nice to haves."   
+
+In rapid prototyping, we deliver progressivly parts of the project in short timeframes called **"Sprints"**. In old waterfall development projects, teams would set a date months or years in the future as a deadline, and then work backward setting "Milestone" dates for when each phase of the project HAD to be finished.  
+
+in the next examples we are going to add some functionnalities to our app such as giving the customer the ability to add a name for the order.  
+
+
+
+
+
+
+
