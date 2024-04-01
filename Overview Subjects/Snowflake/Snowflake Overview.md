@@ -997,6 +997,187 @@ In rapid prototyping, we deliver progressivly parts of the project in short time
 
 in the next examples we are going to add some functionnalities to our app such as giving the customer the ability to add a name for the order.  
 
+If we want to add a unique column ID to an existing table we need to truncate the table and then add the column:  
+
+```
+                         alter table SMOOTHIES.PUBLIC.ORDERS 
+                         add column order_uid integer --adds the column
+                         default smoothies.public.order_seq.nextval  --sets the value of the column to sequence
+                         constraint order_uid unique enforced; --makes sure there is always a unique value in the column;
+```
+
+#### Interfaces :
+
+We have two types of user interfaces: 
+ - GUI: Graphical user interface with buttons.
+ - CLI:Command line interface using only commande lines.  
+Most of modern applications are using both interfaces.
+
+#### Functions in Snowflake:  
+
+As we can create a function python, we can do the same in snowflake, for example:  
+
+```
+                         create or replace function NEUTRALIZE_WHINING (statement VARCHAR(100))
+                         returns VARCHAR as 'select INITCAP(statement)';
+```
+No need to use $ to call the variables in a function, not like local variables in the worksheet. Also, we can call the function using a select clause:  
+
+```
+                         select NEUTRALIZE_WHINING('ZaKaRia'); -- this will return : Zakaria
+```
+
+The final scripts for our twon apps we created in snowflake are the following:  
+
+```
+# Import python packages
+import streamlit as st
+from snowflake.snowpark.context import get_active_session
+from snowflake.snowpark.functions import col
+
+# Write directly to the app
+st.title(":cup_with_straw: Example Streamlit App :cup_with_straw:")
+st.write(
+    """Choose the fruits you want in your custom Smoothie!
+    """
+)
+
+name_on_order = st.text_input('Name on Smoothie:')
+st.write('The name on your Smoothie will be:', name_on_order)
+
+session = get_active_session()
+my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'))
+#st.dataframe(data=my_dataframe, use_container_width=True)
+ingredients = st.multiselect('Choose up to 5 ingredients:',my_dataframe,max_selections=5)
+
+if ingredients:
+    ingredients_string = ''
+    for fruit in ingredients:
+        ingredients_string +=fruit + ' '
+    #ingredients_string.strip(' ')
+    st.write(ingredients_string)
+
+    my_insert_stmt = """ insert into smoothies.public.orders(ingredients,name_on_order)values ('""" + ingredients_string + """','"""+ name_on_order + """')"""
+    
+    time_to_insert = st.button('Submit Order')
+    
+    if time_to_insert:
+        session.sql(my_insert_stmt).collect()
+        
+        st.success('Your Smoothie is ordered, '+name_on_order+'!', icon="✅")
+```
+
+The order validation app:  
+
+```
+# Import python packages
+import streamlit as st
+from snowflake.snowpark.context import get_active_session
+from snowflake.snowpark.functions import col, when_matched
+
+# Write directly to the app
+st.title(":cup_with_straw: Pending Smoothie Orders :cup_with_straw:")
+st.write(
+    """Orders that need to filled.
+    """
+)
+
+session = get_active_session()
+my_dataframe = session.table("smoothies.public.orders").filter(col("ORDER_FILLED")==0).collect()
+
+if my_dataframe:
+    editable_df = st.experimental_data_editor(my_dataframe)
+    submitted = st.button('Submit')
+    if submitted:
+        
+        og_dataset = session.table("smoothies.public.orders")
+        edited_dataset = session.create_dataframe(editable_df)
+        
+        try:
+            
+            og_dataset.merge(edited_dataset
+                             , (og_dataset['order_uid'] == edited_dataset['order_uid'])
+                             , [when_matched().update({'ORDER_FILLED': edited_dataset['ORDER_FILLED']})]
+                            )
+            st.success("Someone clicked the button.", icon= "👍")
+        except:
+            st.write('Somthing went wrong.')
+else:
+    st.success('There are no pending orders right now', icon= "👍")
+```
+
+**Now that we finiched tuning our app, we can deploy it in Streamlit rather than leaving it inside Snowflake. We can copy all our files in GITHUB account that will serve as a backend for the app, and give access to streamlit so it can read the files from the GITHUB repository.**  
+
+The biggest differences between SiS and SniS are:  
+
+1) How users connect to the app.   
+2) How we connect our app to Snowflake.  
+
+With SniS, users will be able to connect to the app more easily. We can set up our SniS app in a way that doesn't require them to log in or have a USER in our Snowflake account. In fact, Streamlit will host our app for free if we make it open to the public.  
+
+Few changes are need to be done to migrate from SiS to Streamlit:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/83aca756-8e16-4331-b3fe-2ac7eb5a360b)  
+
+Also we need a requirement file containing the version of snowflake and python and also the connector.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/061304b6-ce3e-40ae-9977-0e8408a8429a)  
+
+Once all of this is set, we can now create a streamlit account and link it to our repository:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/177fdf09-74ca-40bd-b897-90ca762c99f1)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3ba716c4-6671-47f7-8c7e-43213eab6428)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/bb506f6a-d972-46ea-9fe5-a7f80f95adfa)  
+
+Once our workspace is created we can deploy a new app:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/1a570077-6826-4463-be63-3177780f1cbe)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/16e03e20-db2c-4465-a7ee-42ac8c9e1b7c)  
+
+An error will appear regarding the connection mode:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/910535c8-90fd-4b35-95f0-db0998e7e1ea)  
+
+Till now we still didn't specify to Streamlit how it will connect to our Snoflake database:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/34d0e756-a4a8-4ab8-9416-9ce3a5fa743f)  
+
+To do so we need to edit a file called **secrets.toml**:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a7302ab0-9f89-4241-b2d2-b7a46f824f4b)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/618a3780-01c3-4db9-ab75-c3ee94f6cdda)  
+
+To do this modifications we can grab the paranmeters to set from the doc: https://docs.streamlit.io/knowledge-base/tutorials/databases/snowflake#add-connection-parameters-to-your-local-app-secrets  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d738d400-57cc-4e26-a194-b4499669f8bd)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/02b627dd-3429-4a81-add1-0e9b164f7203)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/cb63b18a-2c22-4e5b-b392-6b174eb5df09)  
+
+**Note that streamlit may not process the password and user name if they contain accents. It is better to modify them.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/63bcee04-f592-46f6-bfcd-a8723bf16d46)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/24e3f3a5-bd92-472d-aea8-46321b47dbff)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/74fc239d-377f-4642-a5f2-59f5dc03e896)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8a8205d1-36fc-4a28-9433-547cc9f7e379)  
+
+
+
+
+
+
+
+
+
+
 
 
 
