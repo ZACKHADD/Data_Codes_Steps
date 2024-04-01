@@ -1169,6 +1169,79 @@ To do this modifications we can grab the paranmeters to set from the doc: https:
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8a8205d1-36fc-4a28-9433-547cc9f7e379)  
 
+#### Using API (external source of data to use in the app) in the Streamlit App:  
+
+Using API in our app will need a python package called **Request.**  
+To add any package to a SniS app, we need two steps:  
+1) Add the library to the requirements.txt file so that Streamlit knows to install it when starting up the project.
+2) Add the import statement to the body of the streamlit_app.py file so it is ready to be used in the code.
+
+**Note that:**  
+- Anytime we change the streamlit_app.py file, and commit the changes in GitHub, the app will automatically start using the changes.
+- However, anytime we make changes to the requirements.txt file, we will need to reboot the app.
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d31acc03-52c5-4cb6-9852-30e02744e087)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c23d8b21-f35d-4247-a669-80f754ed7825)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5d0a9154-d455-4dd6-a1a0-d9841461e05f)  
+
+**The custom smoothies app with nutrition information API integrated:**  
+
+```
+# Import python packages
+import streamlit as st
+from snowflake.snowpark.functions import col
+import requests
+import pandas as pd
+
+# Write directly to the app
+st.title(":cup_with_straw: Customize Your Smoothie!  :cup_with_straw:")
+st.write(
+    """Choose the fruits you want in your custom Smoothie!
+    """
+)
+
+name_on_order = st.text_input('Name on Smoothie:')
+st.write('The name on your Smoothie will be:', name_on_order)
+
+cnx = st.connection("snowflake")
+session = cnx.session()
+
+my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'),col('SEARCH_ON'))
+#st.dataframe(data=my_dataframe, use_container_width=True)
+#convert the snowpark Dataframe to python dataframe so we can use LOC function
+pd_df = my_dataframe.to_pandas()
+ingredients = st.multiselect('Choose up to 5 ingredients:',my_dataframe,max_selections=5)
+
+if ingredients:
+    ingredients_string = ''
+    
+    for fruit in ingredients:
+        ingredients_string +=fruit + ' '
+        
+        search_on=pd_df.loc[pd_df['FRUIT_NAME'] == fruit, 'SEARCH_ON'].iloc[0]
+        st.write('The search value for ', fruit,' is ', search_on, '.')
+        
+        st.subheader(fruit+' Nutrition information')
+        #API part
+        fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + search_on)
+        fv_df = st.dataframe(data=fruityvice_response.json(), use_container_width=True)
+    #ingredients_string.strip(' ')
+    st.write(ingredients_string)
+
+    my_insert_stmt = """ insert into smoothies.public.orders(ingredients,name_on_order)values ('""" + ingredients_string + """','"""+ name_on_order + """')"""
+    
+    time_to_insert = st.button('Submit Order')
+    
+    if time_to_insert:
+        session.sql(my_insert_stmt).collect()
+        
+        st.success('Your Smoothie is ordered, '+name_on_order+'!', icon="✅")
+```
+
+
+
 
 
 
