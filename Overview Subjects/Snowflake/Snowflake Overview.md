@@ -1241,6 +1241,72 @@ if ingredients:
 ```
 
 
+## 9. Data Lake Workshop:  
+
+When we talk about Data Types - we usually mean the column type settings for Structured Data stored in Tables, like NUMERIC, VARCHAR, VARIANT and more. But we can also talk about the structure of the files that hold the data. In this workshop we will always say Data Structure Types when we mean the file storage structures for data that can be referred to as Structured, Semi-Structured, and Unstructured.  
+
+Structured data in a file (like a .txt or .csv) is arranged as a series of rows (often each line in the file is a row). Each row in the file is separated into columns. The value used to separate each row of data into columns can vary. Sometimes a comma is used to separate the values in each row into columns. Sometimes a tab is used. You can have pipes (sometimes called "vertical bars") as column delimiters, or many other symbols.  Regardless of which separator is used, any data file with data arranged in rows and columns (and no nesting) is called "structured data" and we often load each value into a column and each line into a row in our Snowflake tables.  
+
+Semi-Structured data (in a file like .json, or .xml)  is data that has unpredictable levels of nesting and often each "row" of data can vary widely in the information it contains. Semi-structured data stored in a flat file may have markup using angle brackets (like XML) or curly brackets (like JSON). Snowflake can load and process common nested data types like JSON, XML, Avro, Parquet, and ORC. Each of the semi-structured data types is loaded into Snowflake tables using a column data type called VARIANT.  A VARIANT column might contain many key-value pairs and multiple nested records and it will also keep the markup symbols like curly braces and angle brackets.  NOTE: A file can be semi-structured, even if the file's name ends in .txt. If the data inside a file is formatted using semi-structured layout and markup, the file is considered semi-structured.  
+
+There is a third type of data file called Unstructured data. (File names will have extensions like .mp3, .mp4, .png, etc.)  Snowflake added support for Unstructured Data in August of 2021. Snowflake has ways to help you store, access, process, manage, govern, and share unstructured data. Videos, images, audio files, pdfs and other file types are considered unstructured data.  
+
+Snowflake's goal is to make it very easy for us to combine all three types of data so that we can analyze and process it together rather than needing to use multiple tools to do our data work.  
+
+We can view the stages we create to access data in external storages differently now that we will use the data lake aspects. As it turns out, a Snowflake Stage Object can be used to connect to and access files and data you never intend to load!!!  
+We can create a stage that points to an external bucket. Then, instead of pulling data through the stage into a table, we can reach through the stage to access and analyze the data where it is already sitting.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2eb9e0d4-23d0-4725-aa03-2be9bea47d26)  
+
+**We can access it AND if we use a File Format, we can make it appear almost as if it is actually loaded!**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9cf663b1-dd74-4f22-aef3-df6d93edc657)  
+
+We will need just to specify the **File Format** so we can read the data as it should.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f117fdb3-a69d-425d-a877-1a1a19c96d7c)  
+
+In this example, snowflake hasn't been told anything about how the data in these files is structured so it's just making assumptions.  Snowflake is presuming that the files are CSVs because CSVs are a very popular file-formatting choice. It's also presuming each row ends with CRLF (Carriage Return Line Feed) because CRLF is also very common as a row delimiter.  
+Example of typical csv file (with a semicolumn instead of comma):  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/eaa30691-37c6-4adc-8c1a-1da5b801e2c5)  
+
+We can also fix some problems in the data like the presence of spaces at the end and the beginning using **TRIM_SPACE = TRUE**. **But it should be real spaces.**  
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/99a8f23c-fc9f-4f26-aca7-66bcc40b9498)  
+
+In fact, many data files use CRLF (Carriage Return Line Feed) as the record delimiter, so if a different record delimiter is used, the **CRLF** can end up displayed or loaded! When strange characters appear in our data, we can refine your select statement to deal with them.  
+In SQL we can use ASCII references to deal with these characters:  
+ -13 is the ASCII for Carriage return
+ -10 is the ASCII for Line Feed  
+ 
+SQL has a function, CHR() that will allow you to reference ASCII characters by their numbers. So, chr(13) is the same as the Carriage Return character and chr(10) is the same as the Line Feed character.  
+
+In Snowflake, we can CONCATENATE two values by putting || between them (a double pipe). So we can look for CRLF by telling Snowflake to look for: **chr(13)||chr(10).**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fd7792e3-e1bd-4399-9071-14a5ad5ec76d)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d85c22e3-6617-4f34-83a3-ea2a87a3db03)  
+
+Also to **Remove empty rows from the select we use:**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/857aeb33-c441-4ebe-b45f-25a7b3429f15)  
+
+Now that we fixes the data, we can create a view from the select so that we can query it like a normal table:  
+
+```
+                          create view zenas_athleisure_db.products.sweatsuit_sizes as 
+                          select REPLACE($1,chr(13)||chr(10)) as sizes_available
+                          from @uni_klaus_zmd/sweatsuit_sizes.txt
+                          (file_format => zmd_file_format_1 )
+                          Where sizes_available <> '';
+                          
+                          select * from zenas_athleisure_db.products.sweatsuit_sizes;
+```
+
+**Thie is the power of snowflake when dealing with big data in general and flat files. We can create a view to read the data as a table and query this view.**  
+
+
+
 
 
 
