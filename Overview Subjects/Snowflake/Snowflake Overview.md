@@ -1305,12 +1305,183 @@ Now that we fixes the data, we can create a view from the select so that we can 
 
 **Thie is the power of snowflake when dealing with big data in general and flat files. We can create a view to read the data as a table and query this view.**  
 
+#### Query Unstructured data:  
+
+Querying images for example is possible in snowflake. But what can we query exactlly ?  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2cfaf4da-9f28-4b92-805a-5f5d2eacf6af)  
+
+we can query the meta data:  
+
+```
+                          select metadata$filename, metadata$file_row_number
+                          from @uni_klaus_clothing/90s_tracksuit.png; -- here we read metadata of a single file we can remove it and read all files
+```
+We can query all the files metadatas and count the number per file:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/1a12b18b-70ed-4b71-95cd-e58cbe394a09)  
+
+#### Directory tables:  
+
+We can use the directory tables to read the unstructured data (such as images).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/62e3132a-94ee-43be-aa62-4c40105d2f28)  
+
+Some few rules of directroy tables:  
+- They are attached to a Stage (internal or external).  
+- You have to enable them. 
+- You have to refresh them.
+
+```
+                          --Directory Tables
+                          select * from directory(@uni_klaus_clothing);
+                          
+                          -- Oh Yeah! We have to turn them on, first
+                          alter stage uni_klaus_clothing 
+                          set directory = (enable = true);
+                          
+                          --Now?
+                          select * from directory(@uni_klaus_clothing);
+                          
+                          --Oh Yeah! Then we have to refresh the directory table!
+                          alter stage uni_klaus_clothing refresh;
+                          
+                          --Now?
+                          select * from directory(@uni_klaus_clothing);
+```
+
+Now we can see some new columns including the **FILE_URL:**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/1a1663e5-0907-461f-b1ac-23bb749c5d33)  
+
+**Now from this directory table results, we can run some queries to modify data and create a view on top of it to be used as a table!**  
+
+Example of some changes to make is to standerdize the file name:  
+
+```
+--Nested functions to trqnsform data
+                          select REPLACE(REPLACE(REPLACE(UPPER(RELATIVE_PATH),'/'),'_',' '),'.PNG') as PRODUCT_NAME
+                          from directory(@uni_klaus_clothing);
+```
+
+We can also use them in joins:  
+
+```
+                         select * from
+                         (select REPLACE(REPLACE(REPLACE(UPPER(RELATIVE_PATH),'/'),'_',' '),'.PNG') as PRODUCT_NAME, SIZE, LAST_MODIFIED, MD5, ETAG, FILE_URL, RELATIVE_PATH
+                         from directory(@uni_klaus_clothing)) dt 
+                         join
+                         ZENAS_ATHLEISURE_DB.PRODUCTS.SWEATSUITS sw
+                         on dt.RELATIVE_PATH = SUBSTR(sw.DIRECT_URL,54,50);
+```
+This is the power of combining structured data and unstructured data, as we can join loaded ones and non loaded ones.  When some data is loaded and some is left in a non-loaded state the two types can be joined and queried together, this is sometimes referred to as a **Data Lakehouse**.  
+
+The Data Lake metaphor was introduced to the world in 2011 by James Dixon, who was the Chief Technology Officer for a company called Pentaho, at that time.  
+
+Dixon said:  
+
+**If you think of a data mart as a store of bottled water -- cleansed and packaged and structured for easy consumption -- the data lake is a large body of water in a more natural state. The contents of the data lake stream in from a source to fill the lake, and various users of the lake can come to examine, dive in, or take samples.**  
+
+When we talk about Data Lakes at Snowflake, we tend to mean data that has not been loaded into traditional Snowflake tables. We might also call these traditional tables "native" Snowflake tables, or "regular" tables.  
+
+**Create a view from parquet files:**  
+
+```
+                              create view CHERRY_CREEK_TRAIL as 
+                              select 
+                               $1:sequence_1 as point_id,
+                               $1:trail_name::varchar as trail_name,
+                               $1:latitude::number(11,8) as lng, --remember we did a gut check on this data
+                               $1:longitude::number(11,8) as lat
+                              from @trails_parquet
+                              (file_format => ff_parquet)
+                              order by point_id;
 
 
 
+                              --To add a column, we have to replace the entire view
+                              --changes to the original are shown in red
+                              create or replace view cherry_creek_trail as
+                              select 
+                               $1:sequence_1 as point_id,
+                               $1:trail_name::varchar as trail_name,
+                               $1:latitude::number(11,8) as lng,
+                               $1:longitude::number(11,8) as lat,
+                               lng||' '||lat as coord_pair
+                              from @trails_parquet
+                              (file_format => ff_parquet)
+                              order by point_id;
 
 
+                             select 
+                             'LINESTRING('||
+                             listagg(coord_pair, ',')  -- window function
+                             within group (order by point_id)
+                             ||')' as my_linestring
+                             from cherry_creek_trail
+                             where point_id <= 10
+                             group by trail_name;
 
+
+                            -- create a view that queries data from json without loading it
+                            create view DENVER_AREA_TRAILS as
+                            select
+                            $1:features[0]:properties:Name::string as feature_name
+                            ,$1:features[0]:geometry:coordinates::string as feature_coordinates
+                            ,$1:features[0]:geometry::string as geometry
+                            ,$1:features[0]:properties::string as feature_properties
+                            ,$1:crs:properties:name::string as specs
+                            ,$1 as whole_object
+                            from @trails_geojson (file_format => ff_json);
+```
+
+**We see that we can do every operation we want on data lake files just as the regular tables with loaded data.**   
+
+#### Geospatial Functions:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5724076e-d13a-4d8a-9af2-028f72c41fec)  
+
+When working with geospatial data, we need to convert them to GeaoSpatial, otherwise the spatial type functions won't work:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/98931947-a98e-4ef2-beaf-88e0a4b3e885)  
+
+```
+                           select 
+                           'LINESTRING('||
+                           listagg(coord_pair, ',') -- window function
+                           within group (order by point_id)
+                           ||')' as my_linestring
+                           ,st_length(TO_GEOGRAPHY(my_linestring) ) as length_of_trail --this line is new! but it won't work!
+                           from cherry_creek_trail
+                           group by trail_name;
+```
+
+**to get the DDL code of a view or an object we can use the following statement:**  
+
+```
+                           select get_ddl('view', 'DENVER_AREA_TRAILS');
+```
+
+```
+                          create or replace view DENVER_AREA_TRAILS(
+                          	FEATURE_NAME,
+                          	FEATURE_COORDINATES,
+                          	GEOMETRY,
+                              TRAIL_LENGTH,
+                          	FEATURE_PROPERTIES,
+                          	SPECS,
+                          	WHOLE_OBJECT
+                          ) as
+                          select
+                          $1:features[0]:properties:Name::string as feature_name
+                          ,$1:features[0]:geometry:coordinates::string as feature_coordinates
+                          ,$1:features[0]:geometry::string as geometry
+                          ,st_length(to_geography(geometry)) as trail_length
+                          ,$1:features[0]:properties::string as feature_properties
+                          ,$1:crs:properties:name::string as specs
+                          ,$1 as whole_object
+                          from @trails_geojson (file_format => ff_json);
+```
 
 
 
