@@ -1610,7 +1610,127 @@ https://www.snowflake.com/blog/5-reasons-apache-iceberg/
 **In all the above, we have seen that using non loaded data is of a great advantage in prototyping and descovering data before before normalizing it and loading it in a real data warehouse.**  
 
 
+## 10. Data Engineering:  
 
+In this part, we discover all the functionalities related to data engineering.  
 
+Note that when we want to use **COPY INTO** to load several files (having the same structure) we don't specify the file's name in **FROM** clause.  
 
+```
+                                  copy into AGS_GAME_AUDIENCE.RAW.GAME_LOGS
+                                  from @uni_kishore/kickoff     -- we specify only the folder,  then all the files in it will be loaded
+                                  file_format = (format_name = FF_JSON_LOGS)
+                                  ;
+```
+
+#### TimeZone:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/bfb8e69a-3a19-419e-a5c1-442092ca53f2)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4a73bd27-7272-4432-a10e-24e51c459d45)  
+
+Even while our trial account has a default time zone of "America/Los_Angeles" (UTC-7), we can change the time zone of each worksheet, independently.  
+A worksheet can be referred to as a "session". For the purposes of this lesson, just consider a "worksheet" and a "session" to mean the same thing*.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4a0a6e47-e5e5-440f-9911-8ed70b58d7c0)  
+
+To alter the timezone of a session we can use the following queries:  
+
+```
+                             --what time zone is your account(and/or session) currently set to? Is it -0700?
+                             select current_timestamp();
+                             
+                             --worksheets are sometimes called sessions -- we'll be changing the worksheet time zone
+                             alter session set timezone = 'UTC';
+                             select current_timestamp();
+                             
+                             --how did the time differ after changing the time zone for the worksheet?
+                             alter session set timezone = 'Africa/Nairobi';
+                             select current_timestamp();
+                             
+                             alter session set timezone = 'Pacific/Funafuti';
+                             select current_timestamp();
+                             
+                             alter session set timezone = 'Asia/Shanghai';
+                             select current_timestamp();
+                             
+                             --show the account parameter called timezone
+                             show parameters like 'timezone';
+```
+
+Snowflake uses the IANA list. We can see it here: https://data.iana.org/time-zones/tzdb-2021a/zone1970.tab  
+
+Know snowflake stores and display datetime data differently:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/92e64bbf-89f1-4d6a-a651-4cd5dfc050d3)  
+
+The Z represents Zulu...as in Greenwich Mean Time...as in UTC 0.  But it could just mean "time zone unknown."  In other words, the Z either tells you a lot, or very little.  
+For example, it could be telling you that when game players logged in and out:  
+Their datetime info was captured in the players' local time, but the time zone info was lost along the way.  
+Their datetime info was captured in the players' local time, but the data was converted to UTC before being made available to Agnie.  
+The game captured the datetime info in the server's default time, but the server's time zone information was lost along the way.  
+The game captured the datetime info in the server's default time, but the data was converted to UTC before being made available to Agnie.  
+Some other capture and convert/loss scenario.   
+In short, "Z" can mean we know the time zone and it is in a standardized, zero-offset form OR it can mean we don't know what the original time zone was.  
+It can also sometimes mean that the time zone is stored in a separate column and you are expected to combine the two values when you compare two different timestamps.  
+
+**The info about how the format of the date data is captured is crucial to do time comparaisions.**  
+
+The **epoch** format is also a well know format of storing date data: The Unix epoch (or Unix time or POSIX time or Unix timestamp) is the number of seconds that have elapsed since January 1, 1970 (midnight UTC/GMT), not counting leap seconds (in ISO 8601: 1970-01-01T00:00:00Z).  
+
+#### Schema on read:
+
+We have been using this from the begining using the FILE_FORMAT to read data in VARIANT type. We store it in VARIANT column and on the read we define a schema like follows:  
+
+```
+                         create or replace view AGS_GAME_AUDIENCE.RAW.LOGS(
+                             IP_ADDRESS,
+                         	DATETIME_ISO8601,
+                         	USER_EVENT,
+                         	USER_LOGIN,
+                         	RAW_LOG
+                         ) as (
+                         select
+                         RAW_LOG:ip_address::VARCHAR as IP_ADDRESS
+                         ,RAW_LOG:datetime_iso8601::TIMESTAMP_NTZ as datetime_iso8601
+                         , RAW_LOG:user_event::VARCHAR as USER_EVENT
+                         , RAW_LOG:user_login::VARCHAR as USER_LOGIN
+                         ,*
+                         from GAME_LOGS
+                         where RAW_LOG:agent::text is null
+                         );
+```
+
+#### ETL & ELT:
+
+In many organizations, a Data Engineer is given access to extracted data, and told what the end goals are (the final, transformed state). Then, it is within their power and discretion to decide what steps they will follow to get there.  
+We have seen above an example of ELT when we used the view to parse the variant column of the original table.  
+
+These choices are called **design** and the structures and processes that result are called the **architecture**.  
+Data Engineers often perform a series of ETL steps and so they have different "layers" where data is expected to have reached certain levels of refinement or transformation. In this workshop we'll have named our layers: 
+    - RAW
+    - ENHANCED
+    - CURATED
+
+If we have IP address and we want to get all the infos regarding it we can use a snowflake function **parse_ip**  
+
+```
+                       select parse_ip('107.217.231.17','inet'):ipv4;
+
+                      -- Result :
+                      {
+                       "family": 4,
+                       "host": "107.217.231.17",
+                       "ip_fields": [
+                         1809442577,
+                         0,
+                         0,
+                         0
+                       ],
+                       "ip_type": "inet",
+                       "ipv4": 1809442577,
+                       "netmask_prefix_length": null,
+                       "snowflake$type": "ip_address"
+                     }
+```
 
