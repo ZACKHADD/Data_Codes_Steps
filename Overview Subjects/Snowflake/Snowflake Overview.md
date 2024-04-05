@@ -1483,11 +1483,131 @@ When working with geospatial data, we need to convert them to GeaoSpatial, other
                           from @trails_geojson (file_format => ff_json);
 ```
 
+We have layered structure into our queries using file formats and views. We're not saying this is a great way to engineer data, we're just dicovering all the tools in the leave-it-where-it-lands toolbox. But, Depending on the project team, and the setting, and the project deadline - these no-loading tools might save you from spending critical time on the wrong tasks.  
 
+#### Search for a location or trail:  
 
+Use one of the following tools with geaospatial data:  
+```
+                           GOOGLE MAPS: 39.76471253574085, -104.97300245114094
+                           
+                           WKT PLAYGROUND: POINT(-104.9730024511  39.76471253574)
+                           
+                           GEOJSON.IO: Paste between the square brackets. 
+                           
+                           {
+                                 "type": "Feature",
+                                "properties": {
+                                   "marker-color": "#ee9bdc",
+                                  "marker-size": "medium",
+                                   "marker-symbol": "cafe",
+                                   "name": "Melanie's Cafe"
+                                },
+                                "geometry": {
+                                   "type": "Point",
+                                  "coordinates": [
+                                     -104.97300870716572,
+                                     39.76469906695095
+                                   ]
+                                 }
+                               }
+```
 
+We can also use snowflake functions to generate coordinates from longitude and latitude:  
 
+```
+                          -- Melanie's Location into a 2 Variables (mc for melanies cafe)
+                          set mc_lat='-104.97300245114094';
+                          set mc_lng='39.76471253574085';
+                          
+                          --Confluence Park into a Variable (loc for location)
+                          set loc_lat='-105.00840763333615'; 
+                          set loc_lng='39.754141917497826';
+                          
+                          --Test your variables to see if they work with the Makepoint function
+                          select st_makepoint($mc_lat,$mc_lng) as melanies_cafe_point;
+                          select st_makepoint($loc_lat,$loc_lng) as confluent_park_point;
+                          
+                          --use the variables to calculate the distance from 
+                          --Melanie's Cafe to Confluent Park
+                          select st_distance(
+                                  st_makepoint($mc_lat,$mc_lng)
+                                  ,st_makepoint($loc_lat,$loc_lng)
+                                  ) as mc_to_cp;
+```
 
+**Make a select of all columns and modify few of them:**  
+
+```
+                          SELECT
+                           name
+                           ,cuisine
+                           ,distance_to_mc(coordinates) AS distance_from_melanies
+                           ,*    --refere to all the columns, so for example name and cuisine will be returned twice
+                          FROM  competition
+                          ORDER by distance_from_melanies;
+```
+
+#### Function overloading:  
+
+First we had a function called DISTANCE_TO_MC and it had two arguments. Then, we ran a CREATE OR REPLACE statement that defined the DISTANCE_TO_MC UDF so that it had just one argument. Maybe we expected only one function called DISTANCE_TO_MC would exist after that. But we look in our LOCATIONS Schema under FUNCTIONS and we you find that there are two!  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c7d9f569-18c4-483a-99ff-8cab4f1970d1)  
+
+**it is what we call function overloading. it means that we can have different ways of running the same function and Snowflake will figure out which way to run the UDF, based on what we send it. So if we send the UDF two numbers it will run our first version of the function and if we pass it one geography point, it will run the second version.**  
+**This means we can run the function several different ways and they will all result in the same answer.  When speaking about a FUNCTION plus its ARGUMENTS we can refer to it as the FUNCTION SIGNATURE.**  
+
+#### Materialized views:  
+
+A Materialized View is like a view that is frozen in place (more or less looks and acts like a table).  
+**The big difference is that, for regular views, if some part of the underlying data changes,  Snowflake recognizes the need to refresh it, automatically.**  
+**People often choose to create a materialized view if they have a view with intensive logic that they query often but that does NOT change often.  We can't use a Materialized view on any of our trails data because you can't put a materialized view directly on top of staged data.**  
+
+#### External Tables:  
+
+An External Table is a table put over the top of non-loaded data (just like the views we put on top a select statements from external stages).  
+**External tables allow you to easily load data into Snowflake from various external data sources without the need to first stage the data within Snowflake. Data Integration: Snowflake supports seamless integration with other data processing systems and data lakes.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7d299981-ca4e-46db-8416-77e6ee3b6f5d)  
+
+There are other parts that are somewhat new, but that don't seem complicated. In our views we define the PATH and CAST first and then assign a name by saying AS <column name>. For the external table we just flip the order. State the column name first, then AS, then the PATH and CAST column definition.  
+Also, there's a property called AUTO_REFRESH -- which seems self-explanatory!  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f21317f4-8e5f-4576-a02e-8407345b466e)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/58bacc08-624d-4b86-8040-090aefea1260)  
+
+**Building an external table will load data in snowflake and we will be able to create a materialized view on top of it.**  
+**In other words, you CAN put a Materialized View over staged data, as long as you put an External Table in between them, first!**  
+
+```
+                              create or replace external table T_CHERRY_CREEK_TRAIL(
+                              	my_filename varchar(50) as (metadata$filename::varchar(50))
+                              ) 
+                              location= @trails_parquet
+                              auto_refresh = true
+                              file_format = (type = parquet);
+```
+
+We can use get ddl to have all the properties needed in create external table statement.  
+
+Difference in syntax between view and external table:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0abb0298-d085-4037-9da8-7b7abc4dd280)  
+
+#### Iceberg tables:  
+Iceberg tables are based on the iceberg technologie, which is an apache technology.  
+
+Iceberg is a high-performance format for huge analytic tables. Iceberg brings the reliability and simplicity of SQL tables to big data, while making it possible for engines like Spark, Trino, Flink, Presto, Hive and Impala to safely work with the same tables, at the same time.  
+
+- Iceberg is an open-source table type, which means a private company does not own the technology. Iceberg Table technology is not proprietary.  
+- Iceberg Tables are a layer of functionality you can lay on top of parquet files (just like the Cherry Creek Trails file we've been using) that will make files behave more like loaded data. In this way, it's like a file format, but also MUCH more.   
+- Iceberg Table data will be editable via Snowflake! Read that again. Not just the tables are editable (like the table name), but the data they make available (like the data values in columns and rows). So, you will be able to create an Iceberg Table in Snowflake, on top of a set of parquet files that have NOT BEEN LOADED into Snowflake, and then run INSERT and UPDATE statements on the data using SQL 🤯.   
+Iceberg Tables will make Snowflake's Data Lake options incredibly powerful!!  
+
+https://www.snowflake.com/blog/5-reasons-apache-iceberg/  
+
+**In all the above, we have seen that using non loaded data is of a great advantage in prototyping and descovering data before before normalizing it and loading it in a real data warehouse.**  
 
 
 
