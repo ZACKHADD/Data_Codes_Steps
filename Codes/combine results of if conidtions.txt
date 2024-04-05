@@ -1,0 +1,20 @@
+##M is a "flow" language, which is quite different to VBA, which is "transactional".
+
+#Therefore, you are programming transitions rather than states  as in a more traditional languages.
+
+#I think, this is quite important to bear in mind this (seemgly simple) difference. For me, comming from VB + C# this was quite a change in paradigm.
+
+ 
+
+#In your case, this is enough to see each conditions as a separate function (kind of a delegate in C# if you wish). Therefore, it is possible to record it as return "Actual Start is a future date" if condition1 is met, combine with return "Task Ends before it begins" if condition 2 is met:
+
+#"Added custom" = 
+    Table.AddColumn(#"Changed column type", "Error Checking", 
+        each
+            Text.Combine(
+                {
+                    if [Task Actual Start Date] <> null and [Task Actual Start Date] > Date.From(DateTime.LocalNow()) then "Actual Start is a future date" else "",
+                    if ([Task Actual Finish Date] <> null and [Task Actual Start Date] <> null) and [Task Actual Finish Date] < [Task Actual Start Date] then "Task Ends before it begins" else ""
+                },
+                " AND "
+    ) 
