@@ -1734,3 +1734,49 @@ If we have IP address and we want to get all the infos regarding it we can use a
                      }
 ```
 
+#### Query profiling:
+
+**Query profiling is so important in order to evalaute if the query is optimized or not as this will impact the computing cost we pay in snowflake.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c1af9a7e-c2ad-47ce-b71f-e71956dc9122)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9b329daa-bd05-4719-b40a-75e78df61e82)  
+
+If we forget to look at the Query Profile while the results are still on our screen, we just use the side menu to find and explore previous queries.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/59b556c4-c1b0-40fe-be24-ff7262fd6271)  
+
+**Bare in mind that joins on integers are more efficient then the strings.**  
+
+```
+                            --Use two functions supplied by IPShare to help with an efficient IP Lookup Process!
+                            SELECT logs.ip_address
+                            , logs.user_login
+                            , logs.user_event
+                            , logs.datetime_iso8601
+                            , city
+                            , region
+                            , country
+                            , timezone 
+                            from AGS_GAME_AUDIENCE.RAW.LOGS logs
+                            JOIN IPINFO_GEOLOC.demo.location loc 
+                            ON IPINFO_GEOLOC.public.TO_JOIN_KEY(logs.ip_address) = loc.join_key
+                            AND IPINFO_GEOLOC.public.TO_INT(logs.ip_address) 
+                            BETWEEN start_ip_int AND end_ip_int;
+```
+
+Wecanuse a lot of functions in snowflake to convert to local time zones:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/40ea9f8b-b047-412a-9ba7-bbf4f6aa4543)  
+
+**Combining list aggregate function and group by makes it possible to return all the values of the same observation in the group by column:**  
+
+```
+                           select tod_name, listagg(hour,',') 
+                           from time_of_day_lu
+                           group by tod_name;
+```
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f8a1e322-061d-4ce3-bed0-acca01ae9ff3)  
+
+
