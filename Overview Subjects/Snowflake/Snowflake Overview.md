@@ -1779,4 +1779,40 @@ Wecanuse a lot of functions in snowflake to convert to local time zones:
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f8a1e322-061d-4ce3-bed0-acca01ae9ff3)  
 
+As we do with views, if we want to create a table from a selection we can do that using **Create Table As Select:**  
+
+```
+                            create table ags_game_audience.enhanced.logs_enhanced as(
+                            SELECT logs.ip_address
+                            , logs.user_login as GAMER_NAME
+                            , logs.user_event as GAME_EVENT_NAME
+                            , logs.datetime_iso8601 as GAME_EVENT_UTC
+                            , city
+                            , region
+                            , country
+                            , timezone as GAMER_LTZ_NAME
+                            , CONVERT_TIMEZONE('UTC',timezone,logs.datetime_iso8601) as GAME_EVENT_LTZ
+                            , DAYNAME(GAME_EVENT_LTZ) as DOW_NAME
+                            , TOD_NAME
+                            from AGS_GAME_AUDIENCE.RAW.LOGS logs
+                            JOIN IPINFO_GEOLOC.demo.location loc 
+                            ON IPINFO_GEOLOC.public.TO_JOIN_KEY(logs.ip_address) = loc.join_key
+                            AND IPINFO_GEOLOC.public.TO_INT(logs.ip_address) 
+                            BETWEEN start_ip_int AND end_ip_int
+                            JOIN AGS_GAME_AUDIENCE.RAW.TIME_OF_DAY_LU
+                            ON AGS_GAME_AUDIENCE.RAW.TIME_OF_DAY_LU.HOUR = date_part(HOUR,logs.datetime_iso8601)
+                            );
+```
+
+#### Productionizing the work:
+
+This part is simply the automatization of the ETL/ELT process using tasks, jobs, pipelines and stored procedures ...   
+**Create Task:**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4c322598-1535-4690-9a19-a6a771db318c)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4446fe99-26ac-44d5-8a68-ee2339c4bb2e)  
+
+
+
 
