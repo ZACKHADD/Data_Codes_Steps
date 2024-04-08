@@ -2039,6 +2039,89 @@ Once done we should see a logigramme as follows:
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d4edf50f-1ce8-45ec-8a8e-58a3aa7627e7)  
 
+Things to take into consideration regarding the snowflake pipelines:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/db07b85b-0277-470c-8602-636f7bb43688)  
+
+#### Event-Driven Pipelines:
+
+**The pipeline we created before is a Time-Driven Pipeline.**  
+A Time-Driven Pipeline is not always the best solution because it can waste money looking for data that isn't there, or allow a backlog to build up if it hasn't been scheduled correctly to meet demand.  
+**The major alternative to Time-Driven Pipelines are Event-Driven Pipelines and they are made possible by a Snowflake object called a Snowpipe.**  
+Our Event-Driven Pipeline will "sleep" until a certain event takes place, then it will wake up and respond to the event. In our case, the "event" we care about is a new file being written to our bucket. When our pipe "hears" that a file has arrived, it will grab the file and move it into Snowflake.  
+
+The new flow will look like this:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8b5cb1c2-424f-43f4-be18-b5182829ab13)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6e8b1d20-ae93-4c6d-adb7-e7ddb6690be4)  
+
+What is the **HUB and conveyor belt?**  
+Those are cloud engineering infrastructure objects that are leveraged by Snowflake to make continuous loading possible. So before we create the Snowpipe,it will benefit to understand how they work.  
+
+Modern data pipelines depend on cloud-based services offered by major cloud providers like Amazon Web Services (AWS), Microsoft Azure, and Google Cloud Platform (GCP).  
+Creating an Event-Driven Pipeline in Snowflake depends on 3 types of services created and managed by the cloud providers.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fc05bcc3-0262-4d3b-bbc1-ef7f113b3ce4)  
+
+**STORAGE**
+- AWS : S3 Buckets
+- Azure : Blob Storage
+- GCP : GCS Buckets  
+
+**PUBLISH & SUBSCRIBE NOTIFICATION SERVICES (Hub & Spoke)**
+- AWS : Simple Notification Services (SNS)
+- Azure : Azure Web PubSub and Azure Event Hub
+- GCP : Cloud Pub/Sub
+
+**MESSAGE QUEUING  (Linear Messaging)**
+- AWS : Simple Queue Services (SQS)
+- Azure : Azure Storage Queues and Azure Service Bus Queues
+- GCP : Cloud Tasks  
+
+Publish and Subscribe services are based on a Hub and Spoke pattern. The HUB is a central controller that manages the receiving and sending of messages. The SPOKES are the solutions and services that either send or receive notifications from the HUB.  
+If a SPOKE is a PUBLISHER, that means they send messages to the HUB. If a SPOKE is a SUBSCRIBER, that means they receive messages from the HUB. A SPOKE can be both a publisher and a subscriber.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f3835fd0-457c-4510-b6e8-acf925b95b07)  
+
+With messages flowing into and out of a Pub/Sub service from so many places, it could get confusing, fast. So Pub/Sub services have EVENT NOTIFICATIONS and TOPICS. A topic is a collection of event types. A SPOKE publishes NOTIFICATIONS to a TOPIC and subscribes to a TOPIC, which is a stream of NOTIFICATIONS.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/360a481d-58e9-4388-9d84-a2c67f95fd35)  
+
+**This means, that to et up a snowpipe when we have an external storage, we will need to create the tools above in the corresponding Cloud Provider.**  
+
+Let's take AWS as an example:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/011c64a3-4c80-4c9d-8df6-6315914ac0ec)  
+
+We create the simple notification service:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/bb43a248-f6d5-472f-887a-3b270f5e3648)  
+
+We go then to the bucket and set up an Event Notification. The notification is called "a_new_file_is_here." Any time a PUT is run that puts a new file in the bucket, an event notification will be generated.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/da4b3b29-fd44-4ce0-aee1-02707620cc9e)  
+
+What will happen with that notification after it is generated?   It will be sent to to the SNS Topic named dngw_topic.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d229e1a5-202b-40a9-a1e6-cbe1005cce4e)  
+
+More details in the video:  
+https://www.youtube.com/watch?v=RjSW75YsBMM&t=1096s
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fcda5a0c-2e9f-41ad-ac0e-2c6952951f83)  
+
+Kishore ran the command above and Snowflake sent back a policy for him. The policy looks like gibberish at first, but it's pretty simple.
+
+It just says that a User (a Service Account, actually) is allowed to subscribe to the dngw_topic.
+
+When setting up a Snowpipe in your own account (later) you may want to generate a policy like this that you can then copy into a topic
+
+
+
+
+
+
 
  
 
