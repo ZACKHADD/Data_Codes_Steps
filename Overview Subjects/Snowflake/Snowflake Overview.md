@@ -1813,6 +1813,234 @@ This part is simply the automatization of the ETL/ELT process using tasks, jobs,
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4446fe99-26ac-44d5-8a68-ee2339c4bb2e)  
 
+Once created, even if owned by sysadmin, an authorization must be granted to this role so that we can test it as sysadmin role:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/91fcb3e8-cca3-468e-b294-f447f6d72733)  
+
+This is because tasks will e scheduled and can consume a lot of ressources so it needs the ACCOUNTADMIN approval:  
+
+To grant the role :  
+
+```
+                                  --You have to run this grant, in ADMINACCOUNT role, or you won't be able to test your tasks while in SYSADMIN role
+                                  --this is true even if SYSADMIN owns the task!!
+                                  grant execute task on account to role SYSADMIN;
+                                  
+                                  --Now you should be able to run the task, even if your role is set to SYSADMIN
+                                  execute task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED;
+                                  
+                                  --the SHOW command might come in handy to look at the task 
+                                  show tasks in account;
+                                  
+                                  --you can also look at any task more in depth using DESCRIBE
+                                  describe task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED;
+
+```
+
+We can check the history of the task as follow:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/fc762195-acb2-4881-b805-8113d6d3b634)  
+
+We can create in the tasks some fancy queries:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/44c4884c-8f7e-4126-98f5-78f4bbdc9673)  
+
+**Note that the query above contains create or replace the table, meaning that it will replace all the rows and not insert new ones.**  
+
+#### Idempotency :
+
+In short, it means, we can't just write queries that load data, we need to design a solution that ONLY loads each record one time (check if it already exist before loading it). Snowflake has some built in help for IDEMPOTENCY, especially when the file is first picked up from the stage.  
+
+In the early 2000's, a lot of data engineers would just empty a table and completely reload every single row, totally fresh, every 5 minutes. It is the **Full truncate and insert logic.**  
+Another method that was used in the early days of data warehousing was a database replace. A whole new warehouse would be built each night and when it was complete, the old one would be given an archival name, and the new one would be given the standard name.  
+Snowflake has the ability to CLONE databases, schemas, tables and more which means this sort of switching out can be done very easily but this isn't really a version of the old-school rebuild and replace. It's pretty significantly different. That's okay, because almost no orgs rebuild their warehouses from scratch each night anymore.  
+
+On the subject of Snowflake's cloning capabilities, some organizations use cloning to create test and dev copies of entire databases, schemas or just a few of the objects within them.  So, after using modern update methods, you could delete your test and dev instances each night and replace them with fresh clones of your production warehouse.  
+
+Cloning is a very powerful tool, doesn't cost much, and doesn't take long. Cloning is more efficient than copying (we can read more about cloning at docs.snowflake.com).   
+
+We can also use cloning to make back ups of things we feel more comfortable having a safe copy of while we are in heavy development. Let's make a back up copy of our LOGS_ENHANCED table.  We're about to start testing some complex logic and we might want to look back at this table, later.  
+
+We can create a clone of our objects to have a backup, like tables for example:  
+
+```
+                                         create table ags_game_audience.enhanced.LOGS_ENHANCED_UF 
+                                         clone ags_game_audience.enhanced.LOGS_ENHANCED;
+```
+
+After the 2000s, most Data Engineers were moving away from a full truncate and replace. Merge statements started taking center stage. Of course, Merge statements existed before 2010, but it took a minute for them to catch on.  
+There was a new, more sophisticated way to move! (move...your data...from one place to another).  
+
+To define a very simple merge, we'll first figure out:  
+
+  - Where our rows are coming from = our SOURCE. (RAW.LOGS)
+  - Where we want to load our rows to = our TARGET.  (ENHANCED.LOGS_ENHANCED)
+  - We want to add any new rows we find in the source. So we need to figure out which rows are new.  
+
+Snowflake Docs gives this sample code for a simple update merge. We can use this as a template to figure out which columns we want to use to match on.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5658e3c9-bc3b-4281-8a07-388fa6836be3)  
+
+```
+                                       MERGE INTO ENHANCED.LOGS_ENHANCED e
+                                       USING RAW.LOGS r
+                                       ON r.user_login = e.GAMER_NAME
+                                       AND r.datetime_iso8601 = e.GAME_EVENT_UTC
+                                       AND r.user_event = e.GAME_EVENT_NAME
+                                       WHEN MATCHED THEN
+                                       UPDATE SET IP_ADDRESS = 'Hey I updated matching rows!';
+```
+
+You've just seen a merge example that could be called an UPDATE MERGE. Now we'll write an INSERT MERGE. These aren't really two different things, just two different ways of using a MERGE.  
+**Be aware that we can write very complex merge statements that do lots of things at one time. A single MERGE statement can insert new rows, update changed rows, and delete other rows.**  
+
+To insert from a select we need to replace the USING statement where we had a table by the select we want:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b9e49572-5e31-459e-9791-5b6d6cc78ddb)  
+
+**A quick way to add all the column names in the editor:**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/dd41e6d7-027a-4793-88f2-88522c61b832)  
+
+the whole code to MERGE INSERT is as follows:  
+
+```
+                                       create or replace task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED
+                                       warehouse=COMPUTE_WH
+                                       schedule='5 minute'
+                                       as
+                                       MERGE INTO ENHANCED.LOGS_ENHANCED e
+                                       USING (
+                                       SELECT logs.ip_address
+                                               , logs.user_login as GAMER_NAME
+                                               , logs.user_event as GAME_EVENT_NAME
+                                               , logs.datetime_iso8601 as GAME_EVENT_UTC
+                                               , city
+                                               , region
+                                               , country
+                                               , timezone as GAMER_LTZ_NAME
+                                               , CONVERT_TIMEZONE('UTC',timezone,logs.datetime_iso8601) as GAME_EVENT_LTZ
+                                               , DAYNAME(GAME_EVENT_LTZ) as DOW_NAME
+                                               , TOD_NAME
+                                               from AGS_GAME_AUDIENCE.RAW.LOGS logs
+                                               JOIN IPINFO_GEOLOC.demo.location loc 
+                                               ON IPINFO_GEOLOC.public.TO_JOIN_KEY(logs.ip_address) = loc.join_key
+                                               AND IPINFO_GEOLOC.public.TO_INT(logs.ip_address) 
+                                               BETWEEN start_ip_int AND end_ip_int
+                                               JOIN AGS_GAME_AUDIENCE.RAW.TIME_OF_DAY_LU
+                                               ON AGS_GAME_AUDIENCE.RAW.TIME_OF_DAY_LU.HOUR = date_part(HOUR,GAME_EVENT_LTZ)
+                                       )
+                                       r
+                                       ON r.GAMER_NAME = e.GAMER_NAME
+                                       AND r.GAME_EVENT_UTC = e.GAME_EVENT_UTC
+                                       AND r.GAME_EVENT_NAME = e.GAME_EVENT_NAME
+                                       WHEN NOT MATCHED THEN
+                                       INSERT (
+                                       IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME, GAME_EVENT_UTC, CITY, REGION, COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ, DOW_NAME, TOD_NAME
+                                       )
+                                       VALUES (
+                                       IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME, GAME_EVENT_UTC, CITY, REGION, COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ, DOW_NAME, TOD_NAME
+                                       );
+```
+
+The **COPY INTO** from a stage, however, has idempotent by default and can know which files it already loaded and it doesn't load the same file, twice.  
+
+Snowflake is designed like this to help you. Without any special effort on your part, you have a process that doesn't double-load files.  In other words, it automatically helps you keep your processes IDEMPOTENT.  
+
+**But, what if, for some crazy reason, we wanted to double-load your files?**  
+
+**We could add a FORCE=TRUE; as the last line of your COPY INTO statement and then you would double the number of rows in your table.**  
+
+Then, what if we wanted to start over and load just one copy of each file?  
+
+**We could TRUNCATE TABLE PIPELINE_LOGS; , set FORCE=FALSE and run your COPY INTO again.**  
+
+Till now, we have never allowed our task to run. Instead, we keep using the EXECUTE TASK command. This one is "paid for" by our trial account credits and therefore, can be expensive. If we are not careful we might implement it in a way you might regret. (e.g. Use a 4XL warehouse on a task set to run every minute and our trial will expire really quickly!).  
+Before releasing a TASK to run itself according to the schedule we set up, we should have some safeguards in place. We will use a ressource Monitor,on the warehouse we attach to the task, that has a limite of 1 credit per day.    
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e72921c2-42cd-4a55-aa92-f2eefc48438f)  
+
+Once we have a ressource mnitor set, we can turn on the tasks:  
+
+```
+                                     --Turning on a task is done with a RESUME command
+                                     alter task AGS_GAME_AUDIENCE.RAW.GET_NEW_FILES resume;
+                                     alter task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED resume;
+```
+
+And we can also shut it down:  
+
+```
+                                     --Keep this code handy for shutting down the tasks each day
+                                     alter task AGS_GAME_AUDIENCE.RAW.GET_NEW_FILES suspend;
+                                     alter task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED suspend;
+```
+
+#### Task Dependencies: 
+
+One way we can improve our tasks order of execution is through task dependencies.  
+**SERVERLESS COMPUTE**  
+The WAREHOUSE we are using to run the tasks has to spin up each time we run the task. Then, if it's designed to auto-suspend in 5 minutes, it won't EVER suspend, because the task will run again before it has time to shut down. This can cost a lot of credits.  
+Snowflake has a different option called "SERVERLESS". It means you don't have to spin up a warehouse, instead you can use a thread or two of another compute resource that is already running. Serverless compute is much more efficient for these very small tasks that don't do very much, but do what they do quite often.  
+**To use the SERVERLESS task mode, we'll need to grant that privilege to SYSADMIN.**  
+
+```
+                                    use role accountadmin;
+                                    grant EXECUTE MANAGED TASK on account to SYSADMIN;
+                                    
+                                    --switch back to sysadmin
+                                    use role sysadmin;
+```
+
+The following code runs a task after the end of onther:  
+
+```
+                                    create or replace task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED
+                                    	USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 'XSMALL' -- attach the task to an XSMALL warehouse size to optimize ressources
+                                     after AGS_GAME_AUDIENCE.RAW.GET_NEW_FILES -- runs after the previous task
+                                    	as MERGE INTO ENHANCED.LOGS_ENHANCED e
+                                    USING (
+                                    SELECT logs.ip_address
+                                            , logs.user_login as GAMER_NAME
+                                            , logs.user_event as GAME_EVENT_NAME
+                                            , logs.datetime_iso8601 as GAME_EVENT_UTC
+                                            , city
+                                            , region
+                                            , country
+                                            , timezone as GAMER_LTZ_NAME
+                                            , CONVERT_TIMEZONE('UTC',timezone,logs.datetime_iso8601) as GAME_EVENT_LTZ
+                                            , DAYNAME(GAME_EVENT_LTZ) as DOW_NAME
+                                            , TOD_NAME
+                                            from AGS_GAME_AUDIENCE.RAW.PL_LOGS logs
+                                            JOIN IPINFO_GEOLOC.demo.location loc 
+                                            ON IPINFO_GEOLOC.public.TO_JOIN_KEY(logs.ip_address) = loc.join_key
+                                            AND IPINFO_GEOLOC.public.TO_INT(logs.ip_address) 
+                                            BETWEEN start_ip_int AND end_ip_int
+                                            JOIN AGS_GAME_AUDIENCE.RAW.TIME_OF_DAY_LU
+                                            ON AGS_GAME_AUDIENCE.RAW.TIME_OF_DAY_LU.HOUR = date_part(HOUR,GAME_EVENT_LTZ)
+                                    )
+                                    r
+                                    ON r.GAMER_NAME = e.GAMER_NAME
+                                    AND r.GAME_EVENT_UTC = e.GAME_EVENT_UTC
+                                    AND r.GAME_EVENT_NAME = e.GAME_EVENT_NAME
+                                    WHEN NOT MATCHED THEN
+                                    INSERT (
+                                    IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME, GAME_EVENT_UTC, CITY, REGION, COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ, DOW_NAME, TOD_NAME
+                                    )
+                                    VALUES (
+                                    IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME, GAME_EVENT_UTC, CITY, REGION, COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ, DOW_NAME, TOD_NAME
+                                    );
+```
+
+**When we have tasks that are dependent on other tasks, we must resume the dependent tasks BEFORE the triggering tasks. Resume LOAD_LOGS_ENHANCED first, then resume GET_NEW_FILES.   
+FYI: The first task in the chain is called the Root Task. In our case, GET_NEW_FILES is our Root Task.**  
+
+Once done we should see a logigramme as follows:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d4edf50f-1ce8-45ec-8a8e-58a3aa7627e7)  
+
+
+ 
 
 
 
