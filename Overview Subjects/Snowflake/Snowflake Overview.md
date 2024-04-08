@@ -2115,15 +2115,319 @@ Kishore ran the command above and Snowflake sent back a policy for him. The poli
 
 It just says that a User (a Service Account, actually) is allowed to subscribe to the dngw_topic.
 
-When setting up a Snowpipe in your own account (later) you may want to generate a policy like this that you can then copy into a topic
+When setting up a Snowpipe in your own account (later) you may want to generate a policy like this that you can then copy into a topic.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/9d3f1978-dc36-45e6-82c4-3d48fbed0b73)  
 
+We goe back in to AWS and copie the policy into the dngw_topic.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/69061cca-dd23-4842-af75-a6fb04f56211)  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a159e1c3-f349-4be4-b32c-3ef84081bf41)  
 
+We go back to our Snowflake account and finally run the command to create a Snowpipe. The AWS_SNS_TOPIC property is a lynchpin and it works like magic behind the scenes.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5f494198-65d8-496d-bab6-8e8ad957bd6f)  
 
- 
+We check the pipe we created:  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2a014cc0-f4bb-4065-ab2e-14f01edc9b43)  
 
+The PIPE returns an interesting Key/Value Pair. The Key is "Notification Channel Name", the value above ends in u8Pg. We check in our AWS Console and notices that the topic has a new subscription and the endpoint property matches the Notification Channel Name for our Snowpipe. The Snowpipe is now complete!!  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0832dfa6-f090-414d-aca4-1adbbf0dbbeb)  
+
+**How the workshop works: Now that Kishore has set up an SNS Topic and a Bucket event notification (okay, it was really the Snowflake Ed Services team that set it up, but let's pretend), you and other workshop learners can just run the CREATE PIPE step!!**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3c803d4a-b8bb-4c0f-864d-6c22ea7c4e50)  
+
+Each learner will run the same CREATE PIPE Statement, with the same SNS Topic value, and Voila! we have a working Snowpipe!  
+
+```
+                                    CREATE OR REPLACE PIPE PIPE_GET_NEW_FILES
+                                    auto_ingest=true
+                                    aws_sns_topic='arn:aws:sns:us-west-2:321463406630:dngw_topic'
+                                    AS 
+                                    COPY INTO ED_PIPELINE_LOGS
+                                    FROM (
+                                        SELECT 
+                                        METADATA$FILENAME as log_file_name 
+                                      , METADATA$FILE_ROW_NUMBER as log_file_row_id 
+                                      , current_timestamp(0) as load_ltz 
+                                      , get($1,'datetime_iso8601')::timestamp_ntz as DATETIME_ISO8601
+                                      , get($1,'user_event')::text as USER_EVENT
+                                      , get($1,'user_login')::text as USER_LOGIN
+                                      , get($1,'ip_address')::text as IP_ADDRESS    
+                                      FROM @AGS_GAME_AUDIENCE.RAW.UNI_KISHORE_PIPELINE
+                                    )
+                                    file_format = (format_name = ff_json_logs);
+```
+
+In the Monitoring section we can see the history of our pipes:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f09cc39e-1b45-4a36-95a1-db44256a9dcc)  
+
+Another component in the flow we can add, is the **STREAM**:  
+Snowflake streams are objects that track the changes made to tables, views, external tables, and directory tables using simple DML statements.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/101bc8c6-d45c-4d3f-9a53-e00ee2a0ccdd)  
+
+The diagram above shows that STREAM will not replace that last task and it will not make it event-driven, but it will make the pipeline more efficient. It will do this by allowing us to use a technique called "Change Data Capture" which is why the diagram is labeled with "CDC."  
+
+**Understand Streams:** https://docs.snowflake.com/en/user-guide/streams-intro  
+
+```
+                                    --create a stream that will keep track of changes to the table
+                                    create or replace stream ags_game_audience.raw.ed_cdc_stream 
+                                    on table AGS_GAME_AUDIENCE.RAW.ED_PIPELINE_LOGS;
+                                    
+                                    --look at the stream you created
+                                    show streams;
+                                    
+                                    --check to see if any changes are pending
+                                    select system$stream_has_data('ed_cdc_stream');
+```
+
+In the simplest use, streams appear very simple. They are just a running list of things that have changed in our table or view. But in production use, to use streams effectively, we will need to understand offsets, data retention periods, staleness, and stream types.  
+
+```
+                                    --query the stream
+                                    select * 
+                                    from ags_game_audience.raw.ed_cdc_stream; 
+                                    
+                                    --check to see if any changes are pending
+                                    select system$stream_has_data('ed_cdc_stream');
+                                    
+                                    --if your stream remains empty for more than 10 minutes, make sure your PIPE is running
+                                    select SYSTEM$PIPE_STATUS('PIPE_GET_NEW_FILES');
+                                    
+                                    --if you need to pause or unpause your pipe
+                                    --alter pipe PIPE_GET_NEW_FILES set pipe_execution_paused = true;
+                                    --alter pipe PIPE_GET_NEW_FILES set pipe_execution_paused = false;
+
+```
+
+Process the stream:  
+
+```
+                                    --make a note of how many rows are in the stream
+                                    select * 
+                                    from ags_game_audience.raw.ed_cdc_stream; 
+                                    
+                                     
+                                    --process the stream by using the rows in a merge 
+                                    MERGE INTO AGS_GAME_AUDIENCE.ENHANCED.LOGS_ENHANCED e
+                                    USING (
+                                            SELECT cdc.ip_address 
+                                            , cdc.user_login as GAMER_NAME
+                                            , cdc.user_event as GAME_EVENT_NAME
+                                            , cdc.datetime_iso8601 as GAME_EVENT_UTC
+                                            , city
+                                            , region
+                                            , country
+                                            , timezone as GAMER_LTZ_NAME
+                                            , CONVERT_TIMEZONE( 'UTC',timezone,cdc.datetime_iso8601) as game_event_ltz
+                                            , DAYNAME(game_event_ltz) as DOW_NAME
+                                            , TOD_NAME
+                                            from ags_game_audience.raw.ed_cdc_stream cdc
+                                            JOIN ipinfo_geoloc.demo.location loc 
+                                            ON ipinfo_geoloc.public.TO_JOIN_KEY(cdc.ip_address) = loc.join_key
+                                            AND ipinfo_geoloc.public.TO_INT(cdc.ip_address) 
+                                            BETWEEN start_ip_int AND end_ip_int
+                                            JOIN AGS_GAME_AUDIENCE.RAW.TIME_OF_DAY_LU tod
+                                            ON HOUR(game_event_ltz) = tod.hour
+                                          ) r
+                                    ON r.GAMER_NAME = e.GAMER_NAME
+                                    AND r.GAME_EVENT_UTC = e.GAME_EVENT_UTC
+                                    AND r.GAME_EVENT_NAME = e.GAME_EVENT_NAME 
+                                    WHEN NOT MATCHED THEN 
+                                    INSERT (IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME
+                                            , GAME_EVENT_UTC, CITY, REGION
+                                            , COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ
+                                            , DOW_NAME, TOD_NAME)
+                                            VALUES
+                                            (IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME
+                                            , GAME_EVENT_UTC, CITY, REGION
+                                            , COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ
+                                            , DOW_NAME, TOD_NAME);
+                                     
+                                    --------------------Did all the rows from the stream disappear? -----------------
+                                    select * 
+                                    from ags_game_audience.raw.ed_cdc_stream; 
+```
+
+This is one of the reasons Streams can be very complex. Since the information disappears as we process it, when using a stream in production systems, we will likely want to have more protection in place to make sure we don't lose information. Again, this stream and stream processing routine shows only the most simple example.  
+**However, even though it IS very simple, we can also see how powerful streams can be in systems that need Change Data Capture pipelines.**  
+
+With the PIPE and STREAM in place, we just need a task at the end that pulls new data from the STREAM, instead of from the RAW data table. We can use the MERGE statement we just tested.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/41085190-4ee5-44b8-ae2f-05c9bf7a844e)  
+
+**We are simply using the stream, that gives the last changes in our ED_PIPELINE_LOGS table which is the source table, to feed our target table. So the rows captured by the stream will be added, and no need to perform a join with the whole source table that has all the rows.**  
+
+```
+                                    --turn off the other task (we won't need it anymore)
+                                    alter task AGS_GAME_AUDIENCE.RAW.LOAD_LOGS_ENHANCED suspend;
+                                    
+                                    --Create a new task that uses the MERGE you just tested
+                                    create or replace task AGS_GAME_AUDIENCE.RAW.CDC_LOAD_LOGS_ENHANCED
+                                     USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE='XSMALL'
+                                     SCHEDULE = '5 minutes'
+                                     as 
+                                    MERGE INTO AGS_GAME_AUDIENCE.ENHANCED.LOGS_ENHANCED e
+                                    USING (
+                                            SELECT cdc.ip_address 
+                                            , cdc.user_login as GAMER_NAME
+                                            , cdc.user_event as GAME_EVENT_NAME
+                                            , cdc.datetime_iso8601 as GAME_EVENT_UTC
+                                            , city
+                                            , region
+                                            , country
+                                            , timezone as GAMER_LTZ_NAME
+                                            , CONVERT_TIMEZONE( 'UTC',timezone,cdc.datetime_iso8601) as game_event_ltz
+                                            , DAYNAME(game_event_ltz) as DOW_NAME
+                                            , TOD_NAME
+                                            from ags_game_audience.raw.ed_cdc_stream cdc  --Note here that we are using the cdc which is the stream data containing the rows recently added to the source table
+                                            JOIN ipinfo_geoloc.demo.location loc 
+                                            ON ipinfo_geoloc.public.TO_JOIN_KEY(cdc.ip_address) = loc.join_key
+                                            AND ipinfo_geoloc.public.TO_INT(cdc.ip_address) 
+                                            BETWEEN start_ip_int AND end_ip_int
+                                            JOIN AGS_GAME_AUDIENCE.RAW.TIME_OF_DAY_LU tod
+                                            ON HOUR(game_event_ltz) = tod.hour
+                                          ) r
+                                    ON r.GAMER_NAME = e.GAMER_NAME
+                                    AND r.GAME_EVENT_UTC = e.GAME_EVENT_UTC
+                                    AND r.GAME_EVENT_NAME = e.GAME_EVENT_NAME 
+                                    WHEN NOT MATCHED THEN 
+                                    INSERT (IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME
+                                            , GAME_EVENT_UTC, CITY, REGION
+                                            , COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ
+                                            , DOW_NAME, TOD_NAME)
+                                            VALUES
+                                            (IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME
+                                            , GAME_EVENT_UTC, CITY, REGION
+                                            , COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ
+                                            , DOW_NAME, TOD_NAME);
+                                            
+                                    --Resume the task so it is running
+                                    alter task AGS_GAME_AUDIENCE.RAW.CDC_LOAD_LOGS_ENHANCED resume;
+```
+
+Let's add one more piece of Data Engineering sophistication to the Pipeline. It won't improve our load costs, because our files are going to load every 5 minutes by design, but if we have a truly event-driven pipeline on the front end, this last enhancement can make a difference in the last step of your pipeline.  
+**We're going to add a WHEN clause to the TASK that checks the STREAM. It will still try to run every 5 minutes, but if nothing has changed, it won't continue running.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f6f7b172-aa9c-4b6c-bf59-111078ec16fb)  
+
+Add STREAM dependency logic to the TASK header and replace the task.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2d7dc843-7114-4905-bf43-8abf7f96a58f)  
+
+```
+                                    create or replace task AGS_GAME_AUDIENCE.RAW.CDC_LOAD_LOGS_ENHANCED
+                                    	schedule='5 minutes'
+                                    	USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE='XSMALL'
+                                    	WHEN system$stream_has_data('ed_cdc_stream')   ----- Checks if any new changes are captured before launching the task!!
+                                    	as MERGE INTO AGS_GAME_AUDIENCE.ENHANCED.LOGS_ENHANCED e
+                                    USING (
+                                            SELECT cdc.ip_address 
+                                            , cdc.user_login as GAMER_NAME
+                                            , cdc.user_event as GAME_EVENT_NAME
+                                            , cdc.datetime_iso8601 as GAME_EVENT_UTC
+                                            , city
+                                            , region
+                                            , country
+                                            , timezone as GAMER_LTZ_NAME
+                                            , CONVERT_TIMEZONE( 'UTC',timezone,cdc.datetime_iso8601) as game_event_ltz
+                                            , DAYNAME(game_event_ltz) as DOW_NAME
+                                            , TOD_NAME
+                                            from ags_game_audience.raw.ed_cdc_stream cdc
+                                            JOIN ipinfo_geoloc.demo.location loc 
+                                            ON ipinfo_geoloc.public.TO_JOIN_KEY(cdc.ip_address) = loc.join_key
+                                            AND ipinfo_geoloc.public.TO_INT(cdc.ip_address) 
+                                            BETWEEN start_ip_int AND end_ip_int
+                                            JOIN AGS_GAME_AUDIENCE.RAW.TIME_OF_DAY_LU tod
+                                            ON HOUR(game_event_ltz) = tod.hour
+                                          ) r
+                                    ON r.GAMER_NAME = e.GAMER_NAME
+                                    AND r.GAME_EVENT_UTC = e.GAME_EVENT_UTC
+                                    AND r.GAME_EVENT_NAME = e.GAME_EVENT_NAME 
+                                    WHEN NOT MATCHED THEN 
+                                    INSERT (IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME
+                                            , GAME_EVENT_UTC, CITY, REGION
+                                            , COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ
+                                            , DOW_NAME, TOD_NAME)
+                                            VALUES
+                                            (IP_ADDRESS, GAMER_NAME, GAME_EVENT_NAME
+                                            , GAME_EVENT_UTC, CITY, REGION
+                                            , COUNTRY, GAMER_LTZ_NAME, GAME_EVENT_LTZ
+                                            , DOW_NAME, TOD_NAME);
+```
+
+Sometimes a Data Engineer's job is done once the data has been enhanced.  
+In some organizations, anything that involves moving beyond the row level, and into some kind of aggregation or analysis is not the job of a Data Engineer.  
+But in some other organizations, a Data Engineer will move data beyond the Enhanced level, into a Curated state. When that happens, the Data Engineer is adding additional processing that may help analysts and data scientists do their work faster, and/or more effectively.  
+
+nowflake has dashboards that can be used to display charts and tables together. These dashboards are not as sophisticated as the ones that can be created with tools like Tableau or Looker, but they can be used for some light analysis on the data. Dashboards are still a new part of Snowflake and many improvements are planned for future releases, but right now they are limited.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/44fe05b9-bbe6-48ef-a9ca-1d4ee3bf1a63)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7fdbabf9-c979-449d-bcd4-20cc96403445)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/77c6f718-6dbe-46c7-ae92-8f18f9d1b998)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/60c40c20-17e6-4c27-968b-d2677eb2faf5)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/495776de-2fc5-4786-ab2e-495f33c45326)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5b7928f1-fa92-4470-910a-a6eb5e90caa8)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0d816e0d-c318-4cbb-8a19-bfed012c704c)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f881a9b1-e49c-4f22-9e10-9b5e49497ab9)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0968833a-70c7-4525-8237-8d46aac5a43e)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f2a292b1-6522-4a71-97d9-f287e273109b)  
+
+The data being written to the stage files only covers a three-day period, so the fact that our heatmap only has 3 days is not surprising.  
+What is surprising is that we don't have any way to control the sort order of the days. They are automatically sorted alphabetically and we'd prefer to sort them differently. The same is true for the sort order on the Time of Day labels.  
+As mentioned earlier, Snowflake Dashboards have room for improvement. For now, we only use them for light analysis, not for production dashboards.  
+
+**Windowed Data for Calculating Time in Game Per Player**  
+
+```
+                                    select GAMER_NAME
+                                           ,game_event_ltz as login 
+                                           ,lead(game_event_ltz) 
+                                                    OVER (
+                                                        partition by GAMER_NAME 
+                                                        order by GAME_EVENT_LTZ
+                                                    ) as logout
+                                           ,coalesce(datediff('mi', login, logout),0) as game_session_length
+                                    from AGS_GAME_AUDIENCE.ENHANCED.LOGS_ENHANCED
+                                    order by game_session_length desc;
+```
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5c17d126-b7f8-4c5a-a717-43174e1a9500)  
+
+```
+                                   --We added a case statement to bucket the session lengths
+                                   select case when game_session_length < 10 then '< 10 mins'
+                                               when game_session_length >= 10 and game_session_length < 20 then '10 to 19 mins'
+                                               when game_session_length >= 20 and game_session_length < 30 then '20 to 29 mins'
+                                               when game_session_length >= 30 and game_session_length < 40 then '30 to 39 mins'
+                                               else '> 40 mins' 
+                                               end as session_length
+                                               ,tod_name
+                                   from (
+                                   select GAMER_NAME
+                                          , tod_name
+                                          ,game_event_ltz as login 
+                                          ,lead(game_event_ltz) 
+                                                   OVER (
+                                                       partition by GAMER_NAME 
+                                                       order by GAME_EVENT_LTZ
+                                                   ) as logout
+                                          ,coalesce(datediff('mi', login, logout),0) as game_session_length
+                                   from AGS_GAME_AUDIENCE.ENHANCED.LOGS_ENHANCED_UF)
+                                   where logout is not null;
+```
