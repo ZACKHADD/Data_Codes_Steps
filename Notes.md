@@ -9,3 +9,8 @@ LSAS? ==> Local Security Authority Subsystem
 listening VM to attack another machine!  
 Attack scenario using Trend Vision One!  
 Non signed binary (file with non owner mentioned)
+
+
+#### 29/04/2024
+
+ODS when to use them with data warehouses?
