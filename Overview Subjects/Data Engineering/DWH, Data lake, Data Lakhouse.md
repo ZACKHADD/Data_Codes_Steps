@@ -92,4 +92,7 @@ The new data plateforms have made a great progress emulating the features of tra
 
 **Another big benefit of Lakehouses, is that if we have a  lot of teams experts in different languages (python, sql, scala ...) they all can query the same data using their prefered language while if we have a data warehouse we only can use SQL.**  
 Imagining we are analyzing data from social media (text, audios, videos ...) we an store this in warehouses but it would be so difficult to handl (not in terms of quantity but the performance and the maintainance needed, ETL, ELT ...). With Lakehouses the data is in Delta Parquet format and we can choose which engine and language to use that will best suite our needs.  
+ 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c3e65f1b-e20f-4891-9035-fa821d61c001)  
+
 
