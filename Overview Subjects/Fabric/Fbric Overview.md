@@ -78,6 +78,9 @@ The problems in parquet tables appears when the datasets are in multiple files. 
 - Expensive footer reads to gather statistics for file skipping
 - There is no way to rename, reorder, or drop columns without rewriting the whole table  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f4b94b73-188c-4963-9651-59588262205a)  
+
+
 ### Direct Lake Mode:
 
 Direct Lake is a dataset storage mode for Power BI that can replace DirectQuery and import modes by grouping the benifits of both of them : No local storage and real-time analysis.  
@@ -106,6 +109,8 @@ Because the parquet file is a columnar format, similar to the .idf files, the **
 **Note that we always need Analysis Services for the Tabular Model/CUBE to create the semantic model that makes users able to query the data sources using DAX/MDX queries.**  
 
 Also, the vertipaq engine querying the delta tables gives the possibility to query data using DAX and Vertiscan but also **SQL** which is a huge step in analytics.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4661912b-b573-451f-9193-b6f238a56f06)  
 
 #### Fallback:
 
@@ -191,11 +196,118 @@ To use the Fabric mode, we need to provision a **Lakehouse first since it will l
 ### Creating Lakehouse and Data Warehouse:
 
 The lakehouse in Fabric is the pointer to our data in onelake (in delta perquet formats). Every lakehouse has an endpoint to query it using SQL.  
-By default when we create a Lakhouse, a data warehouse is created with it.   
+**By default when we create a Lakhouse, a data warehouse is created with it and also a default Power BI semantic model associated with it.**   
 
-**Another big benefit of Lakehouses, is that if we have a  lot of teams experts in different languages (python, sql, scala ...) they all can query the same data using their prefered language while if we have a data warehouse we only can use SQL.**  
+**Another big benefit of Lakehouses, is that if we have a  lot of teams experts in different languages (python, sql, scala, DAX PBI, R, .NET ...) they all can query the same data using their prefered language while if we have a data warehouse we only can use SQL.**  
 Imagining we are analyzing data from social media (text, audios, videos ...) we an store this in warehouses but it would be so difficult to handl (not in terms of quantity but the performance and the maintainance needed, ETL, ELT ...). With Lakehouses the data is in Delta Parquet format and we can choose which engine and language to use that will best suite our needs.  
 
+**Note however that SQL queries to write data are not supported in Lakehouse, only in Data warehouse.**  
 Also for structured data, we may skip a lot of ETL and ELT processes using Lakehouse since the data is in Delta Parquet format ready to be queried.  
+
+**All of this is made possible thanks to Parquet files** That are:  
+- Highly compressed just like Vertipaq in power BI
+- Having Columnar storag giving fast read capabilities
+- Language agnostic meaning they can be quieried by what ever language we want
+- Open source so no vendor and maitainance cost
+- Support complexed data types
+
+A clarificatio regarding data storage types : 
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7816093f-d5eb-41d4-923e-aedcca63b812)  
+
+**Row-store fast for writing data while columnar store is fast when reading data. Adding the Delta layer on top of parquet files gives the possibility to Read and Write data faster.**  
+
+The Warehouse in Fabric is now a SaaS warehouse with no need to provision ressources such as dedicated SQL pools and so on (It may be done behind the scene). It is now fully serverless so you pay as you go.  
+The data of our data warehouse will be in SQL server format but stored in open Delta-Parquet in OneLake. Which gives the interoperability between all tyes of workloads.
+**It has also the auto scale of ressources (up and down) and auto-optimization (no need to handl indexation, database statistics ...).**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e57b7f29-a6cd-4a08-8a2f-183a10f5d23c)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ad37b0f9-2520-4761-bd1e-a931fa1f0a79)  
+
+### Data Activator:
+
+It is a service that gives the ability to trigger actions when an event occurs such as a change in the data source. For example sending a notification when the Power BI and SQL DWH are refreshed or generate a power automate flow and so on:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b215ff1e-d64d-428b-9e87-509140cb3834)  
+
+It can be used to notify managers if the inventory is lower than a certain level or in sales ...  
+
+### Fabric Pricing:
+
+To understand the pricing we need to understand the structure of Fabric licencing.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/837420cc-e1e7-4306-8390-f75efd09ae9a)  
+
+We have 3 levels:  
+- The Tenant : which is the top level of the licence.
+- The Capacity : A pool of ressources (SQL, SPARK, PBI ..) that can be used underneeth the tenant level with different CPU and memory levels (CUs units of measurement of capacities) 
+- The workspace : the level where we collaborate with other developpers and users and where we create all the data objects
+- The domain: it is simply a logical groupment of workspaces to organize data and ressources and the access to it
+
+**Capacities can be so helpful if we want to assign costs to different departments just like virtual warehouses in Snowflake.**  
+
+The SKU table gives the types of Fabric licencing and their prices. It is only compute, the storage is not included in the price.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2f0e27fb-287e-4925-83b9-020a6fcdd762)  
+
+Premium capacity is F64 and more while shared capacity is less than F64. The shared capacity does not support Power BI, licence per user must be purshased.  
+
+More on : https://learn.microsoft.com/en-us/fabric/enterprise/licenses  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b94e8291-23a3-4188-864a-59309f383dbe)  
+
+**Shortcuts**:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6a545372-bff7-4da4-b2a5-c091808f0509)  
+
+### Loading data:
+
+We start first by creating a lakehouse so that we can load data into onelake.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4eb04c63-6342-48ec-b93f-e8022dfde417)  
+
+Once created, we are going to land on the Lakehouse explorer:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/03772ab3-0e8b-4b42-b8bf-89dc8fa286c7)  
+
+In the notifications we can see that the SQL endpoint got created also so we can use external SQL tools to query data:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/52b4fe2b-c590-4c4c-bf0d-e3f16870246a)  
+
+We can find the SQL endpoint to connect using SSMS or Power BI for example:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7d8d41b7-413d-442b-a8b4-28cbea3f1a60)  
+
+We have two "folders" in our Lakehouse: Tables and Files.  
+
+Files contain the files in their raw format (CSV, text ...) but we will not be able to query them using SQL or any other tool until they are moved to the table folder in delta parquet format.  
+
+Now lets upload the files in the Files folder first then transforme them to Delta Parquet in the Tables folder:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4a3da891-2af9-4ae5-a2b6-559aed00cbf6)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/73662b01-03ef-42e2-8a14-cee586e0f5dc)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f3f4df4b-0033-44c7-a702-77bd9e6d38bb)  
+
+The preview will give this :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ab589ff1-eb37-46d3-a800-95a03f1c3535)  
+
+Now we are going to move this file to the tables folder by doing a right click on the file and click on "Load to table":  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/68e3c1dd-1b5a-4edc-b89f-21020148564d)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/eb9f32e7-5497-44b9-aaee-be751e74407d)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b6776dc1-1249-439b-9a0c-4204f4e25b4f)  
+
+This process just transformed a CSV file to a Delta Table Parquet file that now can be quieried by every engine we have inside Fabric.  
+
+
+
+
+
 
 
