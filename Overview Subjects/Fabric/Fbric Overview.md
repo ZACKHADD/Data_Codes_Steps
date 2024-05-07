@@ -305,7 +305,63 @@ Now we are going to move this file to the tables folder by doing a right click o
 
 This process just transformed a CSV file to a Delta Table Parquet file that now can be quieried by every engine we have inside Fabric.  
 
+This is how the workspace should look like after creating the lakehouse:  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/02b4a91e-87cd-4c28-89c9-937ccc08bfbf)  
+
+We have the dafault semantic model and the SQL endpoint created with it which makes it possible to query data using SQL language.  
+
+Inside the lakehouse we can take a look on our newly created table and by doing a right click we can explore the menu:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/044baa4f-108c-441f-92de-417d5c842aea)  
+
+If we open the files of the tables we see all the delta parquet files generated for our table. We can have several files since the table may be partitionned.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c291121c-39ed-4d8b-9def-e030c2534e9d)  
+
+We can see here that we have one file (6MB much lower than the first CSV file since it is compressed) that ends with **.snappy.parquet** with snappy being the compression algorithm.  
+We have also the **Delta Log** folder that contains all the transactions made on our table in json formats (this is what adds  the ACID characteristics to the parquet files).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d791989c-78d9-4655-9661-77e828ddc64a)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8479a272-3578-4824-94a8-7790136d9bee)  
+
+The log file contains metadata, the operations made and so on.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/479b0416-6570-4089-bee9-382101644df1)  
+
+We habe also more information regarding the engine used which is in our case the **Apache Spark engine** and we can also see that the Vertipaq-ORDERING technique is set to true meaning that when creating our table it was ordered using the V-ORDER technology to make the querying faster.  
+
+### Note on Vertipaq-Order (V-ORDER) vs Z-ORDER:
+
+Both V-Ordering and Z-Ordering are data organization techniques used in Microsoft’s data platform, but they serve different purposes and have distinct functionalities:  
+
+**V-Ordering (VertiPaq Ordering):**
+
+- Timing: V-Ordering happens during write time. It’s applied when data is written to Parquet files, a popular data format for analytics.   
+- Purpose: V-Ordering focuses on compression and general read performance. It employs a combination of techniques like sorting, row group distribution, dictionary encoding, and compression on the Parquet files. This compressed, organized format allows data engines to read and process the data faster.  
+- Compatibility: V-Ordering is universally compatible. Any engine that can read Parquet files can benefit from the performance improvements offered by V-Ordering.  
+
+**Z-Ordering (Delta Lake Z-Ordering):**
+
+- Timing: Z-Ordering happens during read time (or table optimization). It’s a feature of Delta Lake, a storage layer for big data workloads on Azure Databricks.
+- Purpose: Z-Ordering focuses on co-locating frequently accessed data together based on specific columns or predicates (conditions) in your queries. This physical co-location allows data engines to scan and process relevant data chunks faster, improving query performance for workloads with specific access patterns.
+- Compatibility: Z-Ordering is specifically designed for Delta Lake tables. It requires tools like Delta Lake to function.
+
+Here’s an analogy to understand the difference:
+
+- V-Ordering: Imagine organizing a library by genre (sorting) and then placing all the books within a genre on the same shelf (row group distribution). This makes browsing for any book within a genre faster (general read performance).
+- Z-Ordering: Imagine further organizing the books within a genre by the first letter of the author’s last name (Z-Ordering based on a specific column). This makes finding books by a particular author even faster (optimized read performance for specific queries).
+
+Key Differences Summary:
+
+|Feature	|V-Ordering	|Z-Ordering|
+|---|---|---|
+|Timing	|During write time	|During read time (or table optimization)|
+|Purpose|	Compression & General Read Performance|	Co-locate data for specific queries|
+|Compatibility	|Universally compatible	|Requires tools like Delta Lake|
+
+Using Together: V-Ordering and Z-Ordering can be complementary techniques. You can leverage V-Ordering for general compression and performance benefits, and then use Z-Ordering on Delta Lake tables for further optimization based on specific query patterns.
 
 
 
