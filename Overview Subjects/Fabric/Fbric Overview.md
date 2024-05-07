@@ -341,6 +341,11 @@ Both V-Ordering and Z-Ordering are data organization techniques used in Microsof
 - Timing: V-Ordering happens during write time. It’s applied when data is written to Parquet files, a popular data format for analytics.   
 - Purpose: V-Ordering focuses on compression and general read performance. It employs a combination of techniques like sorting, row group distribution, dictionary encoding, and compression on the Parquet files. This compressed, organized format allows data engines to read and process the data faster.  
 - Compatibility: V-Ordering is universally compatible. Any engine that can read Parquet files can benefit from the performance improvements offered by V-Ordering.  
+Vertipaq-ORDER compression is so powerful to compresse data for faster read performance:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d034d29c-3655-4b60-956f-e7efd0b6a871)  
+
+The V-ORDERING makes it more easy for Power BI engine to cash data in Memory for fast querying in visuals.  
 
 **Z-Ordering (Delta Lake Z-Ordering):**
 
@@ -431,7 +436,7 @@ We can now choose the tables we want to load to create the semantic model:
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6c4bd02e-f596-4d9a-af17-cf1e7ec59d6c)  
 
-**Note that here when we use the endpoint string directly we have only two Options : Direct Query and Import Modes. To connect using DirectLake we need to connect to the lakehouse directly and not the SQL Endpoint using the get data section and searching for lakehouse.**  
+**Note that here when we use the endpoint string directly we have only two Options : Direct Query and Import Modes. The direct lake mode is not supported in Descktop for now and needs to be created in the browser (details in the Direct lake Section below). Howerver we can connect to the datasets of the lakehouse directly and not the SQL Endpoint using the get data section and searching for lakehouse.**  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/205e104b-217f-401c-bc14-5f287d0108ec)  
 
@@ -442,7 +447,7 @@ Now we can access the data and create our Model, and all the measures and so on:
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3d90081e-9751-406f-af30-6ab6f44b00fe)  
 
 ### Warning !!! :  
-We can't access the Lakehouse if we don't activate the **Manage Default Semantic Model**:  
+We can't access the Dataset Lakehouse if we don't activate the **Manage Default Semantic Model**:  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/80abe093-bfef-428d-889a-efdd66350dd0)  
 
@@ -493,6 +498,31 @@ Once the destination is choosed we can set our Lakehouse:
 Once the Maping is done, we publish the Dataflow and it will be refreshed a first time and we can set the automatic refresh later. In the lakehouse we can see that Delta Parquet files were created using the Dataflow and now we can query them with every engine we want including SQL.  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/74b8fe99-96d3-4239-b3a5-eb523b5f0c86)  
+
+### Direct Lake in action:
+
+Lets create a Direct Lake dataset in our lakehouse. Still not supported in the descktop version yet.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/51bfa977-fd91-44d5-a4d1-810863283d2b)  
+
+Once done we can check that our model is in Direct Lake mode:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/af2df038-6d4a-45b7-a2e2-5c9d07133fa8)  
+
+**We can then use XLMA endpoint to edit the Power BI Datasets using other specialized tools such as SSAS, Tabular Editor ...**  
+
+### Creating Data warehouse:  
+
+The data warehouse experience in Fabric is the same as Synapse and other tools like Snowflake where we can use the SQL endpoint to **Read and Write data and use DDL, DML, DMV etc in opposition to the Lakehouse where the SQL endpoint is only in Read mode.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5d6a2f04-cee3-4e8a-8c5a-45a47210c99f)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/dcdcf966-9169-459d-9d06-8a53aea7d08c)  
+
+We can now create tables using T-SQL:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2397f2f6-4729-41d0-a5dd-5cdfeab0d0f9)  
+
 
 
 
