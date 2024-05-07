@@ -332,7 +332,7 @@ The log file contains metadata, the operations made and so on.
 
 We habe also more information regarding the engine used which is in our case the **Apache Spark engine** and we can also see that the Vertipaq-ORDERING technique is set to true meaning that when creating our table it was ordered using the V-ORDER technology to make the querying faster.  
 
-### Note on Vertipaq-Order (V-ORDER) vs Z-ORDER:
+### *Note on Vertipaq-Order (V-ORDER) vs Z-ORDER*:
 
 Both V-Ordering and Z-Ordering are data organization techniques used in Microsoft’s data platform, but they serve different purposes and have distinct functionalities:  
 
@@ -361,9 +361,138 @@ Key Differences Summary:
 |Purpose|	Compression & General Read Performance|	Co-locate data for specific queries|
 |Compatibility	|Universally compatible	|Requires tools like Delta Lake|
 
-Using Together: V-Ordering and Z-Ordering can be complementary techniques. You can leverage V-Ordering for general compression and performance benefits, and then use Z-Ordering on Delta Lake tables for further optimization based on specific query patterns.
+Using Together: V-Ordering and Z-Ordering can be complementary techniques. You can leverage V-Ordering for general compression and performance benefits, and then use Z-Ordering on Delta Lake tables for further optimization based on specific query patterns.  
+
+Now since our Lakehouse has an SQL endpoint, we can switch to it to use SQL to interact with our lakehouse like a data warehoue:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5a715380-880b-48bf-b406-3c1bdc3cf29a)  
+
+### *Note on SQL endpoint*:  
+
+**Note that this is not a full data warehouse, even if it looks like one, it is just an endpoint to query data using SQL and only in read mode.**  
+**If we want to modify data we need to switch to lakehouse and use Apache Spark.**  
+
+The SQL Endpoint warehouse is an auto-generated artifact which is created when you create a Lakehouse artifact.  
+It is a read-only view of your data, any modification to your data still needs to be made through notebooks here. **This endpoint can be used to query data as well as define views and permissions.**
+
+**The Synapse Data Warehouse, on the other hand, is a SQL engine which is used to query and transform data in our Data Lake (OneLake) and has full transactional, DDL and DML query support.** Data here also uses the Delta format in the same way the Lakehouse artifact does but an important difference is that that you would need to be using **structured data.** Working with Data Warehouse data happens in SQL which gives us transactional support and compatibility with existing T-SQL tools.  
+
+The explorer in the SQL endpoint is similar to a SQL tool where we can see schemas, tables, stored procs queries and so on.  
+Now we can run some queries against our data:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b82ade6b-cd7c-4c62-8529-dfaa96c2a65e)  
+
+*The query tool here has intellisense*
+
+**We can also connect using the SQL endpoint in Azure Studio, SSMS and other tools.**  
+
+Also note that the queries are saved automatically for us (Same as snowflake).  
+
+We have also in the same view the **Model tab** where we can see our semantic model where create new one, we can create measures and reports and visuals etc.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4858676b-1735-4c61-8288-1a65cb0e7455)  
+
+We can also in the SQL endpoint create visual queries which is a low-code no-code experience (quite similar to Power Query):  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0b2b0a68-1711-4951-8d43-9f6123e47e3a)  
+
+Also we can save the queries **as Views**:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/074d793e-bd4c-455d-9f83-5072c3bc6e57)  
+
+But note that the query should be selected:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8ac78d0d-abb8-4f92-ba66-154c9e873583)  
 
 
+#### Create and modify the PBI semantic model:
+
+We can create and modify the semantic model of our data lakehouse just like we would do in Power BI :
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7391e651-f470-42af-8f0e-a919c169e5fb)  
+
+**Saves are done automatically, no rollback !! ==> That is why we need to use Deschtop for now.**  
+
+Then we can generate Reports in the Browser version of PBI or the Descktop if we want:  
+
+To use PBI descktop we need to copy the SQL endpoint connection string:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e2e15f7a-10d5-4ffc-a7be-89b85a9a82f0)  
+
+In PBI Descktop we Get Data like we are connecting to SQL Database and we paste the connection string we copied:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c6a752f9-9189-4189-a3f7-3a9b956ba674)  
+
+We connect using SSO mode then we can access our lakehouse SQL endpoint (Read mode warehouse):  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/4c533f27-f6f7-46a9-a46f-d5e5170b2528)  
+
+We can now choose the tables we want to load to create the semantic model:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6c4bd02e-f596-4d9a-af17-cf1e7ec59d6c)  
+
+**Note that here when we use the endpoint string directly we have only two Options : Direct Query and Import Modes. To connect using DirectLake we need to connect to the lakehouse directly and not the SQL Endpoint using the get data section and searching for lakehouse.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/205e104b-217f-401c-bc14-5f287d0108ec)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/bb958e85-2f50-456f-b881-b210129841bf)  
+
+Now we can access the data and create our Model, and all the measures and so on:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3d90081e-9751-406f-af30-6ab6f44b00fe)  
+
+### Warning !!! :  
+We can't access the Lakehouse if we don't activate the **Manage Default Semantic Model**:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/80abe093-bfef-428d-889a-efdd66350dd0)  
+
+### Loading Data Using Dataflows Gen2:  
+
+Just like Dataflows Gen1 in Power BI, Gen2 gives the same experience but compatible with Lakehouses and with other benefits too (20 times faster):  
+
+More on : https://learn.microsoft.com/en-us/fabric/data-factory/dataflows-gen2-overview  
+
+**Bare in mind however that some features we used to have in Gen1 are not yet available:**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7c01cfbe-4189-4500-8160-fde2badedc8e)  
+
+The most valuable element in Dataflows Gen2 is the **Enhanced Compute Engine** that makes it faster by 20 times. This is because it uses an internal SQL cash where it loads data to accelerate the performance of transformation operations on data.  
+
+Also while creating Dataflows Gen2, the work is Saved automatically so no progress lost if the browser is down.  
+
+And the new thing added is that we can set a **destination** for our Dataflow.    
+
+Now lets create a DataFlow using ODATA as source of data:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c7c7efa6-fed5-4f35-a0fb-df50ad548dba)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/202d5dd8-5af6-4d0b-b495-d07b8376ce16)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8c66af8e-1a39-460d-9fb0-1d4efa7efc60)  
+
+Then like we see, in the transformations step, we have PowerQuery experience:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/170ea83f-e5f3-4648-a145-caf12247d5e0)  
+
+Once done, we can create a destination like Lakehouse, warehouse, KQL and Azure DB:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/46f099ae-8811-48b7-b15f-0f4cf3908f9f)  
+
+**Note that we need to check the compatibility of the type of our columns with th destination (for exapmple Datetime are not supported in lakehouses).**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/347b12fd-252b-43f1-a895-33c2f45bc063)  
+
+Once the destination is choosed we can set our Lakehouse:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/936dbdcb-880f-476d-9e7f-762409b05cab)  
+
+**This should be done for each query we have in the Dataflow**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8eaa8abd-fc26-4d70-9357-4e8b940c034a)  
+
+Once the Maping is done, we publish the Dataflow and it will be refreshed a first time and we can set the automatic refresh later. In the lakehouse we can see that Delta Parquet files were created using the Dataflow and now we can query them with every engine we want including SQL.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/74b8fe99-96d3-4239-b3a5-eb523b5f0c86)  
 
 
 
