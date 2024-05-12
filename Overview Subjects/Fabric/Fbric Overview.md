@@ -523,6 +523,245 @@ We can now create tables using T-SQL:
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2397f2f6-4729-41d0-a5dd-5cdfeab0d0f9)  
 
+**Note However that Parquet is case sensitive, so when copying into the tables we should pay attention to the fact that columns should be spelt the same way.**  
+
+We can populate all our tables now to create a basic data warehouse:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7a4e8134-297e-4538-915d-1c35455eae3c)  
+
+Then we can build on top of it a data model using power BI analysis services:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0a0beaa1-3132-4e8c-8377-e636629a425e)  
+
+### Query insights:  
+
+It is a powerful tool making it possible to track all the SQL queries to tune them later on. It allows also to track the queries executed by all the users in the workspaces.  
+
+It is like query performance analyzer in Power BI. It gives four views:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/795e05dc-b5c0-4097-8bbe-332f4279d7c6)  
+
+- History of queries
+- History of the session
+- Frequently executed queries
+- Long running Queries
+
+### Zero-Copy Clones:  
+
+A great technology, that is already originaly present in snowflake before microsoft fabric, is the Zero-Copy Clone of tables. Simply it copies only the metadata of the table to create a clone of it but the data used is still the orginal one of the original table. For example Table 1 points to parquets files in the Onelake the clone would be a copy of the metadata but pointing to the same files.
+**It can be created within or cross schemas!. Also it can be created the same as the current point of time or in a previous point of time up to 7 days.** Snowflake has 30 days save points.  
+
+So why would we want to do that? :  
+
+- To facilitate tje developement and testing processes by creating copies of tables in lower envirements.
+- Provide the capability of data recovery in the event of failed release or data corruption by retaining the previous state of data.
+- Create historical reports to reflect the state of data.
+- Data archiving
+
+The clone initially share the table files with the original table but once a change is made trough DDL,DML in one of these tables, seperate files are created for each one starting from the last common state.  
+
+**In snowflake** this process is assured trought Continuous Data Protection (CDP). It includes:  
+
+- Active (ACTIVE_BYTES column)
+- Time Travel (TIME_TRAVEL_BYTES column)
+- Fail-safe (FAILSAFE_BYTES column)
+
+Snowflake’s zero-copy cloning feature provides a convenient way to quickly take a “snapshot” of any table, schema, or database and create a derived copy of that object which initially shares the underlying storage. This can be extremely useful for creating instant backups that do not incur any additional costs (until changes are made to the cloned object). For example, when a clone is created of a table, the clone utilizes no data storage because it shares all the existing micro-partitions of the original table at the time it was cloned; however, rows can then be added, deleted, or updated in the clone independently from the original table. Each change to the clone results in new micro-partitions that are owned exclusively by the clone and are protected through CDP.  
+
+Syntax of creating a clone table for current state and previous point of time:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ae9e3ed7-0d2c-468f-98dc-9230993abd0d)  
+
+**Note that Zero-Copy cloning is not supported in the SQL lakhouse endpoint.**  
+
+### Lakehouse and Data Warehouse Sharing:  
+
+Sharing gives the possibility to give access to only the Lakhouse or Warehouse without giving access to the entire workspace. The share gives access not only to the lakhouse or datawarehouse but also to the SQL endpoint and the corresponding dataset.  
+
+For the Lakehouse, there are types of permission: 
+
+- ReadData : only reading data usig the SQL endpoint without SQL policy.
+- ReadAll : Access all data in the lakhouse using Apache Spark.
+- Build permission : like in power BI so that users can build reports based on the dataset.
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7d0886b7-2e30-41b9-af50-366f458bb4c6)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/71db4bb4-863a-4720-a07d-602236928644)  
+
+For the Warehouse:  
+
+- Default Permissions : only accessing data but nothing can done unless the DBA grant granular access (GRANT/REVOKE/DENY) using T-SQL.
+- Read all data using SQL: it is like db_datareeader in SQL server that gives users the ability to read data using T-SQL.
+- Read all using Apache Spark: it is a ReadAll permission to access the data warehouse underlying files in Onelake to read it through Apache Spark. Useful for data analysts/scientists.
+- Build permissions on default dataset are also available.
+
+Sharing is done the same like the lakehouse sharing except that if we accept the defaul permissions we would have to use T-SQL to grant granular access to the Data warehouse objects.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5a67ebe5-cbb1-49c6-98de-ab6c3e7e0412)  
+
+### Create a relativly big Datawarehouse:
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/35513f58-ce85-49e4-a66e-70f459397819)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6654889b-df47-41b9-8b60-919f28e56d83)  
+
+Code:  
+
+```SQL
+                                 -- Data Data
+                                CREATE TABLE [dbo].[Date]
+                                (
+                                    [DateID] int NOT NULL,
+                                    [Date] date NULL,
+                                    [DateBKey] char(10) NULL,
+                                    [DayOfMonth] varchar(2) NULL,
+                                    [DaySuffix] varchar(4)  NULL,
+                                    [DayName] varchar(9) NULL,
+                                    [DayOfWeek] char(1) NULL,
+                                    [DayOfWeekInMonth] varchar(2) NULL,
+                                    [DayOfWeekInYear] varchar(2)  NULL,
+                                    [DayOfQuarter] varchar(3) NULL,
+                                    [DayOfYear] varchar(3) NULL,
+                                    [WeekOfMonth] varchar(1) NULL,
+                                    [WeekOfQuarter] varchar(2) NULL,
+                                    [WeekOfYear] varchar(2) NULL,
+                                    [Month] varchar(2) NULL,
+                                    [MonthName] varchar(9) NULL,
+                                    [MonthOfQuarter] varchar(2) NULL,
+                                    [Quarter] char(1) NULL,
+                                    [QuarterName] varchar(9) NULL,
+                                    [Year] char(4) NULL,
+                                    [YearName] char(7) NULL,
+                                    [MonthYear] char(10) NULL,
+                                    [MMYYYY] char(6) NULL,
+                                    [FirstDayOfMonth] date NULL,
+                                    [LastDayOfMonth] date NULL,
+                                    [FirstDayOfQuarter] date NULL,
+                                    [LastDayOfQuarter] date NULL,
+                                    [FirstDayOfYear] date NULL,
+                                    [LastDayOfYear] date NULL,
+                                    [IsHolidayUSA] bit NULL,
+                                    [IsWeekday] bit NULL,
+                                    [HolidayUSA] varchar(50) NULL
+                                );
+                                COPY INTO [dbo].[Date]
+                                FROM 'https://nytaxiblob.blob.core.windows.net/2013/Date'
+                                WITH
+                                (
+                                    FILE_TYPE = 'CSV',
+                                	FIELDTERMINATOR = ',',
+                                	FIELDQUOTE = ''
+                                );
+                                
+                                -- Time Data
+                                CREATE TABLE [dbo].[Time]
+                                (
+                                    [TimeID] int NOT NULL,
+                                    [TimeBKey] varchar(8) NULL,
+                                    [HourNumber] tinyint NOT NULL,
+                                    [MinuteNumber] tinyint NOT NULL,
+                                    [SecondNumber] tinyint NOT NULL,
+                                    [TimeInSecond] int NOT NULL,
+                                    [HourlyBucket] varchar(15) NULL,
+                                    [DayTimeBucketGroupKey] int NOT NULL,
+                                    [DayTimeBucket] varchar(100) NULL
+                                );
+                                COPY INTO [dbo].[Time]
+                                FROM 'https://nytaxiblob.blob.core.windows.net/2013/Time'
+                                WITH
+                                (
+                                    FILE_TYPE = 'CSV',
+                                	FIELDTERMINATOR = ',',
+                                	FIELDQUOTE = ''
+                                );
+                                
+                                -- Geography Data
+                                CREATE TABLE [dbo].[Geography]
+                                (
+                                    [GeographyID] int NOT NULL,
+                                    [ZipCodeBKey] varchar(10) NOT NULL,
+                                    [County] varchar(50)  NULL,
+                                    [City] varchar(50) NULL,
+                                    [State] varchar(50) NULL,
+                                    [Country] varchar(50) NULL,
+                                    [ZipCode] varchar(50) NULL
+                                );
+                                COPY INTO [dbo].[Geography]
+                                FROM 'https://nytaxiblob.blob.core.windows.net/2013/Geography'
+                                WITH
+                                (
+                                    FILE_TYPE = 'CSV',
+                                	FIELDTERMINATOR = ',',
+                                	FIELDQUOTE = ''
+                                );
+                                
+                                -- Weather Data
+                                CREATE TABLE [dbo].[Weather]
+                                (
+                                    [DateID] int NOT NULL,
+                                    [GeographyID] int NOT NULL,
+                                    [PrecipitationInches] float NOT NULL,
+                                    [AvgTemperatureFahrenheit] float NOT NULL
+                                );
+                                COPY INTO [dbo].[Weather]
+                                FROM 'https://nytaxiblob.blob.core.windows.net/2013/Weather'
+                                WITH
+                                (
+                                    FILE_TYPE = 'CSV',
+                                	FIELDTERMINATOR = ',',
+                                	FIELDQUOTE = '',
+                                	ROWTERMINATOR='0X0A'
+                                );
+                                
+                                -- Trip Data
+                                CREATE TABLE [dbo].[Trip]
+                                (
+                                    [DateID] int NOT NULL,
+                                    [MedallionID] int NOT NULL,
+                                    [HackneyLicenseID] int NOT NULL,
+                                    [PickupTimeID] int NOT NULL,
+                                    [DropoffTimeID] int NOT NULL,
+                                    [PickupGeographyID] int NULL,
+                                    [DropoffGeographyID] int NULL,
+                                    [PickupLatitude] float NULL,
+                                    [PickupLongitude] float NULL,
+                                    [PickupLatLong] varchar(50) NULL,
+                                    [DropoffLatitude] float NULL,
+                                    [DropoffLongitude] float NULL,
+                                    [DropoffLatLong] varchar(50) NULL,
+                                    [PassengerCount] int NULL,
+                                    [TripDurationSeconds] int NULL,
+                                    [TripDistanceMiles] float NULL,
+                                    [PaymentType] varchar(50) NULL,
+                                    [FareAmount] float NULL,
+                                    [SurchargeAmount] float NULL,
+                                    [TaxAmount] float NULL,
+                                    [TipAmount] float NULL,
+                                    [TollsAmount] float NULL,
+                                    [TotalAmount] float NULL
+                                );
+                                COPY INTO [dbo].[Trip]
+                                FROM 'https://nytaxiblob.blob.core.windows.net/2013/Trip2013'
+                                WITH
+                                (
+                                    FILE_TYPE = 'CSV',
+                                	FIELDTERMINATOR = '|',
+                                	FIELDQUOTE = '',
+                                	ROWTERMINATOR='0X0A',
+                                	COMPRESSION = 'GZIP'
+                                );
+```
+
+#### All types of GROUP BY operations:  
+
+https://www.ibm.com/docs/fr/db2/11.1?topic=clause-examples-grouping-sets-cube-rollup  
+
+### Data Pipelines:
+
+Inside Fabric we have the Data Factory that simply Power Query + ADF capabilities to have a great experience in termes of Pipeline construction.  
+
+
+
 
 
 
