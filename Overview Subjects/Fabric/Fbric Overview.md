@@ -760,8 +760,79 @@ https://www.ibm.com/docs/fr/db2/11.1?topic=clause-examples-grouping-sets-cube-ro
 
 Inside Fabric we have the Data Factory that simply Power Query + ADF capabilities to have a great experience in termes of Pipeline construction.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/cd00b472-90ad-4c63-81e0-50257e377531)  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/acbc0240-7181-4934-a1b6-38214cc542e9)  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/535419dd-a366-4e6a-b4eb-b0bb8dec3796)  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/51331522-500d-47c5-a427-f91d2b6bd44c)  
+
+We can Run, like in the Azure Data Factory, a lot of activities such as COPY, Notebooks and so on. We can also parametrize the pipelines and schedule them and also use triggers.  
+For example we can create a COPY activity:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/24354bd9-70a1-4b37-a4d7-28597a9a846d)  
+
+We can use also the COPY assistance to use sample data if we want:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f23d83d1-93b1-41ff-97bf-792505ff42b2)  
+
+Once we choose a data sample and chosse a destination like our lakehouse to create new tables:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3b94e56e-2253-4c3c-898c-6168b55a3ad5)  
+
+Nowe we do the mapping like in ADF.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/47d54328-25a4-4002-8da9-dbf029f6cffc)  
+
+By clicking on the activity we can make changes if we like for example in the mapping section:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8a574358-5500-489f-ab2f-3e846c1fe716)  
+
+If we already run the pipeline to modify the schema of the destination we should specify in the advanced section of the Destination **OVERWRITE:**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d9febcd4-0ee9-487a-93c2-9b8827411ce3)  
+
+Then we can **Schedule** the Pipeline to run in a specific time just like dataflow refreshs:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/98685e86-8e9c-401d-ac14-c71e6a09c9f9)  
+
+Lets create another Example using an URL for a csv File:  
+
+Link to the file: https://raw.githubusercontent.com/MicrosoftLearning/dp-data/main/sales.csv  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/04eb4082-3923-4e11-b020-97f62d798a43)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e41a1a8d-a3fe-4a5a-9475-78885e4e16dc)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/77c78ebb-5a47-4797-ab8e-ddb752a5226a)  
+
+We test the connection first:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/609817b2-80c9-42a3-92b7-20c25d9c9b66)  
+
+We can also specify the details of out file format settings:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c2dcff8b-00df-4553-b1dd-5485f24a9960)  
+
+We can create a new table in the destination:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0764eb24-baea-4550-b2bd-2c3f9a95e8fe)  
+
+In the Mapping section we Preview the Source Data but we should click on **Import schemas:**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6ad57b16-7fc7-442a-89b2-97145ea3dc74)  
+
+But also we can create instead, a file in the lakehouse to use a **notebook** in order to perform some transformations on the file before creating the table.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/07f460f3-6afe-4fc9-8013-790cffcc2837)  
+
+We go back then to the lakehouse view to create a **notebook**:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5cfb4746-1e87-4a84-acf7-f282ad205040)  
+
+The notebook does some basic transformation like retrieving Year, month, first name and last name and add four columns for these elements then write the dataframe into a new table in our lakehouse:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/70d3fb89-b638-436c-adfa-14de6fd3d40d)  
 
 
