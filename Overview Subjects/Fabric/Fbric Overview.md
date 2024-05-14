@@ -842,3 +842,26 @@ Now we can also create a delete activity before the copy one so we can construct
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e2e62c0f-79f6-4f0b-8bff-d53f2780979c)  
 
 
+### Data Types supported by Fabric (Delta Parquet files):
+
+Most of the types in T-SQL are supported except for some of them. This is linked to what parquet files support.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a4063502-ea38-4cbd-be0b-e1f27f197d7c)  
+
+Not supported for now:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/2fc2c41d-2e7e-4d66-83fc-b6a0ca5435cd)  
+
+More on : https://learn.microsoft.com/en-us/fabric/data-warehouse/data-types  
+
+**Note that Unique Identifiers are stored in Binary format in parquet files so joins on these columns may not work as expected.**  
+
+### Onelake Explorer:  
+
+It is 100% like onedrive where you can work locally on your laptop and the synchronization is done with Onelake.  
+
+Link to download Onelake Explorer: https://www.microsoft.com/en-us/download/details.aspx?id=105222  
+
+### Shortcuts:  
+
+
