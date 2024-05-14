@@ -835,4 +835,10 @@ The notebook does some basic transformation like retrieving Year, month, first n
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/70d3fb89-b638-436c-adfa-14de6fd3d40d)  
 
+Now we can also create a delete activity before the copy one so we can construct a whole pipeline:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e3960c23-d0e7-49eb-92e3-4eebd38c6614)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e2e62c0f-79f6-4f0b-8bff-d53f2780979c)  
+
 
