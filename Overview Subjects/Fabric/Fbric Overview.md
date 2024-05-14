@@ -864,4 +864,12 @@ Link to download Onelake Explorer: https://www.microsoft.com/en-us/download/deta
 
 ### Shortcuts:  
 
+Shortcuts are similar to External Data Sources.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e3d22f68-bd9a-481f-8ebb-d2e599befa6f)  
+
+They can be created in the **Files Section** of the lakehouse:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5d18b6c9-10f9-4f11-834f-bd58f8c6de1c)  
+
 
