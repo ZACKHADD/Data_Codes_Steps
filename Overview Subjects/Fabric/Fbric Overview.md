@@ -973,3 +973,32 @@ Additional tips:
 - Leverage version control systems like Git for notebooks and code libraries to ensure reproducibility and collaboration.
 - Explore Azure Data Studio for a more IDE-like experience with notebooks, including debugging and code navigation features.
 
+**Note that in notebooks you can just drag and drop the file we want to use in the notebook and it will generate the code for us to create a dataframe and display it!**  
+
+If we don't have a schema predefined in our files, we can just create one and use it in our dataframe:  
+
+```python
+    df = spark.read.format("csv").load("abfss://90f00dcd-3d7d-4cc5-8fdd-84669dbe468e@onelake.dfs.fabric.microsoft.com/63a3faba-fe05-4b94-9b7f-a23dd0e3bb03/Files/Exercie Notebook/2019.csv")
+    schema = StructType([ \
+        StructField("SalesOrder",StringType(),True), \
+        StructField("SalesOrderLine",IntegerType(),True), \
+        StructField("OrderDate",DateType(),True), \
+        StructField("CustomerName", StringType(), True), \
+        StructField("Email", StringType(), True), \
+        StructField("Item", StringType(), True), \
+        StructField("Quantity", IntegerType(), True), \
+        StructField("UnitPrice", FloatType(), True), \
+        StructField("Tax", FloatType(), True), \
+      ])
+    
+    df = spark.read.format("csv").schema(schema).load("Files/Exercie Notebook/2019.csv")
+    display(df)
+
+    #If we want to load multiple csv files from the same folder we use *.csv
+
+    df = spark.read.format("csv").schema(schema).load("Files/Exercie Notebook/*.csv")
+```
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/876d7676-4ba7-4a19-8286-dcc448927834)  
+
+
