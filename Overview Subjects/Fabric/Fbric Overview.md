@@ -1001,4 +1001,6 @@ If we don't have a schema predefined in our files, we can just create one and us
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/876d7676-4ba7-4a19-8286-dcc448927834)  
 
+### Data Wrangler : 
+
 
