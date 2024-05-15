@@ -864,12 +864,112 @@ Link to download Onelake Explorer: https://www.microsoft.com/en-us/download/deta
 
 ### Shortcuts:  
 
-Shortcuts are similar to External Data Sources.  
+Shortcuts are similar to External Data Sources. It gives access to data in other places (departments) without a need to move it like we used to do.  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e3d22f68-bd9a-481f-8ebb-d2e599befa6f)  
 
-They can be created in the **Files Section** of the lakehouse:  
+They can be created in the **Files Section** of the lakehouse or the **Table section if the storage got Delta Parquet files**:  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5d18b6c9-10f9-4f11-834f-bd58f8c6de1c)  
 
+Depending on the typz of data the shortcut makes it appear in the **Table Folder** if in the original storage data are in Delta Parquet format or in the Files folder if it is in another format.  
+
+For example we can create shortcut to tables (Delta Parquet files) other lakehouses:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/332adee1-54be-48e4-8a74-9c92a69e4de2)  
+
+Since we point to tables we do that in the table section.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c7a3e94f-aec2-44d9-93ed-2c51693faa8e)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e4c3a254-160b-4ea9-9cfa-bc49bd9d3820)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ea4f7f3f-ff03-4360-81da-d4a120301577)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0c02be79-5f4b-4d0b-95da-980854d107a1)  
+
+Now we can use the shortcu table like if it is inside our lakehouse:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e41aae17-057b-4055-a913-943bf9adf992)  
+
+We can also switch to the SQL Endpoint and query the table like we would normaly do with an original table:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/42fdfe7a-e1c2-49ba-a2af-4bf130c24a20)  
+
+This gives us the posibility to build a model in Power BI using tables in shortcuts from different warehouses, lakehouses and storages.  
+
+### Apache Spark:  
+
+A big data processing engine used for big workloads. It uses a memory based approach to process data which makes it faster than the traditional **Map Reduce**. It is built on top of HDFS but can run on other file storages.  
+**It can run on a single machine or a cluster of machines and also can run in the same cluster multiple worlkloads. In fabric, each workspace has a spark cluster.**  
+
+4 languages are supported:  
+  - Pyspark (a version of python)
+  - Scala (Java based scripting language)
+  - Java
+  - SQL spark
+
+The most used ones in data engineering workloads are Pyspark and SQL Spark.  
+
+We can check the cluster configurations in our Workspace in the **Workspace settings section**:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/c45e2762-f98a-4bc9-8435-76adb659a71f)  
+
+We have two main features in spark to use:  
+
+- Notebooks
+- Spark Jobs
+
+**Key factors dictating the choice:**  
+
+ 1) Purpose of the operation:
+
+    - Notebooks: Excellent for exploration, prototyping, and iterative development. Immediate feedback and visualization are crucial.
+    - Spark job definitions: Ideal for production-level, scheduled data processing tasks, and complex pipelines with well-defined steps.
+    
+2) Complexity of the code:
+
+    - Notebooks: Can handle intricate code, but organization and maintainability can become challenging for complex tasks.
+    - Spark job definitions: Require well-structured and modular code for efficient execution and scaling.
+  
+3) Collaboration and reproducibility:
+
+    - Notebooks: Facilitate collaboration through shared cells and versioning. However, reproducibility can be tricky due to dependencies and environment variations.
+    - Spark job definitions: Promote better reproducibility with scripts and defined configurations. Collaboration might require additional tools.
+   
+4) Monitoring and alerting:
+
+    - Notebooks: Limited native monitoring features. Require custom scripts or external tools.
+    - Spark job definitions: Offer built-in monitoring and alerting capabilities through Azure Fabric.
+ 
+
+**Real-world scenarios:**  
+
+- Scenario 1: Exploratory data analysis: You want to explore a new dataset, clean and filter data, and quickly visualize trends. Use a notebook for its interactivity and flexibility.
+- Scenario 2: Scheduled ETL pipeline: You need to regularly extract, transform, and load data from various sources. A Spark job definition with a scheduled execution is ideal for automation and reliability.
+- Scenario 3: Machine learning model training: You're building and training a complex model with multiple steps and dependencies. A well-structured and modular Spark job definition ensures maintainability and efficient execution.
+
+**Limitations and challenges:**
+
+Notebooks:
+      Can become messy and difficult to manage for complex tasks.
+      Security considerations for sharing notebooks with sensitive data.
+      Limited scalability and monitoring capabilities.
+      
+Spark job definitions:
+      Require more upfront work for code structuring and packaging.
+      Less interactive and adaptable for exploratory analysis.
+      Collaborative editing and debugging might require additional tools.
+      Ultimately, the choice depends on your specific needs and priorities:
+
+Notebooks: Choose for iterative exploration, prototyping, and quick analysis.  
+Spark job definitions: Choose for scheduled tasks, complex pipelines, and production-level data processing.  
+
+We can also combine both approaches: Use notebooks for initial exploration and development, then translate the final code into a Spark job definition for production deployment.
+
+Additional tips:  
+
+- For complex tasks, consider using libraries like Spark DataFrame or DataFrames within notebooks for better organization and scalability.
+- Leverage version control systems like Git for notebooks and code libraries to ensure reproducibility and collaboration.
+- Explore Azure Data Studio for a more IDE-like experience with notebooks, including debugging and code navigation features.
 
