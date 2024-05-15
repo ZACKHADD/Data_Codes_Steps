@@ -1003,4 +1003,9 @@ If we don't have a schema predefined in our files, we can just create one and us
 
 ### Data Wrangler : 
 
+It is a tool based on notebooks that helps in data analysis in a Grid Like interface. It is similar to Power Query but not based on M language and not having all the functionalities like in Power Query.  
+It saves all the steps in codes behind the scene (in Python and Pyspark codes).  
+
+To start data wrangling, we need to start from a notebook:  
+
 
