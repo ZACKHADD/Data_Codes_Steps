@@ -1055,4 +1055,71 @@ We can create a KQL database, load some data in it and run some KQL queries:
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/03ba4596-bf81-4882-95be-a5e9f81b10c9)  
 
-### 
+### Domains And Roles:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5ab3afea-0efb-4d7e-9e3d-fd37594545ec)  
+
+### Bursting and Smoothing:  
+
+Brusting is a functionality that makes it possible to outpasse the capacity we purchased to execute jobs that needs more capacity. The brusting is like a debt generated from the future available capacity that is paid using **Smoothing** which is just a an allocation of this debt later on.  
+
+- For interactive jobs run by users: capacity demand is typically smoothed over 5 minutes to reduce short-term temporal spikes.  
+- For scheduled, or background jobs: capacity demand is spread over 24 hours, eliminating the concern of job scheduling or contention.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/f3a2b89a-8a28-496c-b8cf-64b2d0d5eded)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7604b8dd-a243-4f9a-8612-65f5f3a5fffe)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a9fe5220-ed66-4139-b00b-2c57b5be9bea)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/00dd8d90-57fd-499f-bbcd-e6c971908a49)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6dfc8c42-5965-425c-93f7-73a795018104)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/14898132-44db-4512-aecb-50b2f4c5af41)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7e3b94ec-d3e1-46e2-b390-6284a97b7a99)  
+
+This makes it possible to use the capacity at maximum and prevent overloading.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/bf2d2c60-0cb8-4fb0-b7f0-124ceff3d5d7)  
+
+Most Warehouse and SQL analytics endpoint operations follow **Background Rejection** policy, and as a result experience operation rejection after over-utilization averaged over a 24-hour period. However, PowerBI operations are considered **Interactive** even when done inside datawarehouse.  
+
+**All this happens when we don't pause the capacity !!! otherwise we pay for the capacuty exceeded**  
+
+### Lakehouse Architecture:  
+
+In our lakehouse we can organize data in a way that it contains : Raw Data, Cleaned Data and Enriched data for business.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/71b22f89-fd60-4a38-9c9a-7833d514ec93)  
+
+This architecture is called the **Medallion Architecture**. 3 basic layers are needed (we can have more if we want) :  
+
+- Bronze for raw data
+- Silver for cleaned and filtered data
+- Gold for enriched data that can be directly used in Data Warehouses or BI tools
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e21baf22-538a-4a47-9e28-b9af8fafa1f1)  
+
+### Fabric vs Databricks:  
+
+
+|Consideration	|Microsoft Fabric	|Databricks
+|---|---|---|
+|Deployment Model	|SaaS (Software as a Service) - Managed by Microsoft	|PaaS (Platform as a Service) - fine-grained control over infrastructure|
+|Infrastructure Setup	|No configuration required|	Requires Infrastructure as Code (IaC) setup for customization|	
+|Data Location Control|Limited control (data resides in your OneLake, which is linked to your Fabric Tenant)|More control over data residency and network isolation|
+|Architecture	|Delta format, Spark Engine & cluster-based	|Similar core architecture, but Databricks offers more configuration options|
+|Data Warehouse	|Offers native TSQL & stored procedures compatibility, but also PySpark & Spark SQL	|Relies on PySpark & Spark SQL|
+|Development Environments	|Distinction between environments is handled by creating different workspaces	|Full support for separate DTAP environments|
+|Data Catalog & Governance|Purview (still in preview) - can be a joined venture with Unity Catalog|	Unity Catalog|
+|CI/CD Compatibility|Limited support (Preview features) & limited branching support	|Full compatibility with CI/CD pipelines with Git & DevOps|
+|Business Intelligence Integration (Power BI)	| Connection possible with Import & Direct Query & Direct Lake for optimized performance|	Connection possible with Import & Direct Query with cluster or SQL warehouse|	Data Sharing	|
+|Fabric API offers some sharing but is still limited (preview features)	|Delta Sharing & Databricks API|
+|Data Ingestion	|Fabric Data Factory for (Low) Code & Dataflow Gen 2 for No-Code & Full code possible in Lakehouse	|Full code in Databricks or (Low)-Code via Azure Data Factory|
+|Data Transformation	|Low-code with Dataflow Gen 2 & Lakehouse for Spark-based transformations & Warehouses for SQL-based Transformation	|PySpark or Spark SQL transformations in Notebooks & Delta Live Tables|	
+|Access Control	| Very basic currently, as OneSecurity is not available yet	|Mature & comprehensive suite of security features with Unity Catalog|
+|Advanced Analytics (Machine Learning & Streaming)	|Supported	|Supported - Native integration with MLflow|
+|AI Assistant	|CoPilot is available in each step of your data warehouse journey	|Available as a code helper in notebooks and in the SQL editor|
+|Overall Maturity	|Less mature but rapidly evolving	|More mature & established platform (10+ years of evolution)|
