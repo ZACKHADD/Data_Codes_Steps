@@ -1008,4 +1008,51 @@ It saves all the steps in codes behind the scene (in Python and Pyspark codes).
 
 To start data wrangling, we need to start from a notebook:  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6ca84ef0-4ba4-4522-b427-2ae7be3d463d)  
 
+Now we click on the df we created to start wrangling data:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0df90fc3-338d-4a72-98b0-db1b8ea69436)  
+
+It is like Power Query with the column profile functionality and the steps.  
+We can for example make names uppercase:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7c2ef8d1-48e0-4c63-90e2-d7dce5b3ad5b)  
+
+We can either apply both operations (uppercase with new column and delete the old one) or do just one of them.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/37820c87-077f-43dd-868a-31ebb4c6b2b9)  
+
+To save our changes, and since we are working on top of a notebook, we can just click on add code to notebook.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/aba993ee-ef54-498e-b5f9-3856aab5fbd0)  
+
+Once done, it adds the code in a new cell to clean data and uppercase the name column :  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ab0cf831-3933-4756-a8e9-c668d69602cb)  
+
+### Semantic Link:  
+
+It is a technology that makes it possible for python users to connect to a dataset and use it for modelization, machine learning .. and store data in onelink that can be again used in powerBI using direct Lake.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/e72451b4-c762-49a6-b392-300624e9b03f)  
+
+### Real-Time Analytics with KQL:  
+
+Kusto Query Language (KQL) is a powerful tool to explore your data and discover patterns, identify anomalies and outliers, create statistical modeling, and more. KQL is a simple yet powerful language to query structured, semi-structured, and unstructured data.  
+
+More on : https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/  
+
+In Fabric we can use KQL by first creating a new KQL Database in the Realtime analytics section:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/32aad90b-8a09-457d-b835-582227743af2)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/ef48132d-3b30-4e4c-88fd-45b0b606b29e)  
+
+We can create a KQL database, load some data in it and run some KQL queries:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/aa68f073-eff6-4ed7-8370-f42aabf37048)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/03ba4596-bf81-4882-95be-a5e9f81b10c9)  
+
+### 
