@@ -1123,3 +1123,31 @@ This architecture is called the **Medallion Architecture**. 3 basic layers are n
 |Advanced Analytics (Machine Learning & Streaming)	|Supported	|Supported - Native integration with MLflow|
 |AI Assistant	|CoPilot is available in each step of your data warehouse journey	|Available as a code helper in notebooks and in the SQL editor|
 |Overall Maturity	|Less mature but rapidly evolving	|More mature & established platform (10+ years of evolution)|
+
+**Deployment Model & Infrastructure:** 
+
+- Microsoft Fabric: Easier setup, but customization might be required for on-premises data sources or private endpoints. Fabric offers convenience, while Databricks provides more fine-grained control.
+- Databricks: This requires manual setup and infrastructure management (IaC is recommended). You'll need to configure additional components for your data platform, such as storage and networking.
+
+**Architecture & Data Warehousing:** Both platforms leverage Delta Lake architecture. 
+
+- Microsoft Fabric: Streamlines legacy migrations with built-in TSQL and stored procedure support in its Warehouse component.
+- Databricks: Requires alternative approaches for migrating legacy data warehouses, such as rewriting code in Spark SQL.
+
+**CI/CD:**
+
+- Microsoft Fabric: CI/CD functionality is under development and not yet mature.
+- Databricks: Fully compatible with DevOps tools and Git for seamless integration into your development workflow.
+
+**Data Ingestion & Transformation:**
+
+- Microsoft Fabric: Offers a no-code/low-code alternative with Dataflow Gen2 for data ingestion and transformation, making it easier for users with limited coding experience. Additionally, users can leverage notebooks for transformations in the Lakehouse and stored procedures in the Warehouse. For more advanced data orchestration and ETL capabilities, Data Factory can be used.
+- Databricks: Primarily relies on code-based data ingestion and transformation through Databricks notebooks. Additional tools like Azure Data Factory might be necessary for complex workflows.
+  
+**Security:**
+
+- Microsoft Fabric: Security features are evolving. While workspace security and access control exist, advanced features like Row-Level Security (RLS), Object-Level Security (OLS), and dynamic data masking are currently limited to the Warehouse component. Using these features disables Direct Lake and defaults to Direct Query in Power BI, impacting performance. The future integration of OneSecurity with Fabric promises significant security improvements.
+- Databricks: Provides robust security with granular control through Unity Catalog rules. These rules can be applied to Power BI with Direct Query, but performance might be affected.
+  
+**For optimal performance with robust RLS rules in Power BI reports, using an import connection is currently recommended.**  
+
