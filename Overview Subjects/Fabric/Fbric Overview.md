@@ -1151,3 +1151,6 @@ This architecture is called the **Medallion Architecture**. 3 basic layers are n
   
 **For optimal performance with robust RLS rules in Power BI reports, using an import connection is currently recommended.**  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7a571042-fb7a-434b-8c78-2675f3207bf3)  
+
+
