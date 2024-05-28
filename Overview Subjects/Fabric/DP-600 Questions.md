@@ -1,0 +1,21 @@
+# Overview of questions of the DP-600 exam
+
+- If we want to be efficient in cost and perform light Fabric workloads with an access to 20 Power BI users to view reports we can purshase an F2 (200 $/month), F4 or F8 and 20 Pro license (10 $/month) but not a F64 (it costs 5000 dollars a month).
+- When manipulating models using XMLA (Read & Write) it is recomanded to enable large Model support if the size exeeds 1GB, it operates faster.
+- Applying sensitivity labels makes sure that only authorozed people can access Data.
+- To be cost effective if we have F64 reserved capacity and avoid being throttled, we need to utilize autoscaling with a preset cost limit.
+- Orphaned workspaces are workspaces with no admin users.
+- Lineage analysis gives impact on artifacts in the same Workspace while Impact analysis shows it accross workspaces.
+- Protocol used in Gateway is TCP.
+- Users are managed in the 365 admin center.
+- Export to excel can be disabled for some or all security groups at the tenant level or at the report level in the option section.
+- In Microsoft INTRA ID Fabric administrator duties can be done if we have Global Administrator, Power Plateform Administrator or Fabric Administrator roles.
+- Query Insights in data warehouse track user queries (not internal queries).
+- Timeout in Dtaflows Gen 2 with gateway is 60 minutes.
+- Label sensitivity can be applied in all artifacts in a workspace (Power BI service/Fabric) (even dataflows).
+- Query insights keeps tracking up to 30 days.
+- Creating workspaces role is handeled in the tenant level (user must be in the security goupe having this role to create workspaces). We can only update and delete workspace at workspace level if we are admins.
+- Connect (or disconnect) workspace to azure repository (GIT) is done by Workspace Admin or Power BI Admin.
+- When data leaves the service of Power BI (exported), it is automatically encrypted.
+- Sensitivity labels are not supported in PBIP files and we can not create PBIP files from service.
+- 
