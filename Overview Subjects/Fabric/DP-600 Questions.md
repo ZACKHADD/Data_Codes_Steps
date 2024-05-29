@@ -46,4 +46,21 @@
 ## Prepare and Serve Data:
 
 - To track historical data in a dimension use SCD 2 dimensions.
-- 
+- Implement SCD2 : Add Valid to and valid from columns, Create new surrogate key to uniquely identify the record, Modify the ETL to insert a new line and not overwriting it and populate the Valit to of the previous row with the date of the change (Date of insert).
+- Optimal way to promote code reusibility for complexed queries is User-Defined-Functions (UDFs).
+- The most efficient and fast way to ingest data in DW is T-SQL Copy statement.
+- You can configure data partitioning and test aggregation and DAX measures using DAX studio and Tabular Editor.
+- Partition data for refresh in data models helps in performance (recent partition is processed every night, others monthly maybe and old once a year for example).
+- The table maintenance commands **OPTIMIZE** (Reduce the amount of delta parquet files and hence metadata overhead) and **VACUUM** can be used within notebooks and Spark Job Definitions, and then orchestrated using platform capabilities.
+- **spark.microsoft.delta.optimizeWrite.binSize** is the property to fix the size of delta parquet files generated when writing.
+- Admin, Member and contributor can clone tables.
+- To denormalize DB we should first analyze queries that are slow.
+- Partitioning large tables based on most used columns in queries is a good startegy to enhance SQL queries performance.
+- Nomalization is done primarily for Integrity and consistency for the application.
+- Lakehouses offer code-free and code first ingestion options while warehouses primarily rely on built-in data ingestion tools.
+- KQL Realtime analytics handle continuous stream of data and makes it possible to store it in a data warehouse.
+- Shortcuts are created in lakehouses and KQL databases.
+- You can set the 'Degree of copy parallelism' setting in the Settings tab of the Copy activity to indicate the parallelism you want the copy activity to use. Think of this property as the maximum number of threads within the copy activity. The threads operate in parallel. The threads either read from your source or write to your destination data stores.
+- Semantic models and Azure SQL DataBases connot be used as sources in in shortcuts.
+- Bridge tables.
+-  
