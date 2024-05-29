@@ -45,3 +45,5 @@
 
 ## Prepare and Serve Data:
 
+- To track historical data in a dimension use SCD 2 dimensions.
+- 
