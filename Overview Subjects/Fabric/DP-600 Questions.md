@@ -62,5 +62,19 @@
 - Shortcuts are created in lakehouses and KQL databases.
 - You can set the 'Degree of copy parallelism' setting in the Settings tab of the Copy activity to indicate the parallelism you want the copy activity to use. Think of this property as the maximum number of threads within the copy activity. The threads operate in parallel. The threads either read from your source or write to your destination data stores.
 - Semantic models and Azure SQL DataBases connot be used as sources in in shortcuts.
-- Bridge tables.
--  
+- Bridge tables when a Many-to-Many relation is needed.
+- Start schema supports complexed relationships.
+- Stored procedure available in Lakehouses but only for read.
+- The highest throughput (performance) possible in ingestion is T-SQL COPY statement.
+- Only Admin, Member and contributor roles can create shortcuts.
+- Cross-warehouse ingestion sources must be in the same workspace.
+- Cross-database queries are not supported between warehouses in different workspaces.
+- Table clones create copies from a specific time **Only in the past 7 days** of the existence of the source table (time travel).
+- Normalization: 2NF all non-key attributes depend on primary key (or part of composite key), 3NF all non-key attributes depend on one Primary key (non indirect dependency with other primary keys in the table).
+- Normalization does not always decrease performance (it might).
+- Conversion between numerical data types and data/time is not supported in Fabric. Also conversion from decimal to date.
+- Hierarchical partitioning with different levels helps in effecient queries.
+
+## Building and design semantic models:
+
+-
