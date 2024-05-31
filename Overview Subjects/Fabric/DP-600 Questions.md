@@ -77,4 +77,72 @@
 
 ## Building and design semantic models:
 
--
+- Security Roles in SQL server are not RLS. And RLS are not inhereted when import mode is used, only when direct query is used.
+- Use large semantic model storage format when we deal with large datasets (It is a feature in power bi Premium).
+- Composite models are best suited for various data sources when we search for best performance in PBI.
+- OLS testing is only supported in Power BI Descktop or using Tabular Editor.
+- OLS and RLS are only applied to Viewer roles.
+- Semantic models using incremental refrech connot be downlowed from the service.
+- Incremental refresh policices are defined in Power BI Descktop (Start and end date, filter data and set the incremental refresh points).
+- Dimension tables are set to dual **(Data will be retrieved by the engine either from import mode or directquery depending on the query and how often data is queried)** mode storage while fact tables to Direct query and aggregations to Import.
+- Enable Composite models in POwer BI we must: Allow XMLA Endpoints and Analyze in Excel with on-premises semantic models. Users can work with Power BI semantic models in Excel using a live connection. Allow DirectQuery connection to Power BI semantic models.
+- Calculation groups can be used to calculate dynamicaly conversion rate.
+- RLS can be defined using DAX while OLS uses only Roles and can be defined only using Tabular Editor.
+- All Power BI Import and non-multidimensional DirectQuery data sources can work with aggregations.
+- Tabular editor supports parallele development using GIT, And tabular Editor 3 can query data using DAX.
+- Tabular Editor is not used for creating relationships between tables.
+- Example of XMLA endpoint of a workspace : powerbi://api.powerbi.com/v1.0/myorg/Test%20Workspace
+- To use RLS with aggregation tables it should be set on both detailed and aggregations.
+- Large semantic models in Power BI are only available in Azure regions that support Azure Premium Files Storage.
+- Dynamic format strings (apply to measures and not visuals) are not the same as conditional formatting (colors).
+- We should whenever possible create RLS in the data warehouse in Fabric.
+- Under DirectLake, the semantic model is refreshed but only the metadata and the cashed data (most used in queries, the engine handels this automaticaly) and the refresh can be triggered each time the underlying data changes.
+- letting Power BI perform Automatic aggregations optimize query performance.
+
+## Explore and Analyze data:
+
+- Decision tree analysis for diagnostic analysis (why something happend).
+- Visual Query editor supports execution of Data Query Language or Read-Only Select statement (DDL, DML are not supported), it includes intellisense, code completion .. and it has data preview features for data preview with a limitation of 1000 row.
+- Even Excel can connect to parquet files.
+- Visual query generates optimized SQL queries.
+- Visual and SQL Query editor can be saved for future used.
+
+ ## Miscellaneous Questions:
+
+ - V-Order and Optimize Writes helps in making reads more efficient.
+ - Partitionby in notebooks performs a split of data accross multiple folders. Partitioning is a way to improve the performance of query when working with a large semantic model. Avoid choosing a column that generates too small or too large partitions. Define a partition based on a set of columns with a good cardinality and split the data into files of optimal size.
+ - Unmanaged tables are external tables (metadata handeled in spark but storage is external). Managed tables are normal tables.
+ - Primary keys in fact tables are not to use (not easily compressed especialy in large tables).
+ - For direct query models we assume referential integrity so that the engine perform inner joins instead of outer joins which more efficient.
+ - F64 is the least Premium license (suitable to 1500 viewers with no pro licenses).
+ - DAX studio gives statistics regarding model size and columns.
+
+## Assessment exam:
+
+- To use Lakehouse explorer, users need at least contributor role (viwers cannot).
+- Limitation of XMLA endpoint in POwer BI : PBIX file cannot be downloaded from the Power BI service.
+- Renaming and other query logics can be done using Views.
+- While you can add the SQL endpoint of a lakehouse to a warehouse for cross database querying, that is not the simplest method. The simplest method is to use a shortcut.
+- Dataflow Gen2 is a great tool for transformations; however, for large data ingestions without any transformations, the Copy data activity performs best.
+- Only notebooks and SQL stored procedures provide a possibility to define parameters in the data pipeline UI.
+- SCD2 keeps tracks of history without adding columns for previous values like SCD3 does.
+- A staging dataflow copies raw data “as-is” from the data source and can then be used as a data source for further downstream transformations. This is especially useful when access to a data source is restricted to narrow time windows and/or to a few users.
+- OPTIMIZE has a parameter to enable V-ORDER to increase direct lake speed.
+- The high concurrency mode for Fabric notebooks is set at the workspace level.
+- Table statistics need to be updated because the SQL query optimizer tries to use it to enumerate all possible plans and choose the most efficient candidate.
+- When manually creating/updating statistics for optimizing query performance, you should focus on columns used in JOIN, ORDER BY, and GROUP BY clauses.
+- Some Microsoft Power Query transformations break query folding, which causes all the data to be pulled into Power Query before it is filtered. Splitting a column by position (or delimiter) breaks query folding and causes all the data to load before the current year filter is applied.
+- Always in power query filter data before transforming (spliting) to not break the query folding when the source is SQL database.
+- Dynamic measure formatting is the simplest and most effective way to add logic-based formatting to a single measure.
+- The large semantic model storage format can be enabled from the Power BI service from the semantic model settings. It will allow data to grow beyond the 10-GB limit for Power BI premium capacities or Fabric capacities of F64 or higher.
+- Declaring the measures as VAR will cache the measure and only load it once. This reduces the amount of processing and data loading that the measure must do and increases its speed.
+- The ALM Toolkit is a schema diff tool for Power BI models and can be used to perform the deployment of metadata only. We can use it to update measures without refreshing the semantic model.
+- Filtering on the Calendar Dimension table will almost always perform faster than filtering directly on any fact table, as that requires more processing by both the DAX formula and the storage engine.
+- Only the distinct values displayed under Column distribution will show the true number of rows of values that are distinct (one row per value).
+- df.groupBy("ProductKey").count().sort("count", descending=True).show()
+- display(df.limit(100))
+- describe is used to generate descriptive statistics of the DataFrame. For numeric data, results include COUNT, MEAN, STD, MIN, and MAX, while for object data it will also include TOP, UNIQUE, and FREQ.
+- You can profile your dataframe by clicking on Inspect button.
+- plt.bar(x=data['SalesTerritory'], height=data['CityCount']) plt.xlabel('SalesTerritory') plt.ylabel('Cities') plt.show().
+- DENSE_RANK() function returns the rank of each row within the result set partition, with no gaps in the ranking values. The RANK() function includes gaps in the ranking.
+- 
