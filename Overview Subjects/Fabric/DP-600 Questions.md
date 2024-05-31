@@ -145,4 +145,18 @@
 - You can profile your dataframe by clicking on Inspect button.
 - plt.bar(x=data['SalesTerritory'], height=data['CityCount']) plt.xlabel('SalesTerritory') plt.ylabel('Cities') plt.show().
 - DENSE_RANK() function returns the rank of each row within the result set partition, with no gaps in the ranking values. The RANK() function includes gaps in the ranking.
+
+## Exam topics:
+
+- Only Azure Devops Repo is supported for now in Fabric, Github is not.
+- In Fabric, a domain is a way to logically group together services in the organization,we must use Fabric Admin portal to do the groupings.
+- Data flows in ADF are not the same as DataflowsGen2 in Fabric.
+- Incremental refresh in lakehouse can be done using Dtaflows Gen2 in fabric by adding a query that retrieves the maximum Order ID to filter data to ingest from the source.
+- Read data fromlakhouse in notebook: A. spark.read.format(“delta”).load(“Tables/ResearchProduct”) B. spark.sql(“SELECT * FROM Lakehouse1.ResearchProduct ”).
+- The SQL analytics endpoint is a read-only warehouse.
+- Quickvisualisation creates a powerBI report inside notebooks.
+- external tables created using spark are not visible when using SQL endpoint.
+- to make the data available in the Chart view in a notebook we use display() function.
+- XMLA is set to Read-Only first, you must go to the capacity settings to enable read-write.
 - 
+
