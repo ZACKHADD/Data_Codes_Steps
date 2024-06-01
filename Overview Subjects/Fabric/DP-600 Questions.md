@@ -158,5 +158,14 @@
 - external tables created using spark are not visible when using SQL endpoint.
 - to make the data available in the Chart view in a notebook we use display() function.
 - XMLA is set to Read-Only first, you must go to the capacity settings to enable read-write.
+- Incremental refresh looks for the following two parameters that are reserved keywords and case sensitive: RangeStart and RangeEnd.
+- Disabling Publish to web disables the ability to publish any unsecured (no login required) reports to any embedded location. Disabling XMLA Endpoints ensures that semantic models can be connected to, but not edited directly in, workspaces.
+- placing semantic models and reports in separate workspaces ensures that the data governance recommended practices are in place.
+- Remove dupplicates with sorting desc keeps the latest records.
+- The method to add new columns to a DataFrame is withColumn.
+- expand columns step ensures that query folding is maintained for performance.
+- It is considered best practice to create a staging first dataflow that ingests the raw data first, and then a second dataflow to transform the data, commonly applied when there are performance or timeout issues for a query.
+- df_customers[df_customers.isnull().any(axis=1).
+- Dense_rank returns no gaps.
 - 
 
