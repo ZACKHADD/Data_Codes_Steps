@@ -68,6 +68,8 @@ Depending on the objectif and the workload, we decise how the cluster should be 
 - Single Node: for lightweight exploratory analysis.
 - Standard (Muli Node) : For production workloads (At least 2 VMs).
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/58db7077-2a70-47df-bcf3-f2f91c4285d4)  
+
 #### Security features:
 To Manage the access to clusters and the ability to create them, we do that in the workspace. The workspace admin gives the roles to users to set what they can and cannot do with the clusters.  
 **Account admins** handle general account management, and **workspace admins** manage the settings and features of individual workspaces in the account. Both account and workspace admins manage Databricks users, service principals, and groups, as well as authentication settings and access control.  
@@ -95,3 +97,52 @@ Additionally, users can be assigned these feature-specific admin roles, which ha
 - Metastore admins: Manage privileges and ownership for all securable objects within a Unity Catalog metastore, such as who can create catalogs or query a table.
 
 Users can also be assigned to be workspace users. A workspace user has the ability to log in to a workspace, where they can be granted workspace-level permissions.  
+
+**Workspaces Policies:**
+A policy is a tool workspace admins can use to limit a user or group’s compute creation permissions based on a set of policy rules.  
+Policies provide the following benefits:
+- Limit users to creating clusters with prescribed settings.
+- Limit users to creating a certain number of clusters.
+- Simplify the user interface and enable more users to create their own clusters (by fixing and hiding some values).
+- Control cost by limiting per cluster maximum cost (by setting limits on attributes whose values contribute to hourly price).
+- Enforce cluster-scoped library installations.
+
+We can also add **libraries** to a policy so libraries are automatically installed on compute resources. We can add a maximum of 500 libraries to a policy.  
+
+#### Create a cluster:
+
+Under the compute section, we can create a cluster and specify the detailed configuration depending on the objectif of the compute as explained before.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/871da968-e795-4e91-9b6e-3860a270b717)  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3ca62028-1a5f-4e8a-8079-caa8b719616e)  
+
+We can specify details such as the runtime to use, the terminate after duration, Min and Max workers for the scalability purpose etc.  
+Also we can grant permissions on the cluster to users:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/8179cda2-ea52-44f7-888f-cfc37707ccb7)  
+
+#### Start Working with notebooks:
+
+Just like jupyter notebooks, we use databricks notebooks to code and interact with spark.  
+Magic commands gives the possibility to set some key envirement variables like the language to code with (we can mix as we want).  
+Examples of magic commands:  
+
+- %fs, which is the same as making dbutils.fs calls. See Mix languages.
+- %sh, which runs a command by using the cell magic %%script on the local machine. This does not run the command in the remote Databricks workspace.
+- %md and %md-sandbox, which runs the cell magic %%markdown.
+- %sql, which runs spark.sql.
+- %pip, which runs pip install on the **local machine. This does not run pip install in the remote Databricks workspace**.
+- %run, which runs another notebook. 
+
+Limitations include:
+- The notebooks magics %r and %scala are not supported and display an error if called.
+- The notebook magic %sql does not support some DML commands, such as **Show Tables**.
+
+**Databricks Utilities (dbutils)** is also a key tool that works in Python, R and Scala to:
+- Work with files and object storage efficiently.
+- Work with secrets.
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3f5305e8-1a01-462d-99e6-c7b70f07d821)  
+
+
