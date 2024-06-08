@@ -48,5 +48,159 @@ A simple fail activity that displays a custom message.
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b924f0fe-4899-43ee-9eb4-f9e680bdcc75)  
 
+### 5. Json configuration file:
 
-
+```json
+    {
+    "name": "Check_data_before_load",
+    "objectId": "84cbcca8-75c2-45b9-a27a-99cd5ff4aa24",
+    "properties": {
+        "activities": [
+            {
+                "name": "Get Metadata1",
+                "type": "GetMetadata",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "fieldList": [
+                        "exists"
+                    ],
+                    "datasetSettings": {
+                        "annotations": [],
+                        "linkedService": {
+                            "name": "3eb306a1_6b8d_4c18_b41c_1c24e8ecb386",
+                            "properties": {
+                                "annotations": [],
+                                "type": "Lakehouse",
+                                "typeProperties": {
+                                    "workspaceId": "90f00dcd-3d7d-4cc5-8fdd-84669dbe468e",
+                                    "artifactId": "@pipeline().parameters.Lakehouse_Name",
+                                    "rootFolder": "Files"
+                                }
+                            }
+                        },
+                        "type": "DelimitedText",
+                        "typeProperties": {
+                            "location": {
+                                "type": "LakehouseLocation",
+                                "fileName": {
+                                    "value": "@pipeline().parameters.File_",
+                                    "type": "Expression"
+                                },
+                                "folderPath": "Baseball"
+                            },
+                            "columnDelimiter": ",",
+                            "escapeChar": "\\",
+                            "firstRowAsHeader": true,
+                            "quoteChar": "\""
+                        },
+                        "schema": []
+                    },
+                    "storeSettings": {
+                        "type": "LakehouseReadSettings",
+                        "enablePartitionDiscovery": false
+                    },
+                    "formatSettings": {
+                        "type": "DelimitedTextReadSettings"
+                    }
+                }
+            },
+            {
+                "name": "Check if file empty or not",
+                "type": "Switch",
+                "dependsOn": [
+                    {
+                        "activity": "Get Metadata1",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "on": {
+                        "value": "@string(activity('Get Metadata1').output.exists)",
+                        "type": "Expression"
+                    },
+                    "cases": [
+                        {
+                            "value": "False",
+                            "activities": [
+                                {
+                                    "name": "File Eroor",
+                                    "type": "Fail",
+                                    "dependsOn": [],
+                                    "typeProperties": {
+                                        "message": "File is empty",
+                                        "errorCode": "400"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "value": "True",
+                            "activities": [
+                                {
+                                    "name": "Flter_Data",
+                                    "type": "TridentNotebook",
+                                    "dependsOn": [],
+                                    "policy": {
+                                        "timeout": "0.12:00:00",
+                                        "retry": 0,
+                                        "retryIntervalInSeconds": 30,
+                                        "secureOutput": false,
+                                        "secureInput": false
+                                    },
+                                    "typeProperties": {
+                                        "notebookId": "6e960c0e-1c53-45e2-bb23-c9d64dd0ba24",
+                                        "workspaceId": "90f00dcd-3d7d-4cc5-8fdd-84669dbe468e",
+                                        "parameters": {
+                                            "Lakehouse": {
+                                                "value": {
+                                                    "value": "@pipeline().parameters.Lakehouse_Name",
+                                                    "type": "Expression"
+                                                },
+                                                "type": "string"
+                                            },
+                                            "file_name": {
+                                                "value": {
+                                                    "value": "@pipeline().parameters.File_",
+                                                    "type": "Expression"
+                                                },
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "defaultActivities": []
+                }
+            }
+        ],
+        "parameters": {
+            "Lakehouse_Name": {
+                "type": "string",
+                "defaultValue": "63a3faba-fe05-4b94-9b7f-a23dd0e3bb03"
+            },
+            "File_": {
+                "type": "string",
+                "defaultValue": "Players.csv"
+            }
+        },
+        "variables": {
+            "var_output": {
+                "type": "String"
+            }
+        },
+        "lastModifiedByObjectId": "c294ad3a-c426-4d72-a466-c706708b94ca",
+        "lastPublishTime": "2024-06-08T16:45:29Z"
+    }
+}
+```
