@@ -30,6 +30,31 @@ There is a **SparkSession** available to the user, the SparkSession will be the 
 - Structured APIs (High level)
 - Unstructured APIs (low level)
 
+### Spark Job:
+A job in Spark refers to a sequence of transformations on data. Whenever an action like count(), first(), collect(), and save() is called on RDD (Resilient Distributed Datasets), a job is created. A job could be thought of as the total work that your Spark application needs to perform, broken down into a series of steps.  
+Consider a scenario where you’re executing a Spark program, and you call the action count() to get the number of elements. This will create a Spark job. If further in your program, you call collect(), another job will be created. So, a Spark application could have multiple jobs, depending upon the number of actions.  
+
+### Spark Stage:
+
+A stage in Spark represents a sequence of transformations that can be executed in a single pass, i.e., without any shuffling of data. When a job is divided, it is split into stages. Each stage comprises tasks, and all the tasks within a stage perform the same computation.  
+The boundary between two stages is drawn when transformations cause data shuffling across partitions. Transformations in Spark are categorized into two types:  
+**narrow and wide**.  
+Narrow transformations, like **map()**, **filter()**, and **union()**, can be done within a single partition. But for wide transformations like **groupByKey()**, **reduceByKey()**, or **join()**, **data from all partitions may need to be combined**, thus necessitating **shuffling** and marking the start of a new stage.
+
+### Spark Task:
+
+A task in Spark is the smallest unit of work that can be scheduled. Each stage is divided into tasks. A task is a unit of execution that runs on a single machine. 
+ When a stage comprises transformations on an RDD, those transformations are packaged into a task to be executed on a single executor.  
+For example, if you have a Spark job that is divided into two stages and you’re running it on a cluster with two executors, each stage could be divided into two tasks. Each executor would then run a task in parallel, performing the transformations defined in that task on its subset of the data.  
+
+More on :  
+- https://medium.com/@diehardankush/what-are-job-stage-and-task-in-apache-spark-2fc0d326c15f)
+
+### Data Partitioning:
+
+More On:  
+- https://medium.com/@dipayandev/everything-you-need-to-understand-data-partitioning-in-spark-487d4be63b9c
+
 ## Databricks on top of Spark:
 
 Databricks resides on top of Spark engin giving a great GUI to use and interact with spark using notebooks. It creates a Lakehouse logic that combines the benefits of data warehouses and data lakes.  
