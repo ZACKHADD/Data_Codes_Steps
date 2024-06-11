@@ -61,3 +61,25 @@ Example:
 - Filter records based on specified conditions (AND, OR, NOT, BETWEEN, LIKE, IN, ANY, ALL, EXISTS).
 
 
+## Optimization:
+
+SQL is all about writing data properly (ACID) and reading it as fast as possible. For these reasons, optimization is a must.  
+It can be done at several levels : Queries, tables definition, database ...  
+
+### Query Optimization:
+When runing queries against our data, we should focus more on how the engine would perform what we are asking it. This is called **"The query execution plan"**.  
+It represents the most optimized path that the SQL engine found and will follow. Of course, this is so affected by how we write our queries.  
+To help making the queries more optimized, several properties are needed in our query definition:  
+- SARGability: SARG means **Search Argument**, Which simply indicates whether or not the engine can retrieve data directly from an index without any transformation needed.
+```SQL
+        SELECT COUNT(id)
+        FROM dbo.Posts
+        WHERE CONVERT(CHAR(10),CreationDate,121) = '2023-05-10'
+        
+        -------------------------------------------------------------
+        
+        SELECT COUNT(id)
+        FROM dbo.Posts
+        WHERE CreationDate = '2023-05-10'
+```
+
