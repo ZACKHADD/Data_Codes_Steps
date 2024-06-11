@@ -60,6 +60,9 @@ More On:
 
 ## Cluster design and configuration:
 
+- For ETL/ELT normal jobs: Memory Optimized cluster
+- For Normal Dev and interactive jobs: General purpose cluster
+- For heavy jobs needing data shuffeling: Storage optimized cluster (caching enhanced)
 More on:
 - https://medium.com/technology-and-trends/estimating-the-size-of-spark-cluster-1cb4d59c5a03
 ## Databricks on top of Spark:
