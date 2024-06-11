@@ -7,6 +7,9 @@ Spark has no UI so Databricks offers a great user experience to use Spark and co
 
 Moving from data processing using single machine to **Cluster** (group of machine that share the workload execution) needed a powerful framework to do the coordination. Spark is a tool for just that, managing and coordinating the execution of tasks on data across a
 cluster of computers.  
+
+### Cluster architecture:
+
 The cluster of machines that Spark will leverage to execute tasks will be managed by a cluster manager like Spark’s Standalone cluster manager, YARN, or Mesos. We then submit Spark Applications to these cluster managers which will
 grant resources to our application so that we can complete our work.  
 
@@ -22,16 +25,26 @@ The executors are responsible for actually executing the work that the driver as
 
 The cluster manager, on the other hand, controls physical machines and allocates resources to Spark Applications. This can be one of several core cluster managers: Spark’s standalone cluster manager, YARN, or Mesos. This means that there can be multiple Spark Applications running on a cluster at the same time. We will talk more in depth about cluster managers in Part IV: Production Applications of this book.  
 
-While our executors, for the most part, will always be running Spark code. The driver can be “driven” from a
-number of different languages through **Spark’s Language APIs**.  
-There is a **SparkSession** available to the user, the SparkSession will be the entrance point to running Spark code. When using Spark from a Python or R, the user never writes explicit JVM instructions, but instead writes Python and R code that Spark will translate into code that Spark can then run on the executor JVMs.  
-
+While our executors, for the most part, will always be running Spark code. The driver can be “driven” from a number of different languages through **Spark’s Language APIs**.  
 **Two types of APIs:**
 - Structured APIs (High level)
 - Unstructured APIs (low level)
+
+There is a **SparkSession** available to the user, the SparkSession will be the entrance point to running Spark code. When using Spark from a Python or R, the user never writes explicit JVM instructions, but instead writes Python and R code that Spark will translate into code that Spark can then run on the executor JVMs.  
+**Note that the spark context and spark session need to be initialized to be able to connect with the cluster. However, in Databricks this is done automaticaly.**
+
+### Data Structures:
+
 ### DAG (Directed Acyclic Graph) Scheduler:  
-is a fundamental concept that plays a crucial role in the Spark execution model. The DAG is “directed” because the operations are executed in a specific order, and “acyclic” because there are no loops or cycles in the execution plan. This means that each stage depends on the completion of the previous stage, and each task within a stage can run independently of the other.  
-It provids the logical and physical plan of executing the job.  
+DAG is a fundamental concept that plays a crucial role in the Spark execution model. The DAG is “directed” because the operations are executed in a specific order, and “acyclic” because there are no loops or cycles in the execution plan. This means that each stage depends on the completion of the previous stage, and each task within a stage can run independently of the other.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/a13238ff-3c22-4327-aa2c-3e5bbdb5951c)
+
+The fact that DAG is **acyclic** allows Spark to optimize and schedule the execution of the operations effectively, as it can determine the dependencies and execute the stages in the most efficient order.  
+The  DAG schedular works as follows:
+- It computes a DAG of stages for each job, keeps track of which RDDs and stage outputs are materialized, and finds a minimal schedule to run the job.
+- It then submits stages as TaskSets to an underlying TaskScheduler implementation that runs them on the cluster.
+- It converts a logical execution plan (which consists of the RDD lineage formed through RDD transformations) into a physical execution plan.  
 
 ### Spark Job:
 A job in Spark refers to a sequence of transformations on data. Whenever an action like count(), first(), collect(), and save() is called on RDD (Resilient Distributed Datasets), a job is created. A job could be thought of as the total work that your Spark application needs to perform, broken down into a series of steps.  
