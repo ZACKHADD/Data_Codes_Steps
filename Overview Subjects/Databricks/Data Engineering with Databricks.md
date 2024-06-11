@@ -29,6 +29,9 @@ There is a **SparkSession** available to the user, the SparkSession will be the 
 **Two types of APIs:**
 - Structured APIs (High level)
 - Unstructured APIs (low level)
+### DAG (Directed Acyclic Graph) Scheduler:  
+is a fundamental concept that plays a crucial role in the Spark execution model. The DAG is “directed” because the operations are executed in a specific order, and “acyclic” because there are no loops or cycles in the execution plan. This means that each stage depends on the completion of the previous stage, and each task within a stage can run independently of the other.  
+It provids the logical and physical plan of executing the job.  
 
 ### Spark Job:
 A job in Spark refers to a sequence of transformations on data. Whenever an action like count(), first(), collect(), and save() is called on RDD (Resilient Distributed Datasets), a job is created. A job could be thought of as the total work that your Spark application needs to perform, broken down into a series of steps.  
