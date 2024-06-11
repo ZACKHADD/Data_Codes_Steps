@@ -58,6 +58,10 @@ More on :
 More On:  
 - https://medium.com/@dipayandev/everything-you-need-to-understand-data-partitioning-in-spark-487d4be63b9c
 
+## Cluster design and configuration:
+
+More on:
+- https://medium.com/technology-and-trends/estimating-the-size-of-spark-cluster-1cb4d59c5a03
 ## Databricks on top of Spark:
 
 Databricks resides on top of Spark engin giving a great GUI to use and interact with spark using notebooks. It creates a Lakehouse logic that combines the benefits of data warehouses and data lakes.  
