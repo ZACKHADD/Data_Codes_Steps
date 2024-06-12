@@ -26,14 +26,40 @@ The executors are responsible for actually executing the work that the driver as
 The cluster manager, on the other hand, controls physical machines and allocates resources to Spark Applications. This can be one of several core cluster managers: Spark’s standalone cluster manager, YARN, or Mesos. This means that there can be multiple Spark Applications running on a cluster at the same time. We will talk more in depth about cluster managers in Part IV: Production Applications of this book.  
 
 While our executors, for the most part, will always be running Spark code. The driver can be “driven” from a number of different languages through **Spark’s Language APIs**.  
+
 **Two types of APIs:**
 - Structured APIs (High level)
-- Unstructured APIs (low level)
+- Unstructured APIs (low level) RDD API
 
-There is a **SparkSession** available to the user, the SparkSession will be the entrance point to running Spark code. When using Spark from a Python or R, the user never writes explicit JVM instructions, but instead writes Python and R code that Spark will translate into code that Spark can then run on the executor JVMs.  
+The term API here means either we deal directly with the RDD which are the core of Spark (then we say it is Low level) or we deal with another abstraction such as Dataframes (built on top of RDDs and Datasets) (then we say it is High level):  
+- RDD API (Spark Core): user manipulates directly the RDDs, it is the low level API
+- Dataset API (Spark SQL): User manipulates high level typed objects
+- DataFrame API (Spark SQL): User manipulates high level untyped objects
+- SQL API (Spark SQL): User writes SQL query strings
+  
+They're called APIs because they're essentially just different interfaces to exactly the same data.  
+**For example we can use Spark SQL interface with DataFrame which provides all common SQL functions, but if we decide to use RDDs, we would need to write SQL functions ourselves using RDD transformations.**  
+It is recomanded to always use high level APIs (Dataframe and Datasets) because spark then can use optimizers to give the best performance. Otherwise, using RDDs directly will oblige us to handle all the details in terms of transformations and actions that can be easily done with the high level APIs and also handl the physical deployment of the job.  
+
+There is a **SparkSession** available to the user. the SparkSession will be the entrance point to running Spark code. When using Spark from a Python or R, the user never writes explicit JVM instructions, but instead writes Python and R code that Spark will translate into code that Spark can then run on the executor JVMs.  
 **Note that the spark context and spark session need to be initialized to be able to connect with the cluster. However, in Databricks this is done automaticaly.**
 
 ### Data Structures:
+The APIs we have seen above will give us 3 main data structures in Spark:
+- RDDs : which are the core of Spark.
+- Dataframes : Came later to solve the problems that RDDs were facing especially with structured data and also to offer a more friendly API to developpers.
+- Datasets : The last type to show and it was a bridge to offer the best of the two worlds.
+Keys differences ans similarities:
+
+|Feature|RDD|Dataframe|Dataset|
+|---|---|---|---|
+|Data Representation|Distributed immutable data|Distributed Structured data with schema|extension of dataframes with optional schemas and type safety feature|
+|Optimization|Optimization plan needs to be writen by the developper|Uses Catalyst optimizer|Uses Catalyst optimizer|
+|Projection of schema|No shcema. Needed to be defined manually|Automatically found|Automatically found|
+|Type-safety|yes|no|yes|
+|Error analysis|Compile time|Rune time|Compile time|
+|Type of users|Developpers requiring precise control|Data Engineers, Data Analysts|Data Professionals needing a balance between control and convinience|
+|Aggregation Operation|Slow in aggregations|The fastest structure for aggregations|Faster than RDDs|
 
 ### DAG (Directed Acyclic Graph) Scheduler:  
 DAG is a fundamental concept that plays a crucial role in the Spark execution model. The DAG is “directed” because the operations are executed in a specific order, and “acyclic” because there are no loops or cycles in the execution plan. This means that each stage depends on the completion of the previous stage, and each task within a stage can run independently of the other.  
@@ -78,6 +104,7 @@ More On:
 - For heavy jobs needing data shuffeling: Storage optimized cluster (caching enhanced)
 More on:
 - https://medium.com/technology-and-trends/estimating-the-size-of-spark-cluster-1cb4d59c5a03
+
 ## Databricks on top of Spark:
 
 Databricks resides on top of Spark engin giving a great GUI to use and interact with spark using notebooks. It creates a Lakehouse logic that combines the benefits of data warehouses and data lakes.  
