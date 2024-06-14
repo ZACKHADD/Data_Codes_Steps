@@ -48,18 +48,23 @@ There is a **SparkSession** available to the user. the SparkSession will be the 
 The APIs we have seen above will give us 3 main data structures in Spark:
 - RDDs : which are the core of Spark.
 - Dataframes : Came later to solve the problems that RDDs were facing especially with structured data and also to offer a more friendly API to developpers.
-- Datasets : The last type to show and it was a bridge to offer the best of the two worlds.
+- Datasets : The last type to show and it was a bridge to offer the best of the two worlds. **Supported only by Scala**.  
 Keys differences ans similarities:
 
 |Feature|RDD|Dataframe|Dataset|
 |---|---|---|---|
-|Data Representation|Distributed immutable data|Distributed Structured data with schema|extension of dataframes with optional schemas and type safety feature|
+|Data Representation|Distributed immutable data|Distributed Structured data with schema|extension of dataframes with optional schemas and type safety (obligation to declare the type of the data and gives error if not the good type) feature and object oriented interface (for example a table is a class with columns as properties)|
 |Optimization|Optimization plan needs to be writen by the developper|Uses Catalyst optimizer|Uses Catalyst optimizer|
 |Projection of schema|No shcema. Needed to be defined manually|Automatically found|Automatically found|
 |Type-safety|yes|no|yes|
 |Error analysis|Compile time|Rune time|Compile time|
 |Type of users|Developpers requiring precise control|Data Engineers, Data Analysts|Data Professionals needing a balance between control and convinience|
 |Aggregation Operation|Slow in aggregations|The fastest structure for aggregations|Faster than RDDs|
+|Transformations|Lambda based transformations: map(), reduce(), filter()|Expression based transformation:  select(), where(), join()|Uses both|
+
+Note that we can transform back and forth from Dataframes and Datasets while if we transform RDD to dataframe we lose the auto optimization of spark engine.  
+**As spark evoloved with time, we no longer have Dataframes as a separate data structure. It is simply a Dataset[Rows]. If we use an object other then row inside it becomes Dataset and spark handles this implicite conversion. We talk then about structured API simply.**  
+**Dataset, when not containing Rows, can contain Objects of a class that can be manipulated.**  
 
 ### DAG (Directed Acyclic Graph) Scheduler:  
 DAG is a fundamental concept that plays a crucial role in the Spark execution model. The DAG is “directed” because the operations are executed in a specific order, and “acyclic” because there are no loops or cycles in the execution plan. This means that each stage depends on the completion of the previous stage, and each task within a stage can run independently of the other.  
@@ -94,14 +99,21 @@ More on :
 
 ### Data Partitioning:
 
+In order to allow every executor to perform work in parallel, Spark breaks up the data into chunks, called partitions. A partition is a collection of rows that sit on one physical machine in our cluster. A DataFrame’s partitions represent how the data is physically distributed across your cluster of machines during execution. If you have one partition, Spark will only have a parallelism of one even if you have thousands of executors. If you have many partitions, but only one executor Spark will still only have a parallelism of one because there is only one computation resource.  
+
+We always need to avoid having too big or small files. Having bigger partitioned data will lead to some of the executor doing the heavy load work, while others are just sitting idle. We need to ensure that no executors in the cluster is sitting idle due to the skewed workload distribution across the executors. This will lead to increased data processing time because of weak utilisation of the cluster.  
+On the other hand, having too many small files may require lots of shuffling data on disk space, taking a lot of your network compute.  
+The default file size in Spark is 128MB but the recommendation is to keep your partition file size ranging 256MB to 1GB.  
+
 More On:  
 - https://medium.com/@dipayandev/everything-you-need-to-understand-data-partitioning-in-spark-487d4be63b9c
 
 ## Cluster design and configuration:
-
+The choice of the cluster type and number of nodes depends on the type of work we want to perform:
 - For ETL/ELT normal jobs: Memory Optimized cluster
 - For Normal Dev and interactive jobs: General purpose cluster
 - For heavy jobs needing data shuffeling: Storage optimized cluster (caching enhanced)
+
 More on:
 - https://medium.com/technology-and-trends/estimating-the-size-of-spark-cluster-1cb4d59c5a03
 
