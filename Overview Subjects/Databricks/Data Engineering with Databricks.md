@@ -62,6 +62,8 @@ Keys differences ans similarities:
 |Aggregation Operation|Slow in aggregations|The fastest structure for aggregations|Faster than RDDs|
 |Transformations|Lambda based transformations: map(), reduce(), filter()|Expression based transformation:  select(), where(), join()|Uses both|
 
+**Immutability means that once created, a data structure cannot be changed. Instead, any operation on the data structure creates a new one. By embracing immutability, Spark leverages these functional programming features to enhance performance and maintain consistency in its distributed environment.**  
+
 Note that we can transform back and forth from Dataframes and Datasets while if we transform RDD to dataframe we lose the auto optimization of spark engine.  
 **As spark evoloved with time, we no longer have Dataframes as a separate data structure. It is simply a Dataset[Rows]. If we use an object other then row inside it becomes Dataset and spark handles this implicite conversion. We talk then about structured API simply.**  
 **Dataset, when not containing Rows, can contain Objects of a class that can be manipulated.**  
@@ -88,6 +90,18 @@ The boundary between two stages is drawn when transformations cause data shuffli
 **narrow and wide**.  
 Narrow transformations, like **map()**, **filter()**, and **union()**, can be done within a single partition. But for wide transformations like **groupByKey()**, **reduceByKey()**, or **join()**, **data from all partitions may need to be combined**, thus necessitating **shuffling** and marking the start of a new stage.
 
+### Transformations and Actions:
+
+- **Transformation** : Spark Transformation is a function that produces new RDD (Or any data structure) from the existing RDDs. It takes RDD as input and produces one or more RDD as output. Each time it creates new RDD when we apply any transformation. Thus, the so input RDDs, cannot be changed since RDD are immutable in nature. Transformations are the core of how you will be expressing your business logic using Spark.  
+
+The two kinds of transformations are : 
+**Narrow** that are performed with the **pipelining** meaning that if we specify multiple filters on DataFrames they’ll all be performed **in-memory**. **Wide** on the other hand are transformations that involve **Shuffle** and will write the results to disk. Data is typically first spilled to disk and then read back into memory as needed. This is because shuffling can involve moving large amounts of data between nodes, and **memory is often limited in distributed systems**.  
+Transformation are said **Lazy**. **Lazy evaulation** means that Spark will wait until the very last moment to execute the graph of computation instructions. In Spark, **instead of modifying the data immediately when we express some operation, we build up a plan of transformations that we would like to apply to our source data**. Spark, by waiting until the last minute to execute the code, will compile this plan from your raw, DataFrame transformations, to an **efficient physical plan** that will run as efficiently as possible across the cluster.  
+
+More on : https://stackoverflow.com/questions/49753298/transformation-vs-action-in-the-context-of-laziness  
+
+- **Actions**: An action instructs Spark to compute a result from a series of transformations. For example **saveAsTextFile()** or **count()** or **.show()**. One specified, tha action load the data into the memory to perform the computation and return the result.  
+
 ### Spark Task:
 
 A task in Spark is the smallest unit of work that can be scheduled. Each stage is divided into tasks. A task is a unit of execution that runs on a single machine. 
@@ -96,6 +110,7 @@ For example, if you have a Spark job that is divided into two stages and you’r
 
 More on :  
 - https://medium.com/@diehardankush/what-are-job-stage-and-task-in-apache-spark-2fc0d326c15f)
+
 
 ### Data Partitioning:
 
