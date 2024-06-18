@@ -211,7 +211,7 @@ Also for structured data, we may skip a lot of ETL and ELT processes using Lakeh
 - Open source so no vendor and maitainance cost
 - Support complexed data types
 
-A clarificatio regarding data storage types : 
+A clarification regarding data storage types : 
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7816093f-d5eb-41d4-923e-aedcca63b812)  
 
@@ -260,6 +260,10 @@ More on : https://learn.microsoft.com/en-us/fabric/enterprise/licenses
 **Shortcuts**:  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/6a545372-bff7-4da4-b2a5-c091808f0509)  
+
+### Connectors:
+
+**Note that unlike ressources in Azure that need Linked services to be connected, in Fabric we use the connectors just like in Power BI.**  
 
 ### Loading data:
 
