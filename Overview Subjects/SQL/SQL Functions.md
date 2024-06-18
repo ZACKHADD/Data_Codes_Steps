@@ -60,6 +60,42 @@ Example:
 
 - Filter records based on specified conditions (AND, OR, NOT, BETWEEN, LIKE, IN, ANY, ALL, EXISTS).
 
+### Qualify:
+
+In a SELECT statement, the QUALIFY clause filters the results of window functions.  
+QUALIFY does with window functions what HAVING does with aggregate functions and GROUP BY clauses.  
+
+```SQL
+                SELECT * 
+                    FROM (
+                         SELECT i, p, o, 
+                                ROW_NUMBER() OVER (PARTITION BY p ORDER BY o) AS row_num
+                            FROM qt
+                        )
+                    WHERE row_num = 1
+                    ;
+                +---+---+---+---------+
+                | I | P | O | ROW_NUM |
+                |---+---+---+---------|
+                | 1 | A | 1 |       1 |
+                | 3 | B | 1 |       1 |
+                +---+---+---+---------+
+
+                 -------------------------------------------------------------
+              --With Qualify clause
+
+              SELECT i, p, o
+                        FROM qt
+                        QUALIFY ROW_NUMBER() OVER (PARTITION BY p ORDER BY o) = 1
+                        ;
+                    +---+---+---+
+                    | I | P | O |
+                    |---+---+---|
+                    | 1 | A | 1 |
+                    | 3 | B | 1 |
+                    +---+---+---+
+```
+More on : https://docs.snowflake.com/fr/sql-reference/constructs/qualify
 
 ## Optimization:
 
