@@ -1,7 +1,11 @@
 # Data Engineering using Databricks Overview 
 
-Databricks is a powerful data plateforme suitable for big data processing, ingestion and AI workloads. The plateforme is built on top of **Apache Spark** which is a tool for big data processing (using memory).  
+Databricks is a powerful data plateforme (Paas) suitable for big data processing, ingestion and AI workloads. The plateforme is built on top of **Apache Spark** which is a tool for big data processing (using memory).  
 Spark has no UI so Databricks offers a great user experience to use Spark and collaborate with lage teams.  
+
+**What should be understood is that Databricks till now is not made for replacing OLTP (even if they add some features such as ACID support for transactions ..) systems as it is not a RDBMS. Snowflake on the other hand is a Saas Datawarehouse at scale (Cloud based) solution based on SQL (where the storage is seperated from the compute). The data warehousing experience however is supported in databricks using the SQL clusters.**  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/7581505e-194d-4ff4-9c43-8aaf93b383af)  
 
 ## Apache Spark:
 
@@ -160,8 +164,10 @@ These are several types of clusters available in Databricks depending on the obj
 - **All-Purpose compute**: Provisioned compute used to analyze data in notebooks. We can create, terminate, and restart this compute using the UI, CLI, or REST API.
 - **Job compute**: Provisioned compute used to run automated jobs. The Databricks job scheduler automatically creates a job compute whenever a job is configured to run on new compute. The compute terminates when the job is complete. We cannot restart a job compute.
 - Instance pools: Compute with idle, ready-to-use instances, used to reduce start and autoscaling times. We can create this compute using the UI, CLI, or REST API.
-- Serverless SQL warehouses: On-demand elastic compute used to run SQL commands on data objects in the SQL editor or interactive notebooks. We can create SQL warehouses using the UI, CLI, or REST API.
-- Classic SQL warehouses: Used to run SQL commands on data objects in the SQL editor or interactive notebooks. We can create SQL warehouses using the UI, CLI, or REST API.
+- **Serverless SQL warehouses**: On-demand elastic compute used to run SQL commands only on data objects in the SQL editor or interactive notebooks. We can create SQL warehouses using the UI, CLI, or REST API.
+- **Classic SQL warehouses**: Used to run SQL commands only on data objects in the SQL editor or interactive notebooks. We can create SQL warehouses using the UI, CLI, or REST API.
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/512d5c40-075c-4a70-9a16-64d2850b88fe)  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/b5a29998-98cb-4480-a8b4-0b9a2bbc7826)  
 *Note that this screen is from the community edition*  
