@@ -253,4 +253,20 @@ Limitations include:
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/3f5305e8-1a01-462d-99e6-c7b70f07d821)  
 
+#### In memory computing (cashing or persesting):
 
+One of the most important capabilities in Spark is **persisting** (or caching) a dataset in memory across operations. When you persist an RDD, each node stores any partitions of it that it computes in memory and reuses them in other actions on that dataset.  
+Also, one can provide Storage Level as **MEMORY_AND_DISK**.  
+MEMORY_AND_DISK : Store RDD as **deserialized Java objects in the JVM**. If the **RDD does not fit in memory, store the partitions that don't fit on disk**, and read them from there when they're needed.  
+
+#### SQL (DBMS) vs Spark SQL:
+
+Relational database management and querying are done using SQL. Its main applications are in the retrieval, updating, insertion, and deletion of data from databases.  DBMS are great for relational databases where the consistancy is a must and constraints are to be conserved.  
+Spark SQL however: is a part of the open-source distributed computing system Apache Spark. By extending the SQL language, Spark SQL makes it possible to query structured data in Spark programmes. With it, users can run SQL queries in addition to Spark programmes.  
+
+Relational Databases have features **(referential integrity for example)** that Spark (distributed computing file systems) does not have.  
+
+More on :  
+https://github.com/ZACKHADD/Data_Codes_Steps/blob/main/Overview%20Subjects/Data%20Engineering/DWH%2C%20Data%20lake%2C%20Data%20Lakhouse.md  
+https://medium.com/@rganesh0203/sql-vs-spark-sql-15dd385a7b40  
+Comparison DBMS vs Spark : https://db-engines.com/en/system/MySQL%3BSpark+SQL  
