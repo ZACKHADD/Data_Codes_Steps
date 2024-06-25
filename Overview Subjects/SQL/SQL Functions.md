@@ -122,4 +122,11 @@ To help making the queries more optimized, several properties are needed in our 
 ### Stored Procedures:
 
 A stored procedure is a group of SQL statements that are created and stored in a database management system, allowing multiple users and programs to share and reuse the procedure. A stored procedure can accept input parameters, perform the defined operations, and return multiple output values. This enables users to provide different inputs to manipulate or retrieve specific portions of the data. Then, when one user modifies the stored procedure, all users will receive that update.  
-A stored procedure is cached in the server memory, making the code execution much faster than dynamic SQL. **Dynamic SQL statements**, However can be stored in DB2 caches, but they are not precompiled. Compilation at run time is a factor making the dynamic SQL performance slower.  
+**The query execution plan** of a stored procedure is cached in the server memory, making the code execution much faster than dynamic SQL because the compilation is not done at run time which is a factor making the dynamic SQL performance slower.  
+
+When a stored procedure is executed it is optimized and compiled and the query plan is placed in procedure cache (In memory) for other users, as long as there is space. However, they are removed using the least recently used (LRU) algorithm.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/39582225-5ac8-4b6c-9b76-2a38602e7a56)  
+
+Stored procedures are also a great tool to establish security on data by giving access only to  the the result of the stored procedure and not a table or a view.  
+
