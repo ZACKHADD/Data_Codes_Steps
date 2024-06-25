@@ -119,3 +119,7 @@ To help making the queries more optimized, several properties are needed in our 
         WHERE CreationDate = '2023-05-10'
 ```
 
+### Stored Procedures:
+
+A stored procedure is a group of SQL statements that are created and stored in a database management system, allowing multiple users and programs to share and reuse the procedure. A stored procedure can accept input parameters, perform the defined operations, and return multiple output values. This enables users to provide different inputs to manipulate or retrieve specific portions of the data. Then, when one user modifies the stored procedure, all users will receive that update.  
+A stored procedure is cached in the server memory, making the code execution much faster than dynamic SQL. **Dynamic SQL statements**, However can be stored in DB2 caches, but they are not precompiled. Compilation at run time is a factor making the dynamic SQL performance slower.  
