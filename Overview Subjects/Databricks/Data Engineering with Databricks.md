@@ -106,6 +106,14 @@ More on : https://stackoverflow.com/questions/49753298/transformation-vs-action-
 
 - **Actions**: An action instructs Spark to compute a result from a series of transformations. For example **saveAsTextFile()** or **count()** or **.show()**. One specified, tha action load the data into the memory to perform the computation and return the result.  
 
+### Note on Suffling: 
+
+Shuffling is an expensive operation that needs a great attention to reduce the compute cost of the organisation.  
+It is an operation that moves the data across the network causing a network trafic that impacts the performance and the cost. Suffle is done when we apply a wide transformation (Groupby(), join() ..).  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0133a958-e8bb-4596-a09e-133380efd55c)  
+
+
 ### Spark Task:
 
 A task in Spark is the smallest unit of work that can be scheduled. Each stage is divided into tasks. A task is a unit of execution that runs on a single machine. 
@@ -120,12 +128,22 @@ More on :
 
 In order to allow every executor to perform work in parallel, Spark breaks up the data into chunks, called partitions. A partition is a collection of rows that sit on one physical machine in our cluster. A DataFrame’s partitions represent how the data is physically distributed across your cluster of machines during execution. If you have one partition, Spark will only have a parallelism of one even if you have thousands of executors. If you have many partitions, but only one executor Spark will still only have a parallelism of one because there is only one computation resource.  
 
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/0304bd35-da51-413a-9b07-bb38fc67fdcc)  
+
 We always need to avoid having too big or small files. Having bigger partitioned data will lead to some of the executor doing the heavy load work, while others are just sitting idle. We need to ensure that no executors in the cluster is sitting idle due to the skewed workload distribution across the executors. This will lead to increased data processing time because of weak utilisation of the cluster.  
-On the other hand, having too many small files may require lots of shuffling data on disk space, taking a lot of your network compute.  
+On the other hand, having too many small files may require lots of shuffling data on disk space, taking a lot of your network compute and Driver memory.  
+
+|Too Small|Too Larg|
+|------|------|
+|Slow read time downstream|Long computation time|
+|Large task creation overhead|Slow write times|
+|Driver OOM (Out Of Memory Error)| Executor OOM|
+
 The default file size in Spark is 128MB but the recommendation is to keep your partition file size ranging 256MB to 1GB.  
 
 More On:  
 - https://medium.com/@dipayandev/everything-you-need-to-understand-data-partitioning-in-spark-487d4be63b9c
+- https://www.youtube.com/watch?v=hvF7tY2-L3U&ab_channel=PalantirDevelopers  
 
 ## Cluster design and configuration:
 The choice of the cluster type and number of nodes depends on the type of work we want to perform:
@@ -263,10 +281,22 @@ MEMORY_AND_DISK : Store RDD as **deserialized Java objects in the JVM**. If the 
 
 Relational database management and querying are done using SQL. Its main applications are in the retrieval, updating, insertion, and deletion of data from databases.  DBMS are great for relational databases where the consistancy is a must and constraints are to be conserved.  
 Spark SQL however: is a part of the open-source distributed computing system Apache Spark. By extending the SQL language, Spark SQL makes it possible to query structured data in Spark programmes. With it, users can run SQL queries in addition to Spark programmes.  
+**SparkSQL is a pure SQL interface that uses spark as execution engine**.
+Relational Databases have features **(referential integrity for example)** that Spark (distributed computing file systems) does not have. However, Databricks is trying to add the **Relational Database functionalities** to have the same abilities of the distributed DBMS such as : Snowflake, Amazon REDSHIFT, BigQuery and Synapse.  
 
-Relational Databases have features **(referential integrity for example)** that Spark (distributed computing file systems) does not have.  
+**Note that when we use High level APIs, Dataframes and datasets, we are using Spark SQL as the Python or R code is translated to SQL and executed in Spark engine.**  
+
+Spark SQL query Execution:  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/42f7bad8-1120-4846-b73e-363bda2bb9fb)  
 
 More on :  
 https://github.com/ZACKHADD/Data_Codes_Steps/blob/main/Overview%20Subjects/Data%20Engineering/DWH%2C%20Data%20lake%2C%20Data%20Lakhouse.md  
 https://medium.com/@rganesh0203/sql-vs-spark-sql-15dd385a7b40  
 Comparison DBMS vs Spark : https://db-engines.com/en/system/MySQL%3BSpark+SQL  
+https://www.youtube.com/watch?v=Kz-oYfYEsC0&list=PL7_h0bRfL52qWoCcS18nXcT1s-5rSa1yp&index=7&ab_channel=BryanCafferky  
+https://fr.slideshare.net/slideshow/a-deep-dive-into-query-execution-engine-of-spark-sql/144699027  
+https://dataninjago.com/2022/02/14/spark-sql-query-engine-deep-dive-19-adaptive-query-execution-part-1/
+
+
+
