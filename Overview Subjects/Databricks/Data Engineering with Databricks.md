@@ -298,5 +298,14 @@ https://www.youtube.com/watch?v=Kz-oYfYEsC0&list=PL7_h0bRfL52qWoCcS18nXcT1s-5rSa
 https://fr.slideshare.net/slideshow/a-deep-dive-into-query-execution-engine-of-spark-sql/144699027  
 https://dataninjago.com/2022/02/14/spark-sql-query-engine-deep-dive-19-adaptive-query-execution-part-1/
 
+### Data warehousing in Databricks:
+
+In this section we will try to use SQL to create some data objects to simulate a datawarehouse in Databricks.  
+We start by creating a cluster that will attach to our notebook and the we start creating our DW.  
+
+![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/468d5367-55bc-4a63-b8f3-41f1ffcec7b5)  
+
+#### Create a Database:
+
 
 
