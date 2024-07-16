@@ -130,3 +130,6 @@ When a stored procedure is executed it is optimized and compiled and the query p
 
 Stored procedures are also a great tool to establish security on data by giving access only to  the the result of the stored procedure and not a table or a view.  
 
+### SQL Order of execution: 
+
+![image](https://github.com/user-attachments/assets/a896a93d-5a58-4820-971e-4ec2bfb73a6d)
