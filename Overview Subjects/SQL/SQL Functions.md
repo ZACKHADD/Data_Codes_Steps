@@ -132,4 +132,35 @@ Stored procedures are also a great tool to establish security on data by giving 
 
 ### SQL Order of execution: 
 
-![image](https://github.com/user-attachments/assets/a896a93d-5a58-4820-971e-4ec2bfb73a6d)
+![image](https://github.com/user-attachments/assets/a896a93d-5a58-4820-971e-4ec2bfb73a6d)  
+
+### Create table vs Select Into:  
+
+Select ... into [table] uses the properties of the dataset generated from the Select statement to create a temporary table and subsequently fill the table.  
+
+The alternative to using Select ... into [table] is to use a Create Table statement followed by an Insert Into statement. Explicitly creating the table offers more control and precision.  
+
+Using a Select ... into [Table] may seem like a no-brainer, but there are situations where Select ... into [Table] can be problematic.  
+
+For instance, when you are going to create a temporary table and insert additional rows at a later time, using the Select ... into [Table] syntax can cause problems, especially with string-based and nullable fields.  
+
+As an example of the limitations of the Select ... into [table], the script below creates a temporary table with two fields, First_Name and Last_Name. Next, an Insert statement attempts to add another record to the temporary table, but fails as the values would be truncated.  
+
+``` SQL
+Select 'Bob' as First_Name
+    , 'Smith' as Last_Name
+Into #tempTable;
+
+Insert into #tempTable (First_Name, Last_Name)
+Select 'Christopher' as First_Name
+    , 'Brown' as Last_Name;
+```
+
+The script fails because the Select ... into [table] statement creates a table equivalent to the following script:  
+
+``` SQL
+Create Table #tempTable (
+    First_Name varchar(3) Not Null
+    Last_Name varchar(5) Not Null
+);
+```
