@@ -307,5 +307,14 @@ We start by creating a cluster that will attach to our notebook and the we start
 
 #### Create a Database:
 
+A database in databricks is not the same as in traditionnal relational databases as we don't have all the options and constraints (primary keys, unique idetifiers ...). There are just files stored in format that makes it possible to query them using SQL.  
+A database in this context would be like folder with a hierarchy that contains many files having some kind of relation between them. Note that now Databricks adds a lot of features that gets closer and closer to the classic SQL Datawarehouses capabilities.  
+
+![image](https://github.com/user-attachments/assets/03e5d0c5-17e6-4213-851b-dffeb388aa23)  
+
+Once we create a database, we can add several properties to tell more about it such as if it is PROD database or DEV and also add comments.  
+
+
+
 
 
