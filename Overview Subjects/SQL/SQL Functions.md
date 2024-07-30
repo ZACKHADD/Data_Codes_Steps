@@ -95,7 +95,34 @@ QUALIFY does with window functions what HAVING does with aggregate functions and
                     | 3 | B | 1 |
                     +---+---+---+
 ```
-More on : https://docs.snowflake.com/fr/sql-reference/constructs/qualify
+More on : https://docs.snowflake.com/fr/sql-reference/constructs/qualify  
+
+### LEAD & LAG:
+
+These two functions gives the Next and Previous value (for a column) of an element without the need to perform self joins.  
+
+```SQL
+
+        SELECT BusinessEntityID,
+            YEAR(QuotaDate) AS SalesYear,
+            SalesQuota AS CurrentQuota,
+            LEAD(SalesQuota, 1, 0) OVER (ORDER BY YEAR(QuotaDate)) AS NextQuota
+        FROM Sales.SalesPersonQuotaHistory
+        WHERE BusinessEntityID = 275 AND YEAR(QuotaDate) IN ('2005', '2006');
+
+------------------------------------------
+
+
+BusinessEntityID SalesYear   CurrentQuota          NextQuota
+---------------- ----------- --------------------- ---------------------
+275              2005        367000.00             556000.00
+275              2005        556000.00             502000.00
+275              2006        502000.00             550000.00
+275              2006        550000.00             1429000.00
+275              2006        1429000.00            1324000.00
+275              2006        1324000.00            0.00
+
+```
 
 ## Optimization:
 
