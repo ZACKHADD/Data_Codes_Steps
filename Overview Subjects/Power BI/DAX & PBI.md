@@ -79,6 +79,34 @@ The results as we can see are the same with a filter using a the column **Sales[
 ![image](https://github.com/user-attachments/assets/3f1ed124-0dcb-4048-934d-6b7f61c285d3)  
 
 Now we can see that the result of th count on the customer table is filtered based on sales table using the quantity column.  
-This is working thanks to the **Table expansion** behaviour triggered when we filter using a whole table statement such as we have done above: **FILTER( Sales, Sales[Quantity] > 2)**. The expanded table of the base table **Sales** has all the columns of customer's table and all the other dimensions also. Now the calculation of the **COUNTROWS(DISTINCT(Customer[CustomerKey]))** is done based on the expanded table, and filtering on the column "Sales[Quantity]" will filter the Customer part and give the correct value.  
+This is working thanks to the **Table expansion** behaviour triggered when we filter using a whole table statement such as we have done above: **FILTER( Sales, Sales[Quantity] > 2)**. The expanded table of the base table **Sales** has all the columns of customer's table and all the other dimensions also.  
+Now the calculation of the **COUNTROWS(DISTINCT(Customer[CustomerKey]))** is done based on the expanded table, and filtering on the column "Sales[Quantity]" will filter the Customer part and give the correct value.  
+
+Another example of when the **Table Expansion** behaviour is triggered is when we have a **Row Context with a whole table** combined with a **Calculate function** as follows:  
+
+```DAX
+        EVALUATE
+	ADDCOLUMNS(
+		Sales,
+		"Filtered Count Customer", CALCULATE(COUNTROWS(DISTINCT(Customer[CustomerKey])))) -- Calculate here, combined with the row context of sales tables, triggers a context transition
+	)
+```
+
+The calculate function performs a **Context transition** by turning each row in the sales table (Row context) to filters on all the columns of the sales table where parameters equal the values of the row.  
+
+![image](https://github.com/user-attachments/assets/88ceb390-7fa0-41b4-8481-7d450e8d83dd)  
+
+For example for the first row the filters would be written as follows:  
+
+```DAX
+    FILTER(Sales,Sales[Unit Price]=77.68 && Sales[Line Number]=0 && Sales[Unit Cost] = 35.72 .... ) -- and so on using all the columns of the sales table
+```
+It is like using the sales table (Which is a many side table) as a filter. This behaviour of the calculate function on the row context generates a **table expansion** that makes it possible to do aggregations on costumer columns filtered in the context of the current row as the [Filtered Count Customer] calculated column shows:  
+
+![image](https://github.com/user-attachments/assets/da9f399c-c408-4779-a0c6-cc6167ff0e3f)  
+
+Note that if we limite the **row context** to only a part of the sales table (using SELECTCOLUMNS for example), the table expansion is not triggered and the calculation will be the same whatever the row context is:  
+
+![image](https://github.com/user-attachments/assets/543851fe-05a4-4810-a534-237b4eace88f)  
 
 
