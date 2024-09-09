@@ -1,8 +1,12 @@
 ## Relevent Remarks :
 - Power Query CASE sensitive vs Power BI case insensitive ==> clean, trim and use uppercase to put the columns to one format.
 - RELATED function is used in one direction : Many to 1 ==> get in the many side the column of the one side.
+## Auto-Exist behaviour:
 
 ## Row Context
+The row context is simply the current row, in a table, for which a calculation is made. This latter is filtered based on the values, in the current row, of all the othe columns of the table.  
+ALL() function used with a table **Removes entiraly the row context.** While used with a single column in a row context tiggers the **auto-exist** behaviour that calculate the expression only for the existing combinations of values of the columns of the table.  
+
 ## Filter Context
 ## Calculate evaluation
 
