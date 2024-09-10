@@ -2,6 +2,13 @@
 - Power Query CASE sensitive vs Power BI case insensitive ==> clean, trim and use uppercase to put the columns to one format.
 - RELATED function is used in one direction : Many to 1 ==> get in the many side the column of the one side.
 
+## DAX queries generated behind the scene:  
+Bare in mind that whatever mode, calculation, graphs or envirement we work on, the DAX queries generated will have the same basis which is **Using SUMMARIZECOLUMNS function.**  
+
+![image](https://github.com/user-attachments/assets/e7647650-5911-4502-acf0-2a75586196b6)  
+
+Understanding the function along with calculate is fundamental key to understand how DAX function work.  
+
 ## Auto-Exist behaviour:
 Auto-Exist is a DAX technology that optimizes filtering in order to reduce the amount of processing required for certain DAX queries. Auto-exist is triggered by default when we **we filter on two or several columns from the same table in the same time**. The engine will not scan all the table to give us the result (by doing a crossjoin of the two columns) but will generate only the existing combinations in the **filter context (such as slicers)** the calculation is made in.  
 Let's take an example using the following table:  
@@ -52,7 +59,7 @@ It is simillar to using the following query (Group by using summarize function):
 ```
 
 Since there is non combination of Python and 2018, the filtered table will not include **Python** data and so the **# Projects All Time** measure will not take them into consideration.  
-The solution here is to use the column language from another table (such as a Language table). By default, when filtering on columns from different table **a crossjoin** is used instead of **Auto-Exist**.  
+The solution here is to use the column language from another table (such as a Language table). By default, when filtering on columns from different table **a crossjoin** is used instead of **Auto-Exist**. This is why it is so recommanded to use a star schema as a modeling technique in Power BI.  
 
 More on this subject here:  
 
