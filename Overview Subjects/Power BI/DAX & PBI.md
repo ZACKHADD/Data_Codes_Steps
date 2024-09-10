@@ -1,7 +1,63 @@
 ## Relevent Remarks :
 - Power Query CASE sensitive vs Power BI case insensitive ==> clean, trim and use uppercase to put the columns to one format.
 - RELATED function is used in one direction : Many to 1 ==> get in the many side the column of the one side.
+
 ## Auto-Exist behaviour:
+Auto-Exist is a DAX technology that optimizes filtering in order to reduce the amount of processing required for certain DAX queries. Auto-exist is triggered by default when we **we filter on two or several columns from the same table in the same time**. The engine will not scan all the table to give us the result (by doing a crossjoin of the two columns) but will generate only the existing combinations in the **filter context (such as slicers)** the calculation is made in.  
+Let's take an example using the following table:  
+
+![image](https://github.com/user-attachments/assets/ed2890bb-f379-4d2a-b4be-a76dcb0b847c)  
+
+Now generating a matrix will give this:  
+
+![image](https://github.com/user-attachments/assets/033324d2-adfd-40e4-9ef9-44b505a346bb)  
+
+Adding two measures to calculate the absolute number of projects and the simple number of projects would be done as follows:  
+
+```DAX
+
+				# Projects = COUNTROWS ( Projects )
+			 
+				# Projects All Time = CALCULATE (
+				    [# Projects],
+				    ALL ( Projects[Year] )
+)
+```
+We expect add this point that the **ALL function would remove any filter on the Year!**  
+
+If we add some silicers to filter the context using the year and the language, we get the following page:  
+
+![image](https://github.com/user-attachments/assets/02283f91-2a8b-4019-a74e-4d3e3aa22ffb)  
+
+Now we can see that by filtering on 2017 we have the numbers we want, but what if we filter on 2018?:  
+
+![image](https://github.com/user-attachments/assets/5af2c5f6-7281-4160-9187-05cfaa2fc5af)  
+
+We can see that the **# Projects All Time** figure is wrong! So the ALL() function is not working as it should do!  
+This is causeed by the auto-exist behaviour that filters behind the scene the table using only the existing cominations in the filter context of **Year = 2018 and Langauages = DAX || Python.** So first, the auto-exist will filters the table on the existing combinations of the filter context and then runs the ALL() function which will be simillar to adding the two filters together and not in a seprarate way!  
+
+It is simillar to using the following query (Group by using summarize function):  
+
+```DAX
+		EVALUATE
+		SUMMARIZECOLUMNS (
+		-- The table is prefiltered using the filter context (slicers)
+		    CALCULATETABLE (
+		        SUMMARIZE ( Projects, 'Projects'[Language], 'Projects'[Year] ),
+		        TREATAS ( { "DAX", "Python" }, 'Projects'[Language] ),
+		        TREATAS ( { 2018 }, 'Projects'[Year] )
+		    ),
+		    "Result", [# Projects All Time]
+		)
+```
+
+Since there is non combination of Python and 2018, the filtered table will not include **Python** data and so the **# Projects All Time** measure will not take them into consideration.  
+The solution here is to use the column language from another table (such as a Language table). By default, when filtering on columns from different table **a crossjoin** is used instead of **Auto-Exist**.  
+
+More on this subject here:  
+
+https://www.sqlbi.com/articles/understanding-dax-auto-exist/
+
 
 ## Row Context
 The row context is simply the current row, in a table, for which a calculation is made. This latter is filtered based on the values, in the current row, of all the othe columns of the table.  
