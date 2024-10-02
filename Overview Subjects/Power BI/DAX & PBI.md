@@ -176,4 +176,6 @@ Note that if we limite the **row context** to only a part of the sales table (us
 
 ![image](https://github.com/user-attachments/assets/543851fe-05a4-4810-a534-237b4eace88f)  
 
+## Data Compressin optimization:
 
+https://intellitect.com/blog/power-bi-data-compression/#:~:text=Value%20encoding%20is%20the%20most,columns%20into%20two%20integer%20columns.
