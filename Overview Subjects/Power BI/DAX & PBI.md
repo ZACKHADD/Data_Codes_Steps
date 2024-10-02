@@ -178,4 +178,6 @@ Note that if we limite the **row context** to only a part of the sales table (us
 
 ## Data Compressin optimization:
 
+Value encoding, Hash encoding ... 
+
 https://intellitect.com/blog/power-bi-data-compression/#:~:text=Value%20encoding%20is%20the%20most,columns%20into%20two%20integer%20columns.
