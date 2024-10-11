@@ -70,7 +70,10 @@ https://www.sqlbi.com/articles/understanding-dax-auto-exist/
 The row context is simply the current row, in a table, for which a calculation is made. This latter is filtered based on the values, in the current row, of all the othe columns of the table.  
 ALL() function used with a table **Removes entiraly the row context.** While used with a single column in a row context tiggers the **auto-exist** behaviour that calculate the expression only for the existing combinations of values of the columns of the table.  
 
-## Filter Context
+## Filter Context  
+Filter context is the filter made in the visual section in power bi, that is behind the scene the filter part in the SUMMARIZECOLUMNS function.  
+Note that **The filter arguments in a calculate function** overrides this filer context when both filters are applied on the same column.  
+
 ## Calculate evaluation
 
 ## Table Expansion:  
