@@ -492,6 +492,7 @@ We can then in ADF dev ressource, configure the GIT repository (**here we use Az
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/5e14f14a-2e8a-4e74-b562-6dc715ec29ae)  
 
 **Note that the Publish bransh is the one that will contain the ARM files for the build and release, while the collaborative bransh is the one holding the code that we collaborate on using pull requests**.  
+**Note also that the adf_publish branch will not be visible in Azure devops untill we publish to ADF from the main bransh (either manually or using an azure devops pipeline)**
  Now our ADF project is connected to our Azure Devops and we can see on the top of the ADF screen the Bransh (we click on it to create a new bransh or a pull request) of GIT we are working on. If we still don't have any feature branshs by default we will have the main one, but we can't develop directly in this bransh since we set a policy on it. We should create feature branshs to make our developments and then merge to the main one via a pull request.  
 
 ![image](https://github.com/ZACKHADD/Data_Codes_Steps/assets/59281379/d6930af1-95d9-40e8-9346-1480f14a9770)  
