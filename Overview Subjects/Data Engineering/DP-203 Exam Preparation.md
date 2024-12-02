@@ -77,4 +77,19 @@
     - If partitions are too small (fewer rows per partition), row groups may be incomplete, leading to poor compression and increased storage overhead.
   - However excessive partitioning can increase metadata overhead and slow query performance.
   - Aim to have at least 1 million rows per partition per distribution to maximize row group efficiency and compression, meaning at least 60 million rows per partition (1 million rows × 60 distributions).
+- In Azure Synapse Dedicated SQL Pool, data distribution is applied before partitioning. Order of Operations:
+    - Distribution:
+        - When data is loaded into a table, the first step is distributing it across the 60 underlying distributions. This step ensures that data is spread across the nodes in the pool based on the table's distribution type (Hash, Round-Robin, or Replicated).
+        - Hash-distributed tables: Data is assigned to distributions based on the hash value of the distribution column.
+        - Round-robin distributed tables: Data is assigned randomly and evenly across all distributions.
+        - Replicated tables: Entire table is copied to all distributions.
+    - Partitioning (within distributions):
+        - Once data is distributed to a distribution, partitioning is applied locally within each distribution if the table is partitioned.
+        - Each distribution manages its own partitions based on the partition column and the defined partition scheme.
+        - Partitioning organizes the data within a single distribution into smaller subsets.
+- Differences Between Distribution and Partitioning :
+  ![image](https://github.com/user-attachments/assets/3700f1a5-07a2-48d0-a46a-1862e81cb78a)
+  - Choosing the Right Column Types for distribution : choose ==> High Cardinality, Join Columns. Avoid ==> Low Cardinality, Null-heavy Columns and Round-Robin Distribution (use only when no candidat column or when staging).
+  - Partition Columns : Date/Time Columns (even if the type is integer), Range-based Filters and High Cardinality. Avoid : Low Cardinality, Frequently Updated Columns (Updating partitioning columns can lead to expensive data movement)
 - 
+  
