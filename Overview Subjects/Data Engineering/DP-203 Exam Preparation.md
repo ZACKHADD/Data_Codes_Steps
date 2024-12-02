@@ -61,6 +61,10 @@
 - For fast loading in staging tables : Choose Round-Robin distribution, Heap tables (no index) and no partitionning (especially if the staging table gets truncated).
 - Use column store index : Suitable for production **fact tables** after the data is loaded and when query performance is a priority. Also Use for incremental loads where query efficiency outweighs loading speed.
 - For transactional worloads, Clustered index is preferble.
+- Indexes :
+  - Column store index (Default) ==> Stores data in columnar format (best for analytical workloads).
+  - Clustered index ==> Stores data in row format (transactional worloads).
+![image](https://github.com/user-attachments/assets/7d8a9dd2-896f-41ae-bc72-77f2d1a1fbdf)  
 - When creating the table, the distribution of type Hash should not be done on a date column or columns that are used in where clause!
 - PolyBase can't load rows that have more than 1,000,000 bytes of data. When you put data into the text files in Azure Blob storage or Azure Data Lake Store, they must have fewer than 1,000,000 bytes of data. This byte limitation is true regardless of the table schema. All file formats have different performance characteristics. For the fastest load, use compressed delimited text files. The difference between UTF-8 and UTF-16 performance is minimal. We shoul also split large compressed files into smaller compressed files.
 - If a complexe query will be frequently used we can create a materialized view and ADF, Synapse Pipelines or Automation account to schedule the refresh.
@@ -91,5 +95,13 @@
   ![image](https://github.com/user-attachments/assets/3700f1a5-07a2-48d0-a46a-1862e81cb78a)
   - Choosing the Right Column Types for distribution : choose ==> High Cardinality, Join Columns. Avoid ==> Low Cardinality, Null-heavy Columns and Round-Robin Distribution (use only when no candidat column or when staging).
   - Partition Columns : Date/Time Columns (even if the type is integer), Range-based Filters and High Cardinality. Avoid : Low Cardinality, Frequently Updated Columns (Updating partitioning columns can lead to expensive data movement)
-- 
-  
+- Denormalizing from 3NF to 2NF is a good practice in datawarehousing.
+- Streaming in Azure : Azure event hubs & Azure stream analytics :
+  - ![image](https://github.com/user-attachments/assets/5716aba2-d25d-4316-b1e1-3866fb200576)
+  - How They Work Together:
+    - Event Hubs often serves as the data source for Stream Analytics. For instance:
+      - Event Hub receives raw telemetry data from IoT devices.
+      - Stream Analytics processes this data in real-time (e.g., detecting anomalies, aggregating statistics).
+      - The processed data is then sent to a destination such as a dashboard in Power BI or a storage account.
+
+    
