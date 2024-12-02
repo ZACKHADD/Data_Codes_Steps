@@ -70,3 +70,11 @@
 - Merging csv files is suiatable for large processing.
 - If the tables are using row-level security , the query results don't get cached even if wa turn on result-set caching for datapool.
 - Run the DBCC PDW_SHOWSPACEUSED command against the table to view the data skew.
+- Minimizing storage costs when implementing batch datasets in the Parquet format using Azure Data Factory (ADF) use Snappy Compression (Default).
+- number of partition ranges that provides optimal compression and performance for the clustered columnstore index :
+  - Row Group Size and Compression Efficiency:
+    - Clustered columnstore indexes organize data into row groups, each containing up to 1,048,576 rows (1 million rows) for optimal compression.
+    - If partitions are too small (fewer rows per partition), row groups may be incomplete, leading to poor compression and increased storage overhead.
+  - However excessive partitioning can increase metadata overhead and slow query performance.
+  - Aim to have at least 1 million rows per partition per distribution to maximize row group efficiency and compression, meaning at least 60 million rows per partition (1 million rows × 60 distributions).
+- 
