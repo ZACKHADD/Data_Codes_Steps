@@ -103,5 +103,18 @@
       - Event Hub receives raw telemetry data from IoT devices.
       - Stream Analytics processes this data in real-time (e.g., detecting anomalies, aggregating statistics).
       - The processed data is then sent to a destination such as a dashboard in Power BI or a storage account.
+- We can get information to monitor blocked queries fired against a dedicated SQL by firing a query against the system view - sys.dm_pdw_waits.
+- The runs in Azure Data Factory are only maintained for 45 days. If we need data beyond this, we will need to stream the pipeline run data into a Log Analytics workspace.
+    ![image](https://github.com/user-attachments/assets/adbc609b-7e3f-4ad8-9947-e0130867d28c)
+    ![image](https://github.com/user-attachments/assets/90958237-8187-4120-a41c-44a124c88e01)
+- If the Backlogged events in your Azure Stream Analytics job show a non-zero value consistently, it indicates that the job cannot keep up with the incoming data volume ==> Increase the Streaming Units (SUs) for the job.
+- Avro is a compressed row based file format. And here the format is optimized for retrieving multiple rows of records in its entirety.
+- We can use LOOKUP activity in ADF to call the result of a stored procedure.
+- Use CSV as file type to query json files in azure serverless pool using OPENROSET.
+- if we want to keep the configuration of the cluster even after it is terminated, we need to pin the cluster.
+- Ensure to output events only for points in time when the content of the window actually changes : Sliding window.
+- Ensure to group events that arrive at similar times : Session window.
+- The WHERE clause in the SQL statements would make use of the partitions.
+
 
     
