@@ -115,6 +115,23 @@
 - Ensure to output events only for points in time when the content of the window actually changes : Sliding window.
 - Ensure to group events that arrive at similar times : Session window.
 - The WHERE clause in the SQL statements would make use of the partitions.
+- Access tiers policy in ADLS GEN 2:
+  - Hot tier : An online tier optimized for storing data that is accessed or modified frequently. The hot tier has the highest storage costs, but the lowest access costs.
+  - Cool tier : An online tier optimized for storing data that is infrequently accessed or modified. Data in the cool tier should be stored for a minimum of 30 days. The cool tier has lower storage costs and higher access costs compared to the hot tier.
+  - Cold tier : An online tier optimized for storing data that is rarely accessed or modified, but still requires fast retrieval. Data in the cold tier should be stored for a minimum of 90 days. The cold tier has lower storage costs and higher access costs compared to the cool tier.
+  - Archive tier : An offline tier optimized for storing data that is rarely accessed, and that has flexible latency requirements, on the order of hours. Data in the archive tier should be stored for a minimum of 180 days.
+- Polybase does not support JSON file format.
+- Polybase is designed for loading data effeciently from external sources:
+  ![image](https://github.com/user-attachments/assets/2602764d-821c-4cbc-b642-a8c7844b20b2)
+![Uploading image.png…]()
 
-
-    
+- When to Consider Other loading methods :
+    - COPY Command: If the dataset is moderately large (up to terabytes), and you want simpler syntax with high performance.
+    Recommended for JSON, Parquet, or CSV data formats.
+    - Bulk Insert: For smaller datasets or quick ad-hoc loading tasks.
+    Suitable for data already stored in files accessible by the Synapse compute.
+    - Azure Data Factory (ADF): For orchestrated ETL pipelines, data transformations, and loading data from multiple heterogeneous sources.
+    - Databricks/Synapse Pipelines: If the data needs preprocessing, complex transformations, or comes from streaming sources.
+- Allways use switch partition to orverwrite or delete a partition.
+- In databricks, to implement the hourely incremental refresh we use : df.write.partitionBy("ID","Year","Month","Day","Houre").mode(SaveMode.Append).parquet("path + table name")
+-    
