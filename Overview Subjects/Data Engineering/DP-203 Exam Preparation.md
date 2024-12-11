@@ -221,10 +221,17 @@ More on SQL and Parallel Data Warehouse Dynamic Management Views : [here](https:
 
 ```pyspark
             dbutils.fs.put("/tmp/source.json", source_json, True)
+
+            #spark.read.csv: This is the Spark SQL function to read CSV files and create a DataFrame.
+
             source_df = spark.read.option("multiline", "true").json("/tmp/source.json")
+
             persons = source_df.select(explode("persons").alias("persons"))
-            persons_dogs = persons.select(col("persons.name").alias("owner"), col("persons.age").alias("age"), explode(col("persons.dog")).alias("dog_name"))
+
+            persons_dogs = persons.select(col("persons.name").alias("owner"), col("persons.age").alias("age"), explode(col("persons.dog")).alias("dog"))
+
             persons_dogs.display()
 ```
 
-
+- Explode function in databricks pyspark : Returns a new row for each element in the given array or map. Uses the default column name col for elements in the array and key and value for elements in the map unless specified otherwise.
+- 
