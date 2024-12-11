@@ -236,4 +236,6 @@ More on SQL and Parallel Data Warehouse Dynamic Management Views : [here](https:
 - Explode function in databricks pyspark : Returns a new row for each element in the given array or map. Uses the default column name col for elements in the array and key and value for elements in the map unless specified otherwise.
 - ![image](https://github.com/user-attachments/assets/a9d9e301-20fb-4dc0-9762-083e98c23ba7)
 - Using PySpark in an Apache Spark pool within Azure Synapse Analytics is the most flexible and powerful way to handle JSON files with varying structures and data types. PySpark can infer schema and handle complex data transformations, making it well-suited for loading heterogeneous JSON data into tables while preserving the original data types.
+- To reduce the time needed for a Databricks cluster to start and scale up, using **instance pools** is the most cost-effective option while still providing significant performance benefits. Instance pools keep a set of virtual machines ready for allocation to clusters. When not in use, the VMs in the pool are in a stopped state, incurring minimal costs.
+- 
 
