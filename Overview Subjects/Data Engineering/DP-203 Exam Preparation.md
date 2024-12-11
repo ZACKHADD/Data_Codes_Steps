@@ -177,4 +177,45 @@ SELECT * FROM sys.tables WHERE is_tracked_by_cdc = 1;
 - **Horizontal partitioning** in the context of Azure data sources refers to dividing a large dataset into smaller, more manageable subsets (partitions) based on rows. Each partition contains a subset of the dataset, often defined by a range or category, such as dates, IDs, or other attributes.
 - A new column of type date or int can be used to track lineage in a source table and be used for filtering during an incremental load.
 - If you are granting permissions by using only ACLs (Access control lists) (not Azure RBAC), then to grant a security principal read or write access to a file, you will need to grant the security principal Execute permissions to the root folder of the container and to each folder in the hierarchy of folders that lead to the file.
+- To authenticate to the Azure Databricks REST API, a user can create a personal access token (PAT) and use it in their REST API request. Databricks recommends you use OAuth access tokens instead of PATs for greater security and convenience.
 - To revoke a user’s token, you need to use Token Management API 2.0.
+- We should open the Monitor page and review the Pipeline runs tab as the status information is displayed on this tab.
+- To review the performance of a SQL query we should open the Monitor page and review the SQL request tab where we will find all the queries running on the dedicated SQL pools and we can also query the sys.dm_pdw_exec_requests dynamic management view, as it contains information about the queries, including their duration.
+- To monitor bottlenecks related to the SQL Server OS state on each node of the dedicated SQL pools we need to use the **sys.dm_pdw_wait_stats** as it holds information related to the SQL Server OS state related to instances running on the different nodes.
+- The sys.dm_pdw_waits view holds information about all wait stats encountered during the execution of a request or query, including locks and waits on a transmission queue.
+More on SQL and Parallel Data Warehouse Dynamic Management Views : [here](https://learn.microsoft.com/en-us/sql/relational-databases/system-dynamic-management-views/sql-and-parallel-data-warehouse-dynamic-management-views?view=azure-sqldw-latest)
+- The runtimes of existing pipelines is available in the Azure portal, on the Data Factory blade, under the Monitor & Manage tile.
+- Data Factory only stores pipeline runtimes for 45 days. To view the data for a longer period, that data must be sent to Azure Monitor, where the information can then be retrieved and viewed.
+- The Gantt view of the pipeline runs shows you a graphical view of the runtime data so that you can see which pipelines are running at the same time, and which runs are running at different times.
+- When Data Factory is configured to send logging data to Log Analytics and is in Azure-Diagnostics mode, the data will be sent to the AzureDiagnostics table in Log Analytics.
+- The ADFActivityRun, ADFPipelineRun, ADFSSISIntegrationRuntimeLogs, and ADFSSISPackageExecutableStatistics tables are used when the Data Factory is in Resource-Specific mode.
+- A Data Factory pipeline stores monitoring data for 45 days. To keep data for longer, you need to create a Log Analytical workspace and send the data to an Azure Storage account.
+- All the DMVs in synapse start with **sys.dm_pdw_** not like SQL server that start with **sys.dm_**.
+- sys.dm_pdw_exec_sessions shows the status of the sessions, not the running requests.
+- sys.dm_pdw_exec_requests shows the requests that are in process, completed, failed, or closed.
+- Increasing the concurrency on a database requires scaling the database up by using the **Set-AzSqlDatabase** cmdlet.
+- **Default, Number, and Custom String** are valid options to implement dynamic data masking at the SQL Server database layer. Row-level security (RLS) is an access restriction capability not a data obfuscation capability.
+- There are two types of security policies supported by row-level security:
+![image](https://github.com/user-attachments/assets/d00ebe6d-ec5a-4cf6-9269-00590b291341)  
+- We should increase the number of SUs because the job is running out of resources. When the Backlogged Input Events metric is greater than zero, the job is not able to process all incoming events.
+- How to read a json file to a flat table in databricks using pyspark :
+
+```json
+{
+    "persons": [
+        {
+            "name":"Keith",
+            "age":30,
+            "dogs":["Fido","Fluffy"]
+        },
+        {
+            "name":"Donna",
+            "age":46,
+            "dogs":["Spot"]
+        }
+    ]
+}
+```
+
+
+
