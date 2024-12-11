@@ -219,6 +219,12 @@ More on SQL and Parallel Data Warehouse Dynamic Management Views : [here](https:
 
 ![image](https://github.com/user-attachments/assets/2a833cfe-6f33-4151-b664-5e2dc731ded2)  
 
-
+```pyspark
+            dbutils.fs.put("/tmp/source.json", source_json, True)
+            source_df = spark.read.option("multiline", "true").json("/tmp/source.json")
+            persons = source_df.select(explode("persons").alias("persons"))
+            persons_dogs = persons.select(col("persons.name").alias("owner"), col("persons.age").alias("age"), explode(col("persons.dog")).alias("dog_name"))
+            persons_dogs.display()
+```
 
 
