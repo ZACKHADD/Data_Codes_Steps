@@ -215,7 +215,10 @@ More on SQL and Parallel Data Warehouse Dynamic Management Views : [here](https:
         }
     ]
 }
-```
+```  
+
+![image](https://github.com/user-attachments/assets/2a833cfe-6f33-4151-b664-5e2dc731ded2)  
+
 
 
 
