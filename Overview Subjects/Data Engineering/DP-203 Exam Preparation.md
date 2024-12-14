@@ -237,5 +237,25 @@ More on SQL and Parallel Data Warehouse Dynamic Management Views : [here](https:
 - ![image](https://github.com/user-attachments/assets/a9d9e301-20fb-4dc0-9762-083e98c23ba7)
 - Using PySpark in an Apache Spark pool within Azure Synapse Analytics is the most flexible and powerful way to handle JSON files with varying structures and data types. PySpark can infer schema and handle complex data transformations, making it well-suited for loading heterogeneous JSON data into tables while preserving the original data types.
 - To reduce the time needed for a Databricks cluster to start and scale up, using **instance pools** is the most cost-effective option while still providing significant performance benefits. Instance pools keep a set of virtual machines ready for allocation to clusters. When not in use, the VMs in the pool are in a stopped state, incurring minimal costs.
+- In general, six SUs are needed for each partition. If we have 10 partitions for step 1 and 10 for step 2 (2 streams), it should be 120 and not 60 because each stream needs 6 SUs and if it is partitionned we multiply by the number of partitions.
+- To create external data source for Data Lake Storage Gen2:
+        - abfs[s] <container>@<storage_account>.dfs.core.windows.net
+        - http[s] <storage_account>.dfs.core.windows.net/<container>/subfolders
+        - wasb[s] <container>@<storage_account>.blob.core.windows.net
+- Round robin distribution hqs no column to specify.
+- Data redundancy in ADLS Gen 2 :
+  - Locally redundant storage :
+    ![image](https://github.com/user-attachments/assets/e8b3ee71-edf4-4a43-b7b9-ecd3d010c2e2)
+  - Zone-redundant storage:
+    ![image](https://github.com/user-attachments/assets/4b129c1d-aa28-43de-bf2a-44d74b9ac071)
+  - Geo-redundant storage:
+    ![image](https://github.com/user-attachments/assets/0d231700-0a83-4426-adec-4d224a9df6bb)
+  - Read access Geo-zone-redundant storage:
+    ![image](https://github.com/user-attachments/assets/c9a21150-30e4-4adc-8b2a-7edc7b95d891)
+- A Type 3 SCD supports storing two versions of a dimension member as separate columns. The table includes a column for the current value of a member plus either the original or previous value of the member. So Type 3 uses additional columns to track one key instance of history, rather than storing additional rows to track each change like in a Type 2 SCD.
+- hash distribution on a culumn that is frequently queried using aggregations is faster since for example all the rows of the same product will fall inthe same node minimizing the shuffling operations.
 - 
+
+
+
 
