@@ -259,6 +259,10 @@ More on SQL and Parallel Data Warehouse Dynamic Management Views : [here](https:
 - **ALTER INDEX REBUILD** statement can be used to rebuild your indexes.
 - In databricks and in order to incremently process new files in a ADLS gen2 source we use **AUTO LOADER** as it minimize implementation and maintenance effort and supports schema evolution.
 - To have a good performance in synapse dedicated sql pool we need at least 1 million per distribution and per **partition** (If we have only one partition per distibution).
+- **Openrowset** uses always **BULK**.
+- Query acceleration supports CSV and JSON formatted data as input to each request.
+- Azure Synapse Analytics allows Apache Spark pools in the same workspace to share a managed HMS (Hive Metastore) compatible metastore as their catalog. When customers want to persist the Hive catalog metadata outside of the workspace, and share catalog objects with other computational engines outside of the workspace, such as HDInsight and Azure Databricks, they can connect to an external Hive Metastore. see the settings here :https://learn.microsoft.com/en-us/azure/synapse-analytics/spark/apache-spark-external-metastore
+- SCD : Type 0 No changes, Type 1 replace with new values, type 2 history, type 3 one column for the last value and another for the previous or original value.
 
 
 
