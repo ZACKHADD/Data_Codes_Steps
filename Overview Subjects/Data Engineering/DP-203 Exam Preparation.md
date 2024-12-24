@@ -254,7 +254,11 @@ More on SQL and Parallel Data Warehouse Dynamic Management Views : [here](https:
     ![image](https://github.com/user-attachments/assets/c9a21150-30e4-4adc-8b2a-7edc7b95d891)
 - A Type 3 SCD supports storing two versions of a dimension member as separate columns. The table includes a column for the current value of a member plus either the original or previous value of the member. So Type 3 uses additional columns to track one key instance of history, rather than storing additional rows to track each change like in a Type 2 SCD.
 - hash distribution on a culumn that is frequently queried using aggregations is faster since for example all the rows of the same product will fall inthe same node minimizing the shuffling operations.
-- 
+- It is generally faster to load data into smaller or empty partitions compared to large partitions in Azure Synapse Analytics.
+- In Azure Synapse Analytics, the maximum row size for a table is 1 MB. This includes all fixed-length and variable-length data stored in a single row. If a row exceeds 1 MB, the system will throw an error during data insertion or loading.
+- **ALTER INDEX REBUILD** statement can be used to rebuild your indexes.
+- In databricks and in order to incremently process new files in a ADLS gen2 source we use **AUTO LOADER** as it minimize implementation and maintenance effort and supports schema evolution.
+- To have a good performance in synapse dedicated sql pool we need at least 1 million per distribution and per **partition** (If we have only one partition per distibution).
 
 
 
