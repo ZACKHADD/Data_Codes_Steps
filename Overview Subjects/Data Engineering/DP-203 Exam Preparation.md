@@ -91,6 +91,7 @@
         - Once data is distributed to a distribution, partitioning is applied locally within each distribution if the table is partitioned.
         - Each distribution manages its own partitions based on the partition column and the defined partition scheme.
         - Partitioning organizes the data within a single distribution into smaller subsets.
+        - Note that unlike physical partitioning in some systems, in synapse, partitions are logical and are simply metadata constructs that help optimize how data is queried and processed. These metadata records the physical data location.
 - Differences Between Distribution and Partitioning :
   ![image](https://github.com/user-attachments/assets/3700f1a5-07a2-48d0-a46a-1862e81cb78a)
   - Choosing the Right Column Types for distribution : choose ==> High Cardinality, Join Columns. Avoid ==> Low Cardinality, Null-heavy Columns and Round-Robin Distribution (use only when no candidat column or when staging).
