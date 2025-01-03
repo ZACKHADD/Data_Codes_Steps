@@ -264,6 +264,21 @@ More on SQL and Parallel Data Warehouse Dynamic Management Views : [here](https:
 - Query acceleration supports CSV and JSON formatted data as input to each request.
 - Azure Synapse Analytics allows Apache Spark pools in the same workspace to share a managed HMS (Hive Metastore) compatible metastore as their catalog. When customers want to persist the Hive catalog metadata outside of the workspace, and share catalog objects with other computational engines outside of the workspace, such as HDInsight and Azure Databricks, they can connect to an external Hive Metastore. see the settings here :https://learn.microsoft.com/en-us/azure/synapse-analytics/spark/apache-spark-external-metastore
 - SCD : Type 0 No changes, Type 1 replace with new values, type 2 history, type 3 one column for the last value and another for the previous or original value.
+- We can use a Private endpoint to connect the virtual machines to workspace1. Service endpoints are unavailable for Azure Synapse Analytics.
+- Sharding pattern in azure apps : the hashing partitionning strategy provides the ideal balance.
+- By using vertical partitioning, different parts of the database can be isolated from each other to improve cache use.
+- You need a master key in the Azure SQL database for lineage to work.
+- For hive tables we use wasb, not http.
+- There is a limit of simultaneous pipelines in an integration runtime. You need to split the pipeline to run into multiple runtimes.
+- if we need to identify only the rows that have changer without the data we can use Change tracking that captures the fact that a row was changed without tracking the data that was changed. Change tracking requires less server resources than change data capture.
+- Watermarks for performance and rocksDB to debug slowliness.
+- Data residency must be considered to identify whether different datasets can only exist in specific regions.
+- By using larger files when importing data, transaction costs can be reduced. This is because the reading of files is billed with a 4-MB operation, even if the file is less than 4 MB. To reduce costs, the entire 4 MB should be used per read.
+- You need to create a certificated that is protected by the master key. Having this certificate, you can then create a database encryption key. Creating a database encryption key can be done once there is a certificate created in the master database. You can start the database encryption only when you have a database encryption key.
+- Data Factory only stores pipeline runtimes for 45 days. To view the data for a longer period, that data must be sent to Azure Monitor, where the information can then be retrieved and viewed.
+- You should use **delta.autoOptimize.autoCompact = auto** because it compacts the files to the size that is appropriate to the use case. **delta.autoOptimize.autoCompact = true** and delta.autoOptimize.autoCompact = legacy compact the files to 128 MB. **delta.autoOptimize.autoCompact = false** disables automated file compaction.
+- 
+
 
 
 
