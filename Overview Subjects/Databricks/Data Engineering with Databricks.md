@@ -329,7 +329,39 @@ Delta Lake adds a lot of best practices inhereted from traditional databases eng
   - It adds also the ability to skipp scanning unnecessary data (files) using files statistics to optimize queries.
 The delta lake architecture (lakehouse) is mainly as follows:  
 
-![{EED13C9D-3806-43ED-B217-4828C847C900}](https://github.com/user-attachments/assets/4cfb2099-3873-430e-8adc-b705821cfacf)
+![{C7EF915A-8B35-485C-AE70-07E02E7FA650}](https://github.com/user-attachments/assets/c8fab1b3-61c2-4d65-9f27-ce51a59c1ea8)  
 
+The structure of data objects in databricks is the following : 
+
+![{40244094-9621-4482-A943-0EA4B9E483F0}](https://github.com/user-attachments/assets/b5c7f6bb-92bb-457d-98c1-6acc717c7b5b)  
+
+- The Metastore is built by the administrator and it is assigned to a workspace (or several workspaces) and it has a default storage location for managed tables.
+- Catalogs are groups of database (schemas in the traditionnal SGBDS)
+- Schema is like a database if we work in relationnal systems. It is a logical groupment of files.
+
+![{10B3E4DC-590A-489F-947E-98AD1C6A9217}](https://github.com/user-attachments/assets/8ed659a2-a17b-4e60-8ae0-d20efb8a9f12)  
+![{D4C2A3B7-B1FE-47D9-906C-82F714498E41}](https://github.com/user-attachments/assets/72c2d612-75ed-46a2-bc5c-d964264bbda8)  
+
+#### Liquid Clustring 
+To optimize querying data in delta lake, we generaly partition tables (Z-Order) and decide on the frequency to run some optimization commands suh as **OPTIMIZE** and **VACCUM**. Onother way is presented recently by databricks, is **Liquid Clustring**.  
+Liquid Clustering is a data organization technique that ensures data within a Delta Lake table is clustered dynamically and adaptively without requiring explicit user-defined partitioning. Unlike static partitioning, which relies on rigid boundaries, liquid clustering adjusts clustering behavior automatically based on the size and distribution of the data.  
+It makes of partitionning and Z-order of data automatic and also runs automaticaly the **OPTIMIZE** and **VACCUM** operations behind the scene.  
+
+#### Deletion Vectors
+
+Deletion vectors are a storage optimization feature you can enable on Delta Lake tables. By default, when a single row in a data file is deleted, the entire Parquet file containing the record must be rewritten. With deletion vectors enabled for the table, DELETE, UPDATE, and MERGE operations use deletion vectors to mark existing rows as removed or changed without rewriting the Parquet file. Subsequent reads on the table resolve the current table state by applying the deletions indicated by deletion vectors to the most recent table version.  
+
+- It is a logical Deletion first : Instead of physically removing rows from files, a deletion vector records the identifiers (e.g., row numbers or offsets) of rows that are considered deleted.
+  - The underlying data files remain unchanged, and deletions are tracked separately.
+- Compact Representation: Deletion vectors use a compact structure, like bitmaps or lists, to represent deleted rows. For example:
+      - A bitmap might use 1 for active rows and 0 for deleted rows.
+      - A list might store the row indices of deleted rows (e.g., [2, 7, 15]).
+- Query Execution: During query execution, the deletion vector is applied dynamically to filter out deleted rows. For example:
+      - A query scanning a file with a deletion vector will read only the rows not marked as deleted in the vector.
+- Deferred Deletion: **Physical deletion** happens later, often during maintenance tasks like **compaction** or **OPTIMIZE** operations, when files are rewritten to remove deleted rows permanently.
+
+The VACCUM and OPTIMIZE operations are now done trough Predictive I/O which is a machine learning model that decides automtically when to trigger these operations and hence accelerate the compute (does not these operations while data are heavely queried).  
+
+### Set up and load delta tables:
 
 
