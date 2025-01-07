@@ -315,6 +315,21 @@ A database in this context would be like folder with a hierarchy that contains m
 Once we create a database, we can add several properties to tell more about it such as if it is PROD database or DEV and also add comments.  
 
 
+# Complete other concepts before going to the next chapters
+
+## Data ingestion with Delta lake:
+
+### Delta lake and data objects:
+
+Delta lake is a type of storage of data in a data lake using parquet formats. It is optimizes and built for scalable metadata handling. This latter is actually the big advantage added to data lakes : the ability to query and write big data using some key features of SQL databases such as ACID. 
+Delta Lake adds a lot of best practices inhereted from traditional databases engines to data lakes such as : 
+  - Dealing with modifications as a whole transation that rollback if it fails.
+  - Data integrity garanteed with jobs failure : if a job fails data is not written.
+  - historical data version management (time traveling) using logs.
+  - It adds also the ability to skipp scanning unnecessary data (files) using files statistics to optimize queries.
+The delta lake architecture (lakehouse) is mainly as follows:  
+
+![{EED13C9D-3806-43ED-B217-4828C847C900}](https://github.com/user-attachments/assets/4cfb2099-3873-430e-8adc-b705821cfacf)
 
 
 
