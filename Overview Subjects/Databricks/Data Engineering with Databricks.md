@@ -364,4 +364,38 @@ The VACCUM and OPTIMIZE operations are now done trough Predictive I/O which is a
 
 ### Set up and load delta tables:
 
+We can read data directly from a parquet files in data lake (such as azure) as follows:  
+
+```SQL
+
+  # Note that what is between brackets is a path variable for dbfs:/mnt/dbacademy-datasets/data-engineer-learning-path/v04
+       SELECT items FROM PARQUET.`${DA.paths.datasets}/ecommerce/raw/sales-historical` LIMIT 10;
+  # We can also create this as a temporary view
+      CREATE OR REPLACE TEMP VIEW sales_unparsed AS
+          SELECT items FROM PARQUET.`${DA.paths.datasets}/ecommerce/raw/sales-historical` LIMIT 10;
+      
+```  
+
+we can do the same thing using a csv file. We replace PARQUET with CSV. However we need to specify other details such as the delimiter, headers and so on so that the data can be rendered correctly.  
+
+We can use two approaches : USING & OPTIONS or READ_FILES() table valued function :
+
+```SQL
+        CREATE OR REPLACE TEMP VIEW sales_tmp_vw
+          (order_id LONG, email STRING, transactions_timestamp LONG, total_item_quantity INTEGER, purchase_revenue_in_usd DOUBLE, unique_items INTEGER, items STRING)
+        USING CSV
+        OPTIONS (
+          path = "${da.paths.datasets}/ecommerce/raw/sales-csv",
+          header = "true",
+          delimiter = "|"
+        );
+
+        SELECT * FROM read_files(csv.`${da.paths.datasets}/ecommerce/raw/sales-csv`,
+              format => cvs,
+sep => "|",
+header => true,
+mode => "FAILFAST");
+        
+```
+
 
