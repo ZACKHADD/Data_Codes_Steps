@@ -392,10 +392,98 @@ We can use two approaches : USING & OPTIONS or READ_FILES() table valued functio
 
         SELECT * FROM read_files(csv.`${da.paths.datasets}/ecommerce/raw/sales-csv`,
               format => cvs,
-sep => "|",
-header => true,
-mode => "FAILFAST");
+              sep => "|",
+              header => true,
+              mode => "FAILFAST");
         
 ```
 
+**Note that it is never a good practice to store data in DBFS !! it is recommanded to use the object storage systems such as S3, ADLS gen2 and GCP. Mainly because DBFS is more expensive and has limited data management features. Actually if we try to create an external table using DBFS we will get an error**  
 
+#### Incremental load using COPY INTO:
+
+A great thing about COPY INTO when storing data in delta format is that it keeps track of the files metadata we are ingesting data from and if the metadata (size, name, modification time ..) didn't change then it will not reaload the same file twice !!
+
+```SQL
+            COPY INTO users_bronz
+            FROM "${da.paths.datasets}/ecommerce/raw/users-30m"
+            FILEFORMAT = parquet
+            COPY_OPTIONS ('mergeSchema'='true');
+```
+
+#### Some built-in functions:
+
+```SQL
+
+            COPY INTO users_bronze FROM
+              (SELECT *,
+                 cast(cast(user_first_touch_timestamp/1e6 AS TIMESTAMP) AS DATE) first_touch_date,
+                 current_timestamp() updated,
+                 input_file_name() source_file
+                 FROM "${da.paths.datasets}/ecommerce/raw/users-historical/")
+                 FILEFORMAT = PARQUET
+                 COPY_OPTIONS ('mergeSchema'='true');
+
+```
+
+#### Clonning tables:
+
+Two types of clonning : DEEP and SHALLAW.  
+
+A deep clone in Databricks creates a completely independent copy of a Delta table, including both its data files and transaction log history. Unlike a shallow clone, which only references the source table's data files, a deep clone physically copies the data to a new location. However, note that in a shallow clone, changes to the data in the original table will impact the cloned table, because the shallow clone shares the same underlying data files as the source table. The shallow clone does not create a physical copy of the data; it merely creates a new table that references the same data files and schema.  
+
+#### Data overwriting:
+
+When we do data overwriting we can trak changes in the table and perform time travel.  
+
+```SQL
+            CREATE OR REPLACE TABLE events AS 
+                SELECT * FROM PARQUET.`${da.paths.datasets}/ecommerce/raw/users-historical/`;
+            
+                DESCRIBE HISTORY events;
+```
+
+![{9F83FFD1-C173-40B3-95B0-BE9BE7399BC3}](https://github.com/user-attachments/assets/e97963af-d8a6-4d53-bd9d-4ce3c76b5b7e)  
+
+The DESCRIBE HISTORY gives us the delta log of our delta table.  
+We can also use MERGE INTO : 
+
+```SQL
+              MERGE INTO users_bronze a
+              USING users_update b
+              ON a.user_id = b.user_id
+              WHEN MATCHED AND a.email IS NULL AND b.email IS NOT NULL THEN
+                UPDATE SET email = b.email, updated = b.updated
+              WHEN NOT MATCHED THEN
+                INSERT (user_id, email, updated)
+                VALUES (b.user_id, b.email, b.updated)
+```
+
+#### GENERATED columns:
+
+We can also use generated columns which are just calculated ones depending on the values of other columns.  
+
+```SQL
+            CREATE OR REPLACE TABLE purchase_dates (
+              id STRING,
+              transaction_timestamp STRING,
+              price STRING,
+              date DATE GENERATED ALWAYS AS (
+                cast(cast(transaction_timestamp/1e6 AS TIMESTAMP) AS DATE)
+              ) COMMENT "generated baed on 'transaction_timestamp' column"
+            )
+```
+
+Two types of generated columns exist : Virtual (which is calculated in query time) and stored that are phisicaly stored. Note that databricks supports only Stored columns.  
+
+We need to SET spark.databricks.delta.schema.autoMerge.enabled=true variable so that the generated column can be added.  
+
+#### Constraints:
+
+Databricks only support natively **Two types of constraints** : NOT NULL & CHECK. Wen can see if our table has contrains using DESCRIBE EXTENDED.  
+
+**It is a good practice to use Working Tables as intermediate ones before loading to silver or gold layer.**  
+
+#### UDFS (user defined functions):
+
+ 
