@@ -486,4 +486,51 @@ Databricks only support natively **Two types of constraints** : NOT NULL & CHECK
 
 #### UDFS (user defined functions):
 
- 
+See detailed Notebook : https://community.cloud.databricks.com/editor/notebooks/629862694947762?o=4191471080458016#command/629862694947774
+
+#### Liquid Clustring :
+
+This functionality replaces the partitionning and Z-ORDER operations we used to manage in databricks. Now with liquid clustring, these aspects are managed for us. Note that the liquid clustring needs to be enabled in the workspace.  
+
+To apply liquid clustring we just use : "CLUSTER BY [column]". It is triggered then, when we run OPTIMIZE (we can schedule a job to run that) and it is incremental meaning that it will cluster only the data that are not yet clustered.  
+
+#### Time Travel and data recovery : 
+
+Since databricks handels time traveling trough logs we can go back to a version as a select or even to restore data to a point in time we desire :  
+
+```SQL
+          RESTORE TABLE students TO VERSION AS OF 8 
+```
+#### Predictive Optimization:
+
+This is a feature based on AI that will predict when maintenance operations should be run such as VACUUM and OPTIMIZE. It is enabeled at several levels and the object under that level can inherit that : for example if it is enabled at the metastore level all the sub objects will inherit that meaning the catalog, schemas tables and so on.  
+
+### Deploy Workloads with Databricks Workflows :
+
+Workflows in databricks are so powerful to deploy workloads and orchestrat them.  
+
+![{894A2216-9BB4-473C-AC83-F420D11C1747}](https://github.com/user-attachments/assets/a381f226-65d5-42c1-a6ff-9b3faf6ddb11)  
+
+Three ways we can run our jobs : 
+- Interactive clusters using interactive notebooks
+- Job Clusters dedicated an optimized to run jobs
+- Serverless workflows
+  
+![{51B9414F-7C61-4906-9A6F-7963437DF33B}](https://github.com/user-attachments/assets/1456a9c4-1662-4900-a793-d1be604aabc4)  
+
+Example of DAG workflow :  
+
+![{D9BF886E-E6A9-48C7-AC70-BD8DC8BE2A59}](https://github.com/user-attachments/assets/ef0920bf-1133-4395-88b9-08cf65d37f9a)  
+
+DAG patterns : 
+
+![{48C156E1-D62B-4A6C-BAF6-5CB3D29B9387}](https://github.com/user-attachments/assets/2284390d-da75-4d98-a014-e4adc776f7dc)
+
+Real wolrd DAG workflow : 
+
+![{9851583B-9830-4AA2-9588-8CB402480ACD}](https://github.com/user-attachments/assets/1b1a3f5e-b5b2-48a3-91ab-b9c2b01b937e)  
+
+Note that there is a maximum number of tasks per job, but we can woaround that using jobs as task.
+
+![{D69ABCE0-1CCE-4F8A-A36D-0E742EF87A13}](https://github.com/user-attachments/assets/49613867-cb44-48fc-a83e-ab38aa0a16fe)
+
