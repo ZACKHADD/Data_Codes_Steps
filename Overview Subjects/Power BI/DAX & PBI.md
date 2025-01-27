@@ -183,4 +183,13 @@ Note that if we limite the **row context** to only a part of the sales table (us
 
 Value encoding, Hash encoding ... 
 
-https://intellitect.com/blog/power-bi-data-compression/#:~:text=Value%20encoding%20is%20the%20most,columns%20into%20two%20integer%20columns.
+https://intellitect.com/blog/power-bi-data-compression/#:~:text=Value%20encoding%20is%20the%20most,columns%20into%20two%20integer%20columns.  
+
+#### KeepFilters
+
+KeepFilters is generated in the visuals if we specify a filter on the visual using the filter pane :  
+
+![{28FA4557-827A-439D-B534-0F3499CAFCE2}](https://github.com/user-attachments/assets/70dde5e2-186c-47c1-8f56-bf378d9993f9)  
+
+
+
