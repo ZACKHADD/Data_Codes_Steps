@@ -63,3 +63,76 @@ Using LAG and moving AVG :
                 WHERE ts.variable_name = 'Post-Market Close';
 ```
 
+### Query Cashing :
+
+Snowflake has a result cache that holds the results of every query executed in the past 24 hours. These are available across warehouses, so query results returned to one user are available to any other user on the system who executes the same query, provided the underlying data has not changed. Not only do these repeated queries return extremely fast, but they also use no compute credits.
+
+### Clonning:
+
+When we create a cloned table in Snowflake:
+- The clone initially shares the same metadata and storage as the original table. No additional storage is consumed until changes are made to either the clone or the original.
+- Changes (e.g., deletes, inserts, updates) made to the clone are independent of the original table, and vice versa.
+This behavior is achieved through Snowflake's zero-copy cloning:
+- Snowflake uses metadata pointers to the original table's data.
+- When you modify data in the clone, only the modified data is stored separately (copy-on-write mechanism).
+
+```SQL
+                    -- Create the original table
+                    CREATE TABLE original_table (
+                        id INT,
+                        name STRING
+                    );
+                    
+                    -- Insert some data
+                    INSERT INTO original_table VALUES (1, 'Alice'), (2, 'Bob');
+                    
+                    -- Create a clone of the original table
+                    CREATE TABLE cloned_table CLONE original_table;
+                    
+                    -- Delete data from the clone
+                    DELETE FROM cloned_table WHERE id = 1;
+                    
+                    -- Check data in the clone
+                    SELECT * FROM cloned_table;
+                    -- Output: Only the record with id = 2 remains
+                    
+                    -- Check data in the original table
+                    SELECT * FROM original_table;
+                    -- Output: Both records (1, 'Alice' and 2, 'Bob') are still present
+```
+
+### Time Travel:
+
+Snowflake's powerful Time Travel feature enables accessing historical data, as well as the objects storing the data, at any point within a period of time. The default window is 24 hours and, if you are using Snowflake Enterprise Edition, can be increased up to 90 days.  
+Some useful applications include:
+- Restoring data-related objects such as tables, schemas, and databases that may have been deleted.
+- Duplicating and backing up data from key points in the past.
+- Analyzing data usage and manipulation over specified periods of time.
+
+We should pay attention to the settings of the timezone !! we can check the current timezone using :
+
+```SQL
+                    show parameters like '%timezone%';
+                    ALTER SESSION SET TIMEZONE = 'Europe/Paris';
+```
+
+```SQL
+                    -- Set the session variable for the query_id
+                    SET query_id = (
+                      SELECT query_id
+                      FROM TABLE(information_schema.query_history_by_session(result_limit=>5))
+                      WHERE query_text LIKE 'UPDATE%'
+                      ORDER BY start_time DESC
+                      LIMIT 1
+                    );
+                    
+                    -- Use the session variable with the identifier syntax (e.g., $query_id)
+                    CREATE OR REPLACE TABLE company_metadata AS
+                    SELECT *
+                    FROM company_metadata
+                    BEFORE (STATEMENT => $query_id);
+                    
+                    -- Verify the company names have been restored
+                    SELECT *
+                    FROM company_metadata;
+```
