@@ -23,6 +23,91 @@ The type of computing warehouse is important and depends on the use case and the
 
 ![{90EEAD00-AB29-47C0-9A69-809CE82982AE}](https://github.com/user-attachments/assets/b0dcd6c5-4d88-4eda-8103-f54a8465f3b7)  
 
+### Snowflake Catalog and objects : 
+
+Snowflake has a list of objects in the ecosystem that are listed bellow :
+- Databases
+- Schemas
+- Table Types
+- View Types
+- Data Types
+- User-defined Functions (UDFs) and User-defined Table Functions (UDTFs)
+- Stored Procedures
+- Streams :  For CDC and incremental loading of data
+- Tasks : Used to schedule and automate SQL queries or procedures in Snowflake, which can include operations on tables or pipes themselves.
+- Pipes : Specifically designed for automatically loading data from external stages into Snowflake tables, often used for real-time or continuous data ingestion.
+- Shares
+- Sequences :  auto incremented values.
+
+All data in Snowflake is stored in database tables, logically structured as collections of columns and rows. To best utilize Snowflake tables, particularly large tables, it is helpful to have an understanding of the physical structure behind the logical structure.  
+**Micro-partitions and data clustering**, two of the principal concepts utilized in Snowflake physical table structures.  
+Snowflake automatically divides tables into micro-partitions, which are immutable internal storage units (each typically 50–500 MB compressed).  
+Micro-partitionning is automatic and does not need to be maintained !  
+This is powerful as it gives the possibility to prune columns to be scaned when we use filter predicates !  
+
+How it works : 
+- When data is inserted, Snowflake automatically divides it into micro-partitions.
+- Each micro-partition stores metadata like min/max values, column stats, and cardinality.
+- These micro-partitions are immutable and stored in columnar format.
+- Snowflake prunes unnecessary micro-partitions at query time, reducing scan costs.
+
+By default micro partitionning groups data based on the insert order ! **so if this order is randomly inserting data then the prunning will not be that efficient and we may need to cluster data**!  
+How Does Clustering Work?
+- Snowflake checks how well data is ordered within micro-partitions.
+- If needed, it automatically reclusters data in the background (for large tables).
+- We can manually trigger reclustering with ALTER TABLE RECLUSTER.
+
+This will optimize the queries using frequently some columns like date, id and so on !  
+We can use this command to cluster based on a columns or multiple columns : 
+
+```SQL
+          CLUSTER BY {Column1, Column2 ...}
+```
+#### Clustering Depth
+The clustering depth for a populated table measures the average depth (1 or greater) of the overlapping micro-partitions for specified columns in a table. The smaller the average depth, the better clustered the table is with regards to the specified columns.  
+
+#### Types of tables : 
+
+![{E267A5DC-3989-4108-A69B-CE768B92C9AA}](https://github.com/user-attachments/assets/39934e0a-b80e-44f8-be59-b25af6a7302b)  
+
+**Note that :**
+Since micro-partitions cannot be changed, Snowflake does NOT physically move data between existing partitions. Instead, it:
+
+- Reads the existing micro-partitions.
+- Sorts the data based on the clustering key.
+- Creates new micro-partitions that follow the new order.
+- Marks the old micro-partitions as obsolete (logical deletion).
+
+**Snowflake suggests sometimes clustering improvements (via SHOW CLUSTERING INFORMATION).**  
+
+https://docs.snowflake.com/en/user-guide/tables-micro-partitions
+
+#### Connecting snowflake to external data:
+
+Similarly to synapse, when connecting ro external data we need create external data source or in this case external stage !  but to connect, we need also to create a **Storage integration** that will authenticate to the source like ADLS gen2 or we can use directly SAS token : 
+
+![{D8B3BEB9-0989-476A-928C-D96009A78328}](https://github.com/user-attachments/assets/4098ac76-a196-4761-83b0-13d32145f160)  
+
+![{3D381A18-9A18-4E0D-BA16-AA88F14E4AC9}](https://github.com/user-attachments/assets/e0957fa8-32a6-4fc2-99c2-c4fb46f4eff5)  
+
+Once created we cill need to consent for a first time using the consent url : 
+
+![{AFF3D708-D8F4-447C-80E0-1D74F62CFD55}](https://github.com/user-attachments/assets/198ac549-c2a0-4f54-bce6-5cdc952e58f8)  
+
+
+
+to create the storage integration : 
+
+```SQL
+                    create storage integration <storage_integration_name>
+                        type = external_stage
+                        storage_provider = azure
+                        azure_tenant_id = '<azure_tenant_id>'
+                        enabled = true
+                        storage_allowed_locations = ( 'azure://<location1>', 'azure://<location2>' )
+                        -- storage_blocked_locations = ( 'azure://<location1>', 'azure://<location2>' )
+                        -- comment = '<comment>';
+```
 ### Labs hacks:
 
 tO list all the content of an external stage we can use LIST command.
@@ -136,3 +221,4 @@ We should pay attention to the settings of the timezone !! we can check the curr
                     SELECT *
                     FROM company_metadata;
 ```
+
