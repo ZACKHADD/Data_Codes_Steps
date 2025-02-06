@@ -130,6 +130,30 @@ We can query the file and see the columns in a propert wat using the file format
 
 ![{017E7732-D127-4650-A468-795CADCE4BAB}](https://github.com/user-attachments/assets/8e6170f2-e59a-42e6-a8a6-c55618e44a56)  
 
+Now that we explored our data we need to load in our land schema. We can do this usinf **snowsight (the UI) but it doesn't support bulk loading** so we will need the **SNOWSQL CLI**  
+
+After installing it we run our terminal and we verify that it recognises the CLI :
+
+![image](https://github.com/user-attachments/assets/8309075a-5958-4794-a4ed-6f644d46cb44)  
+
+In order to connect to our snowflake account we will need to update the SnowSql CLI config file :  
+
+![image](https://github.com/user-attachments/assets/5247f021-ab37-41a1-9771-ec3f74e116a3)  
+
+Here we will specify in **plain text** all the parameters such as password, user name, account and so on.  
+
+**Note that if the account is located in the west region (oregon), the account_name could be the locator and no need to specify the region.**  
+
+NOw when we run **snowsql** we can start writing queries :  
+
+![image](https://github.com/user-attachments/assets/3b487e08-b6ec-45fc-8d93-a67fd9287f49)  
+
+
+
+
+
+
+
 
 
 
