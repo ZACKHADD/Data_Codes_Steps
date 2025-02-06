@@ -130,7 +130,11 @@ We can query the file and see the columns in a propert wat using the file format
 
 ![{017E7732-D127-4650-A468-795CADCE4BAB}](https://github.com/user-attachments/assets/8e6170f2-e59a-42e6-a8a6-c55618e44a56)  
 
-Now that we explored our data we need to load in our land schema. We can do this usinf **snowsight (the UI) but it doesn't support bulk loading** so we will need the **SNOWSQL CLI**  
+Now that we explored our data we need to load in our land schema. In our case data is already an external storage so we will use **COPY INTO** directly. But imagine another scenario where data is in a local storage such as a on premise server ?!
+
+#### Scenario of local data (on premise server):  
+
+We can do this using **snowsight (the UI) but it doesn't support bulk loading** so we will need the **SNOWSQL CLI**  
 
 After installing it we run our terminal and we verify that it recognises the CLI :
 
@@ -147,6 +151,16 @@ Here we will specify in **plain text** all the parameters such as password, user
 NOw when we run **snowsql** we can start writing queries :  
 
 ![image](https://github.com/user-attachments/assets/3b487e08-b6ec-45fc-8d93-a67fd9287f49)  
+
+We make sure that we are using the right settings for our queries :  
+
+![image](https://github.com/user-attachments/assets/9fc0c5fc-18e1-43c3-acb5-08c1341de0cf)  
+
+To do a bulk load we need to use a special command in snowsql CLI called : **PULL**. Documentation [here](https://docs.snowflake.com/en/sql-reference/sql/put)  
+
+**Note that SnowSql is very useful for automating scripts !**  
+
+#### Loading data into landing tables : 
 
 
 
