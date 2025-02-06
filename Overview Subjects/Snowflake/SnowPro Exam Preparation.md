@@ -90,7 +90,7 @@ Similarly to synapse, when connecting ro external data we need create external d
 
 ![{3D381A18-9A18-4E0D-BA16-AA88F14E4AC9}](https://github.com/user-attachments/assets/e0957fa8-32a6-4fc2-99c2-c4fb46f4eff5)  
 
-Once created we cill need to consent for a first time using the consent url : 
+Once created we will need to consent for a first time using the consent url : 
 
 ![{AFF3D708-D8F4-447C-80E0-1D74F62CFD55}](https://github.com/user-attachments/assets/198ac549-c2a0-4f54-bce6-5cdc952e58f8)  
 
