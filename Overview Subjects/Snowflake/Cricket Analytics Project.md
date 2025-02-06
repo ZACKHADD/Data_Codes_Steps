@@ -35,17 +35,20 @@ Following the medallion architecture of lakehouses, we created 4 schemas (the fi
 First of all we create our Database that will hold all the objects :
 
 ``` SQL
-        create database cricket;
-        create schema land;
-        create schema raw;
-        create schema clean;
-        create schema consumption;
+          create database if not exists cricket;
+          create or replace schema land;
+          create or replace schema raw;
+          create or replace schema clean;
+          create or replace schema consumption;
 ```
 By default when we create a database, two schemas are created : Public anf Information schema that holds all the metadata of our database. Generaly, we use public schema to hold all the objects that are not specifc to any of the other medallion architecture schemas:  
 
 ![{7BAFE518-29DE-4048-91EF-EF8502EA7891}](https://github.com/user-attachments/assets/136a9da8-cc7f-46fb-8aa5-d7d121f30e00)  
 
 Now we need to connect to the data stored in the Azure Blob Storage.  
+
+### Data Loading :
+Now we need to create other objects that will help loading the data into snowflake: 
 
 #### Connecting snowflake to external data:
 
@@ -96,23 +99,39 @@ Now that we are connected to the data in azure using the extarnal storage, we wi
                         ( FILE_FORMAT => cricket.land.json_ff);
 ```
 
-The full syntax to create a file format is the following :
+Now we can explore our data in snowflake even before laoding it. Before doing that we can see the structure of the json file in VSCode to understand it's structure : 
+
+![{60DE73B2-4CD3-433D-B63D-91A83B1685C3}](https://github.com/user-attachments/assets/5b048b4c-b2eb-4aea-9761-32b00f9db84a)  
+
+We can see that the file starts with some metadata regarding the file.  
+
+![{7D453BA5-1827-44B7-BFAF-F36D93566851}](https://github.com/user-attachments/assets/9b0d8ad0-e956-455b-890e-7f1cd5c8c559)  
+
+Then we have "info" that groups all the qualitative data such as the event name, categorie, teams players ...  
+
+Then we have the "innings" which groups all the quantitative data regarding number of runs, scoring ...  
+
+![{63890039-4C9A-47DB-B9EB-84B6B4C3634F}](https://github.com/user-attachments/assets/b44a4921-f637-44c4-a7a7-2219ec4f6e94)  
+
+We can query the file and see the columns in a propert wat using the file format in snowflake as follows :  
 
 ```SQL
-          CREATE OR REPLACE FILE FORMAT csv
-              TYPE = 'CSV'
-              COMPRESSION = 'AUTO'  -- Automatically determines the compression of files
-              FIELD_DELIMITER = ','  -- Specifies comma as the field delimiter
-              RECORD_DELIMITER = '\n'  -- Specifies newline as the record delimiter
-              SKIP_HEADER = 1  -- Skip the first line
-              FIELD_OPTIONALLY_ENCLOSED_BY = '\042'  -- Fields are optionally enclosed by double quotes (ASCII code 34)
-              TRIM_SPACE = FALSE  -- Spaces are not trimmed from fields
-              ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE  -- Does not raise an error if the number of fields in the data file varies
-              ESCAPE = 'NONE'  -- No escape character for special character escaping
-              ESCAPE_UNENCLOSED_FIELD = '\134'  -- Backslash is the escape character for unenclosed fields
-              DATE_FORMAT = 'AUTO'  -- Automatically detects the date format
-              TIMESTAMP_FORMAT = 'AUTO'  -- Automatically detects the timestamp format
-              NULL_IF = ('')  -- Treats empty strings as NULL values
-              COMMENT = 'File format for ingesting data';
+                  select 
+                        t.$1:meta::variant as meta, 
+                        t.$1:info::variant as info, 
+                        t.$1:innings::array as innings, 
+                        metadata$filename as file_name,
+                        metadata$file_row_number int,
+                        metadata$file_content_key text,
+                        metadata$file_last_modified stg_modified_ts
+                     from  @CRICKET_JSON_FILES_CONTAINER_ONLY/1384412.json
+                     (file_format => 'cricket.land.json_ff') t;    
 ```
+
+![{017E7732-D127-4650-A468-795CADCE4BAB}](https://github.com/user-attachments/assets/8e6170f2-e59a-42e6-a8a6-c55618e44a56)  
+
+
+
+
+
 
