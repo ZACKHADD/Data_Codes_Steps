@@ -160,7 +160,202 @@ To do a bulk load we need to use a special command in snowsql CLI called : **PUL
 
 **Note that SnowSql is very useful for automating scripts !**  
 
-#### Loading data into landing tables : 
+#### Loading data into raw layer : 
+
+Our data is well connected to our snowflake using the external stage, we can start populating our medallion architecture with data.  
+
+First of all we will create a table in the raw layer taht will hold all the json files with some metadata columns. This is very useful when tracking data to the source in case of an error !  
+
+```sql
+
+              USE SCHEMA raw;
+              USE ROLE SYSADMIN;
+              USE WAREHOUSE COMPUTE_WH;
+              
+              CREATE OR REPLACE transient TABLE match_raw_table (
+                  meta object not null,
+                  info variant not null,
+                  innings array not null,
+                  file_name text not null,
+                  file_row_number int not null,
+                  file_hashkey text not null,
+                  modified_ts timestamp not null
+              )
+              comment = 'this table holds the original data files with all its metadata';
+
+```
+
+To have a clear vision of the json structure we can use json cracker in VSCode to visualize it as a digram which will help deciding on the columns types :  
+
+![{77FDDE5C-08E2-48A7-A19A-1AD2C09A876E}](https://github.com/user-attachments/assets/4370c897-dc9e-4b1c-90c7-bfe34205dd7a)  
+
+We can see that "Meta" is a dictionary which can correspond to an OBJECT type in snowflake !  
+The "INFO" however contains a hierarchy so we can assing the VARIANT type to this column !  
+For the "INNINGS" it is clearly an array so we can assing the type ARRAY to it !  
+
+![{BB9E6A40-A98B-4111-90A9-DA26AF49DB4D}](https://github.com/user-attachments/assets/4503f15c-bf72-4b3b-8b1c-a57d7a9ff459)  
+
+Let's copy data into our table :  
+
+```SQL
+                    COPY INTO CRICKET.RAW.MATCH_RAW_TABLE
+                    FROM (
+                        SELECT 
+                            t.$1:meta::object AS meta, 
+                            t.$1:info::variant AS info, 
+                            t.$1:innings::array AS innings, 
+                            --
+                            metadata$filename,
+                            metadata$file_row_number,
+                            metadata$file_content_key,
+                            metadata$file_last_modified
+                        FROM @CRICKET_JSON_FILES_CONTAINER_ONLY
+                        (FILE_FORMAT => 'cricket.land.json_ff') t
+                        )
+                    ON_ERROR = continue
+                    ;
+```
+Note that the **"metadata$--"** is a built in function that retrievse metadata of the objects in the stage !  
+
+![{0CCBF0C4-4184-457A-BDED-D5B367CD5B46}](https://github.com/user-attachments/assets/93344ca6-e038-4abf-bfb0-d937cbbf2050)  
+
+We can also quickly check if we have errors on some of the files using the UI :  
+
+![{CEE8E566-C83B-4E99-94FD-EA2646384B10}](https://github.com/user-attachments/assets/4bcab1e8-bd37-4693-b1ff-efafe1c74663)  
+
+Everything is green ! means all is good !  
+
+If we select the content of the table :  
+
+![{596BE2C9-D63C-4741-8BB5-BBB2F4FFF86E}](https://github.com/user-attachments/assets/edd1992d-f75e-40fd-afa4-df12e4d80316)  
+
+![{88888EC5-D8CE-4F8E-8FB8-74C17ECFAC45}](https://github.com/user-attachments/assets/d3751918-64df-44eb-b58b-41d5fbda10d4)  
+
+Now we are ready to clean data and especialy flatten it !  
+
+#### Silver layer :  
+
+In the silver layer we need to flatten data in the columns containing several objectes so that we can have a column for each object. For example from the meta column of the raw table we can extract 3 columns :  
+
+##### Matchs details :
+```SQL
+            SELECT 
+                META:data_version::text AS data_version,
+                META:created::date AS created,
+                META:revision::number as revision
+            FROM
+                CRICKET.RAW.MATCH_RAW_TABLE;
+
+```
+The :: operator is similar to CAST function !  
+
+![{E276050E-7B27-4C46-B315-9757AFF686D6}](https://github.com/user-attachments/assets/eb59fc4c-5427-4fe2-8504-fb28909e37a0)  
+
+For Meta things are simple, but for the info column in the raw table we need to understand the pattern as some things need to be dynamicaly retrieved !  
+
+Let's tale a look on the json sample :  
+
+![{B63C5AAA-F476-4596-B58F-30AB222782BF}](https://github.com/user-attachments/assets/32ec27ca-7f43-4544-9aec-3eabb9d96600)  
+
+We can see that info has 10 elements including some data regarding the match, the dates, the events and so on but if we pay attention to the "players" element we can see that we have two teams :  
+
+![{90A5CF81-372F-4A6F-A58B-80FEC16D5649}](https://github.com/user-attachments/assets/a02a8612-a3fc-404f-8a52-30bd2ed62927)  
+
+Now, this will need a dynamic way to retrieve first the names of the two teams so that we can use that to retrieve the players using for example : {Root}.info.players.England[6] to retrieve a player !  
+Luckly we have the "teams" element that list the two teams so we can use that in oue dynamic logic !  
+We can query the first elements of INFO to see how data looks in all the files :  
+
+```SQL
+              USE SCHEMA RAW;
+              USE ROLE SYSADMIN;
+              USE WAREHOUSE COMPUTE_WH;
+              
+              SELECT
+                  INFO:match_type_number::int as match_type_number,
+                  INFO:match_type::text as match_type,
+                  INFO:season::text as season,
+                  INFO:team_type::text as team_type,
+                  INFO:overs::int as overs,
+                  INFO:city::text as city,
+                  INFO:venue::text as venue
+              FROM
+                  CRICKET.RAW.MATCH_RAW_TABLE;
+```
+
+**We can see that these data can be later useful to create some dimensions for our datawarehouse !!**  
+
+![{104F86E7-FC30-483B-8655-5F11D17E7380}](https://github.com/user-attachments/assets/07c24a44-aed8-4b51-b478-e8e85eeb2e99)  
+
+This will facilitate the data exploring for us to take some decisions on how we will transform data : for example id we have null values what to do !  
+
+After anlysing the data we can adopt the following transformations to create a silver table holding the details of the matchs :  
+
+```SQL
+                USE SCHEMA CLEAN;
+                USE ROLE SYSADMIN;
+                USE WAREHOUSE COMPUTE_WH;
+                
+                create or replace transient table cricket.clean.match_detail_clean as
+                select
+                    info:match_type_number::int as match_type_number, 
+                    info:event.name::text as event_name,
+                    case
+                    when 
+                        info:event.match_number::text is not null then info:event.match_number::text
+                    when 
+                        info:event.stage::text is not null then info:event.stage::text
+                    else
+                        'NA'
+                    end as match_stage,   
+                    info:dates[0]::date as event_date,
+                    date_part('year',info:dates[0]::date) as event_year,
+                    date_part('month',info:dates[0]::date) as event_month,
+                    date_part('day',info:dates[0]::date) as event_day,
+                    info:match_type::text as match_type,
+                    info:season::text as season,
+                    info:team_type::text as team_type,
+                    info:overs::text as overs,
+                    info:city::text as city,
+                    info:venue::text as venue, 
+                    info:gender::text as gender,
+                    info:teams[0]::text as first_team,
+                    info:teams[1]::text as second_team,
+                    case 
+                        when info:outcome.winner is not null then 'Result Declared'
+                        when info:outcome.result = 'tie' then 'Tie'
+                        when info:outcome.result = 'no result' then 'No Result'
+                        else info:outcome.result
+                    end as matach_result,
+                    case 
+                        when info:outcome.winner is not null then info:outcome.winner
+                        else 'NA'
+                    end as winner,   
+                
+                    info:toss.winner::text as toss_winner,
+                    initcap(info:toss.decision::text) as toss_decision,
+                    --
+                    file_name ,
+                    file_row_number,
+                    file_hashkey,
+                    modified_ts
+                    from 
+                    CRICKET.RAW.MATCH_RAW_TABLE;
+```
+
+**Note that here we used CTAS to create the table since the data is not huge, but in production, we need to first create the table with the schema desired then load the data usinf COPY INTO**  
+
+##### Players data :
+
+Let's try to retrieve players data (this will be a dimention later) from the raw table :  
+
+
+
+
+
+
+
+
+
 
 
 
