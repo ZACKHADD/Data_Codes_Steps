@@ -361,7 +361,9 @@ Two columns from the info side will interest us : Teams and players !
 
 ![{A19984FC-D91A-4104-9F4C-76F2D1A55178}](https://github.com/user-attachments/assets/0aac366d-8190-413c-aa34-d6e0874853c8)  
 
-We can see that we can either use values in the teams array as keys to retrieve players from the players dictionnary or simply use only the players column and flatten it to retrieve the key and values (array) into rows. But we will need basicaly two columns after this flatten operation, one for the key (which is the country) and the other for the player name (which is the value in the array) !  
+We can see that we can either use values in the teams array as keys to retrieve players from the players dictionnary or simply use only the players column and flatten it to retrieve the key and values (array) into rows. But we will need basicaly two columns after this flatten operation, one for the key (which is the country) and the other for the player name (which is the value in the array) ! ==> This is where the **LATERAL** function comes handy!  
+
+
 
 
 
