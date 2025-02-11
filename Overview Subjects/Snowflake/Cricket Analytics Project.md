@@ -363,11 +363,121 @@ Two columns from the info side will interest us : Teams and players !
 
 We can see that we can either use values in the teams array as keys to retrieve players from the players dictionnary or simply use only the players column and flatten it to retrieve the key and values (array) into rows. But we will need basicaly two columns after this flatten operation, one for the key (which is the country) and the other for the player name (which is the value in the array) ! ==> This is where the **LATERAL** function comes handy!  
 
+```SQL
+            SELECT
+                raw.INFO:match_type_number,
+                raw.INFO:players,
+                p.key as team,
+                p.value as players
+            
+            FROM CRICKET.RAW.MATCH_RAW_TABLE raw,
+            LATERAL FLATTEN(input => raw.INFO:players) p 
+            WHERE raw.INFO:match_type_number='4683'
+            ;
+```
 
+The code above will return the following table :  
 
+![{BA923D20-DF4A-4E66-897A-F3EFF06F3456}](https://github.com/user-attachments/assets/57532eb9-6e6d-47d3-97a3-dca536e531ad)  
 
+It simply return for a single match the players lists for both teams  as well as two new columns : team and the the array of players of that team !  
 
+**Note that the flatten on INFO:players gave two rows one per team since we have only two elements in the dictionary !**:  
 
+![{EB63C0F3-24DD-4F80-BD1C-67FB9F14656E}](https://github.com/user-attachments/assets/1f004ea6-4b94-465d-a084-c63edad385eb)  
+
+The lateral however made it possible to add the new column for teams and players !  
+
+Now we can do the same to flatten the array of players and have one row per player !  
+
+![{858AA460-F09A-4F64-903E-424C547D5002}](https://github.com/user-attachments/assets/255ebeb3-5a0d-4e12-8e53-f9d24a66e5c5)  
+
+```SQL
+            SELECT
+                raw.INFO:match_type_number,
+                p.key as team,
+                players.value as players
+            
+            FROM CRICKET.RAW.MATCH_RAW_TABLE raw,
+            LATERAL FLATTEN(input => raw.INFO:players) p,
+            LATERAL FLATTEN(input => p.value) players
+            WHERE raw.INFO:match_type_number='4683'
+            ;
+```
+
+using this we can create a table that will hold this structured data in the silver layer with some additional audit columns !  
+
+![{884D01CF-D862-4E31-8658-45ED12B6D2D9}](https://github.com/user-attachments/assets/9e4d43e0-4b27-4258-b873-3edf5f6c819d)  
+
+```SQL
+            SELECT
+                raw.INFO:match_type_number,
+                p.key as team,
+                players.value as players,
+                file_name ,
+                file_row_number,
+                file_hashkey,
+                modified_ts
+            
+            FROM CRICKET.RAW.MATCH_RAW_TABLE raw,
+            LATERAL FLATTEN(input => raw.INFO:players) p,
+            LATERAL FLATTEN(input => p.value) players
+            ;
+```
+
+The final code :  
+
+```SQL
+            CREATE OR REPLACE TABLE player_clean_tb AS
+            SELECT
+                raw.INFO:match_type_number::int as match_type_number,
+                p.key::text as team,
+                players.value::text as player_name,
+                file_name ,
+                file_row_number,
+                file_hashkey,
+                modified_ts
+            
+            FROM CRICKET.RAW.MATCH_RAW_TABLE raw,
+            LATERAL FLATTEN(input => raw.INFO:players) p,
+            LATERAL FLATTEN(input => p.value) players;
+```
+
+Let's add also a "Not null" constraint on the columns : 
+
+```SQL
+            ALTER TABLE player_clean_tb
+            MODIFY COLUMN team set not null;
+            
+            ALTER TABLE player_clean_tb
+            MODIFY COLUMN player_name set not null;
+            
+            ALTER TABLE player_clean_tb
+            MODIFY COLUMN match_type_number set not null;
+```
+
+**Note that not null and check are the only constraints enforced for now! the others act like comments !**  
+
+We can add other constraints for documentation puposes (since they are not enforced) such as the primary key !  
+
+**Note that if want to maitain referential integrity we need to create a special script for that!**  
+
+```SQL
+        USE SCHEMA clean;
+
+        ALTER TABLE clean.match_detail_clean
+        add constraint pk_match_type_number primary key (match_type_number);
+        
+        ALTER TABLE clean.player_clean_tb
+        add constraint fk_match_id FOREIGN KEY  (match_type_number)
+        REFERENCES clean.match_detail_clean (match_type_number);
+        
+        select get_ddl('table','clean.match_detail_clean');
+```
+
+![{087546FA-1745-4F5D-9B92-18F3EF72C3DA}](https://github.com/user-attachments/assets/f09e3bc6-18e5-4249-8f55-73c269d4a366)  
+
+##### Deliveries data: 
 
 
 
