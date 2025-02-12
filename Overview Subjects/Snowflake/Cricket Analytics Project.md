@@ -479,6 +479,103 @@ We can add other constraints for documentation puposes (since they are not enfor
 
 ##### Deliveries data: 
 
+After cleaning data of what will be our dimensions later on, we can do the same for the deliveries inside the innings part of our json so that we can have out table of events of our fact table :  
+
+![{CE63F58A-B5D3-40A8-B31C-ECD65A2292F7}](https://github.com/user-attachments/assets/994a141c-aeb1-4dd9-9cc3-db6011bc8e27)  
+
+Inside the innings, we have for each team the details of the game and especialy the overs and deliveries that are the numeric values the iterest us. We will proceed with the same way we did for the previous data to flatten the deliveries ones.  
+
+![{C6B78355-99A4-4970-B1BE-61E59ADA5435}](https://github.com/user-attachments/assets/47509590-a1ad-4ba3-9eee-66c1a930eef2)  
+
+Let's see what the lateral flatten table of innings fot a single match contains : 
+
+![{688FE344-61FC-4ADF-A69B-6F320585A82F}](https://github.com/user-attachments/assets/6f5830af-ff8a-4a5d-b5b2-8bd1e65df5fb)  
+
+This shows the subcolumns we can retrieve from the flatten table. In our case we will use the value column to extract the data we want, for example the team : 
+
+![{8C8BF2A5-8123-4C2D-8151-994B06D5B951}](https://github.com/user-attachments/assets/56b50a8d-5d24-44ca-a653-7c96892d9e15)  
+
+We can also explode the overs to have an over per row :  
+
+![{87085F57-5D74-4573-82CC-3851B14EAA4B}](https://github.com/user-attachments/assets/9582ad34-c317-4268-9d15-b2eb877105e3)  
+
+![{409186D0-9CFD-40E0-BE84-0BC88BB8A924}](https://github.com/user-attachments/assets/4e61e98c-58b3-4e2f-bfba-b3b507d5a246)  
+
+```SQL
+          select
+              INFO:match_type_number::int as match,
+              i.value:team::text as team,
+              o.value overs,
+          from raw.match_raw_table m,
+          lateral flatten(input=> innings) i,
+          lateral flatten (input=>i.value:overs) o,
+          WHERE match = 4673;
+```
+
+We can see that 85 overs were played, 50 for New Zealand and 35 for Afghanistan. Now for each over we can explode data to have a row per ball played with some additional columns such as the batter, the bowler and so on.  
+
+![{A06DD827-14A6-467D-AA2D-112E1011CB5D}](https://github.com/user-attachments/assets/4555ecda-c48d-42d2-98e9-c85774a94b72)  
+
+We can see in the example that the example that for the first over, for the 6 balls playes 5 of them the batter was "DP Conway". So far the explode precess is going good. We can add now the other columns we need:  
+
+```SQL
+            select
+                INFO:match_type_number::int as match,
+                i.value:team::text as team,
+                o.value:over::int over,
+                d.value:bowler::text bowler,
+                d.value:batter::text batter,
+                d.value:non_striker::text non_striker,
+                d.value:runs::text runs,
+                d.value:runs:extras::text extras,
+                d.value:runs:total::text total,
+            from raw.match_raw_table m,
+            lateral flatten(input=> innings) i,
+            lateral flatten (input=>i.value:overs) o,
+            lateral flatten (input=>o.value:deliveries) d
+            WHERE match = 4673;
+```
+
+![{FCBCFB8E-F8D7-485F-A7C1-A3202D629E24}](https://github.com/user-attachments/assets/27e55e7d-5782-45ca-b8fa-9dddfa717c9c)  
+
+We have also another case to take into concideration which is when we have extras. In that case we need to have the type and the value of that extra:  
+
+![{58F7AAB7-30F8-4B4B-96AD-368331EAF44E}](https://github.com/user-attachments/assets/db4f843a-b735-41e6-80d5-8f89c362529c)  
+
+```SQL
+              select
+                  INFO:match_type_number::int as match,
+                  i.value:team::text as team,
+                  o.value:over::int over,
+                  d.value:bowler::text bowler,
+                  d.value:batter::text batter,
+                  d.value:non_striker::text non_striker,
+                  d.value:runs::text runs,
+                  d.value:runs:extras::text extras,
+                  d.value:runs:total::text total,
+                  e.key::text extra_type,
+                  e.value::number extra_runs
+              from raw.match_raw_table m,
+              lateral flatten(input=> innings) i,
+              lateral flatten (input=>i.value:overs) o,
+              lateral flatten (input=>o.value:deliveries) d,
+              lateral flatten (input=>d.value:extras, outer=> TRUE) e
+              ;
+```
+
+For elements that may not have the extras, by default the flatten function ommits them. So to keep them we need to specify the outer to true.  
+
+we can do the same thing for the "Wickets".  
+
+
+
+
+
+
+
+
+
+
 
 
 
