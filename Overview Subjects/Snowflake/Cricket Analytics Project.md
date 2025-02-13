@@ -4,17 +4,17 @@
 
 We describe in this file all the steps as well as the production best practices when working on similar projects !  
 
-### Stack of the project:
+### 1. Stack of the project:
 
 - AZURE Storage account
 - Snowflake
 - VS Studio
   
-### About the data
+### 2. About the data
  The data correspond to the men's cricket world cup results of the season 2023/2024.  
  Data for each match is in a json file, stored in an azure blob storage.  
 
-### Architecture of the project :
+### 3. Architecture of the project :
 Here is a simple diagram that shows the structure of the project :  
 
 ![{AB56B11B-C8B0-4C54-A6FE-FE465B9089FE}](https://github.com/user-attachments/assets/52843ab8-c360-4bf0-9a1a-1cf0bc95607b)  
@@ -23,7 +23,7 @@ Here is a simple diagram that shows the structure of the project :
 After loading files in the blob storage (in production case it is recommanded to use ADLS Gen 2 to benifit from the hierarchy if needed), we connect snowflake to the azure storage using external stage.  
 With a files format, we will be able to parse the json data and then load it into Snowflake.  
 
-#### Medallion achitecture: 
+#### 1.1 Medallion achitecture: 
 
 Following the medallion architecture of lakehouses, we created 4 schemas (the first one is optional as we could directly read from the external stage) : 
 - Landing area : it is simply a schema that will hold a table containing all the json files as rows. This area is aptional!
@@ -47,10 +47,10 @@ By default when we create a database, two schemas are created : Public anf Infor
 
 Now we need to connect to the data stored in the Azure Blob Storage.  
 
-### Data Loading :
+### 4. Data Loading :
 Now we need to create other objects that will help loading the data into snowflake: 
 
-#### Connecting snowflake to external data:
+#### 4.1 Connecting snowflake to external data:
 
 Similarly to synapse, when connecting to external data we need create external data source or in this case external stage !  but to connect, we need also to create a **Storage integration** that will authenticate to the source like ADLS gen2 (This is what should be done in the production scenario) or we can use directly SAS token (for test purposes) : 
 
@@ -79,7 +79,7 @@ In our case and since it is a POC we used SAS token that we generated at the blo
 
 **Note that the SAS token has to have the not only the READ permission but also the LIST permission as snowflake requests it to list the files in the container !**  
 
-#### Read data from the external storage : 
+#### 4.2 Read data from the external storage : 
 
 Now that we are connected to the data in azure using the extarnal storage, we will need a **File Format** to parse the data. In our case the file format has a json type:
 
@@ -132,7 +132,7 @@ We can query the file and see the columns in a propert wat using the file format
 
 Now that we explored our data we need to load in our land schema. In our case data is already an external storage so we will use **COPY INTO** directly. But imagine another scenario where data is in a local storage such as a on premise server ?!
 
-#### Scenario of local data (on premise server):  
+#### 4.3 Scenario of local data (on premise server):  
 
 We can do this using **snowsight (the UI) but it doesn't support bulk loading** so we will need the **SNOWSQL CLI**  
 
@@ -160,7 +160,7 @@ To do a bulk load we need to use a special command in snowsql CLI called : **PUL
 
 **Note that SnowSql is very useful for automating scripts !**  
 
-#### Loading data into raw layer : 
+#### 4.5 Loading data into raw layer : 
 
 Our data is well connected to our snowflake using the external stage, we can start populating our medallion architecture with data.  
 
@@ -233,11 +233,11 @@ If we select the content of the table :
 
 Now we are ready to clean data and especialy flatten it !  
 
-#### Silver layer :  
+#### 4.6 Silver layer :  
 
 In the silver layer we need to flatten data in the columns containing several objectes so that we can have a column for each object. For example from the meta column of the raw table we can extract 3 columns :  
 
-##### Matchs details :
+##### 4.6.1 Matchs details :
 ```SQL
             SELECT 
                 META:data_version::text AS data_version,
@@ -344,7 +344,7 @@ After anlysing the data we can adopt the following transformations to create a s
 
 **Note that here we used CTAS to create the table since the data is not huge, but in production, we need to first create the table with the schema desired then load the data usinf COPY INTO**  
 
-##### Players data :
+##### 4.6.2 Players data :
 
 Let's try to retrieve players data (this will be a dimention later) from the raw table.  
 
@@ -477,7 +477,7 @@ We can add other constraints for documentation puposes (since they are not enfor
 
 ![{087546FA-1745-4F5D-9B92-18F3EF72C3DA}](https://github.com/user-attachments/assets/f09e3bc6-18e5-4249-8f55-73c269d4a366)  
 
-##### Deliveries data: 
+##### 4.6.3 Deliveries data: 
 
 After cleaning data of what will be our dimensions later on, we can do the same for the deliveries inside the innings part of our json so that we can have out table of events of our fact table :  
 
@@ -567,26 +567,308 @@ For elements that may not have the extras, by default the flatten function ommit
 
 we can do the same thing for the "Wickets".  
 
+![{C2DA76A4-3C40-4536-96C9-32E401DE67FC}](https://github.com/user-attachments/assets/29a6819e-029f-4e8a-901c-d42122df055e)  
+
+the final select statement that we can use inside a CTAS to create the table is the following :  
+
+```SQL
+          USE SCHEMA CLEAN;
+          CREATE OR REPLACE TRANSIENT TABLE  delivery_match_clean_tb AS
+              select
+                  INFO:match_type_number::int as match,
+                  i.value:team::text as team,
+                  o.value:over+1::int over,
+                  d.value:bowler::text bowler,
+                  d.value:batter::text batter,
+                  d.value:non_striker::text non_striker,
+                  d.value:runs:batter::text runs,
+                  d.value:runs:extras::text extras,
+                  d.value:runs:total::text total,
+                  e.key::text extra_type,
+                  e.value::number extra_runs,
+                  w.value:player_out::text player_out,
+                  w.value:kind::text player_out_kind,
+                  w.value:player_out_filders::variant player_out_filders,
+                  file_name ,
+                  file_row_number,
+                  file_hashkey,
+                  modified_ts
+              from raw.match_raw_table m,
+              lateral flatten(input=> innings) i,
+              lateral flatten (input=>i.value:overs) o,
+              lateral flatten (input=>o.value:deliveries) d,
+              lateral flatten (input=>d.value:extras, outer=> TRUE) e,
+              lateral flatten (input=>d.value:wickets, outer=> TRUE) w
+          ;
+```
+
+We added the usual audit columns and also added 1 to the over column to start the idex at 1 rather than 0. Let's add some constraints same way as we did for the other tables.  
+
+```SQL
+          alter table cricket.clean.delivery_match_clean_tb
+          modify column match_type_number set not null;
+          
+          alter table cricket.clean.delivery_match_clean_tb
+          modify column team set not null;
+          
+          alter table cricket.clean.delivery_match_clean_tb
+          modify column over set not null;
+          
+          alter table cricket.clean.delivery_match_clean_tb
+          modify column bowler set not null;
+          
+          alter table cricket.clean.delivery_match_clean_tb
+          modify column batter set not null;
+          
+          alter table cricket.clean.delivery_match_clean_tb
+          modify column non_striker set not null;
+          
+          -- fk relationship
+          alter table cricket.clean.delivery_match_clean_tb
+          add constraint fk_delivery_match_id
+          foreign key (match_type_number)
+          references cricket.clean.match_detail_clean (match_type_number);
+```
+
+#### 4.7 Gold layer :  
+
+In this area we will create our data warehouse from the silver layer. This step depends on the business needs ans the answers to be provided to the questions asked by the business. For example when a certain match was palyed, who one, what was the score and so on ...  
+
+we can think of a list of dimensions that will be needed such as :  
+  - Date Dim : useful for time intelligence analysis.
+  - MatchType Dim : useful to analyse data per type of match.
+  - Geography Dim : to analyse data based on the location of the match.
+  - Player Dim : essentiel to analyse data based on the details of players. For example the youngest player to score.
+  - Team Dim : gives details regarding the teams so that we can analyse statistics of a single team for example.
+  - Match Fact : it is the table holding details and scores about the matchs to analyse using the other dimensions. 
+
+Next we will first create dimensions then fact table since these latters will hold the FKs of the dimensions.  
+
+#### 4.7.1 Creating the dimentions : 
+
+```SQL
+                  USE DATABASE CRICKET;
+                  USE SCHEMA CONSUMPTION;
+                  USE ROLE SYSADMIN;
+
+                  --date
+                  create or replace table date_dim (
+                      date_id int primary key autoincrement,
+                      full_dt date,
+                      day int,
+                      month int,
+                      year int,
+                      quarter int,
+                      dayofweek int,
+                      dayofmonth int,
+                      dayofyear int,
+                      dayofweekname varchar(3), -- to store day names (e.g., "Mon")
+                      isweekend boolean -- to indicate if it's a weekend (True/False Sat/Sun both falls under weekend)
+                  );
+
+                  -- referee
+                  create or replace table referee_dim (
+                      referee_id int primary key autoincrement,
+                      referee_name text not null,
+                      referee_type text not null
+                  );
+
+                  -- team
+                  create or replace table team_dim (
+                      team_id int primary key autoincrement,
+                      team_name text not null
+                  );
+                  
+                  -- player..
+                  create or replace table player_dim (
+                      player_id int primary key autoincrement,
+                      team_id int not null,
+                      player_name text not null
+                  );
+                  
+                  alter table cricket.consumption.player_dim
+                  add constraint fk_team_player_id
+                  foreign key (team_id)
+                  references cricket.consumption.team_dim (team_id);
+                  
+                  
+                  -- geography
+                  create or replace table geography_dim (
+                      venue_id int primary key autoincrement,
+                      venue_name text not null,
+                      city text not null,
+                      state text,
+                      country text,
+                      continent text,
+                      end_Names text,
+                      capacity number,
+                      pitch text,
+                      flood_light boolean,
+                      established_dt date,
+                      playing_area text,
+                      other_sports text,
+                      curator text,
+                      lattitude number(10,6),
+                      longitude number(10,6)
+                  );
+                  
+                  create or replace table match_type_dim (
+                      match_type_id int primary key autoincrement,
+                      match_type text not null
+                  );
+
+```
+
+**Note that the player dimension is a sub dimension of the team dimension. So the model is actualy a snowflake rather than a star schema.**  
 
 
+#### 4.7.2 Creating the fact table : 
+
+In the match fact table we can create some calculated columns that will hold the metrics of each match that can be used in a Cube or a PoweBI model to visualize the data.  
 
 
+```SQL
+            -- Math fact table
+
+            CREATE or replace TABLE match_fact (
+                match_id INT PRIMARY KEY,
+                date_id INT NOT NULL,
+                referee_id INT NOT NULL,
+                team_a_id INT NOT NULL,
+                team_b_id INT NOT NULL,
+                match_type_id INT NOT NULL,
+                venue_id INT NOT NULL,
+                total_overs number(3),
+                balls_per_over number(1),
+            
+                overs_played_by_team_a number(2),
+                bowls_played_by_team_a number(3),
+                extra_bowls_played_by_team_a number(3),
+                extra_runs_scored_by_team_a number(3),
+                fours_by_team_a number(3),
+                sixes_by_team_a number(3),
+                total_score_by_team_a number(3),
+                wicket_lost_by_team_a number(2),
+            
+                overs_played_by_team_b number(2),
+                bowls_played_by_team_b number(3),
+                extra_bowls_played_by_team_b number(3),
+                extra_runs_scored_by_team_b number(3),
+                fours_by_team_b number(3),
+                sixes_by_team_b number(3),
+                total_score_by_team_b number(3),
+                wicket_lost_by_team_b number(2),
+            
+                toss_winner_team_id int not null, 
+                toss_decision text not null, 
+                match_result text not null, 
+                winner_team_id int not null,
+            
+                CONSTRAINT fk_date FOREIGN KEY (date_id) REFERENCES date_dim (date_id),
+                CONSTRAINT fk_referee FOREIGN KEY (referee_id) REFERENCES referee_dim (referee_id),
+                CONSTRAINT fk_team1 FOREIGN KEY (team_a_id) REFERENCES team_dim (team_id),
+                CONSTRAINT fk_team2 FOREIGN KEY (team_b_id) REFERENCES team_dim (team_id),
+                CONSTRAINT fk_match_type FOREIGN KEY (match_type_id) REFERENCES match_type_dim (match_type_id),
+                CONSTRAINT fk_venue FOREIGN KEY (venue_id) REFERENCES geography_dim (venue_id),
+                CONSTRAINT fk_toss_winner_team FOREIGN KEY (toss_winner_team_id) REFERENCES team_dim (team_id),
+                CONSTRAINT fk_winner_team FOREIGN KEY (winner_team_id) REFERENCES team_dim (team_id)
+            );
+```
+
+Using database tool such as SSMS or Dbeaver we can view the ER diagram of our consumption layer :  
+
+![{A995DCAD-4549-4FEA-993F-49010B2AE7DA}](https://github.com/user-attachments/assets/4bbcdbcf-ae7b-4285-8199-0545c81bb5db)  
 
 
+#### 4.7.4 Populating the fact and dimension tables : 
+
+We can start with the simple one which is the team dimension. We can simply make a union of "First_team" and "Second_team" and perform a select distinct on the result :  
+
+```SQL
+                SELECT DISTINCT team_name
+                FROM
+                    (
+                    SELECT 
+                        first_team team_name
+                    FROM CLEAN.match_detail_clean
+                    UNION ALL
+                    SELECT 
+                        second_team team_name
+                    FROM CLEAN.match_detail_clean
+                    )
+                ;
+```
+
+Let's insert this data in our team table :  
+
+```SQL
+                INSERT INTO consumption.team_dim (team_name)
+                SELECT DISTINCT team_name
+                FROM
+                    (
+                    SELECT 
+                        first_team team_name
+                    FROM CLEAN.match_detail_clean
+                    UNION ALL
+                    SELECT 
+                        second_team team_name
+                    FROM CLEAN.match_detail_clean
+                    )
+                ORDER BY team_name
+                ;
+```
+
+The player dimension is also a simple one and we can follow the same logic :  
+
+```SQL
+              SELECT t.team_id, p.team, p.player_name 
+              FROM
+              (
+                  SELECT team, player_name 
+                  FROM clean.player_clean_tb
+                  GROUP BY team, player_name
+              ) p
+              JOIN consumption.team_dim t ON t.team_name = p.team;
+```
+
+![{801DF6D3-F88C-42C0-AD11-D5F02574B948}](https://github.com/user-attachments/assets/5f13d03b-f1a6-4f2d-adf1-75217fa0f458)
 
 
+Then we can insert data in the player table in the consumption layer :  
+
+```SQL
+                INSERT INTO CRICKET.CONSUMPTION.PLAYER_DIM (team_id, player_name)
+                SELECT t.team_id, p.player_name 
+                FROM
+                (
+                    SELECT team, player_name 
+                    FROM clean.player_clean_tb
+                    GROUP BY team, player_name
+                ) p
+                JOIN consumption.team_dim t ON t.team_name = p.team;
+```
+
+For the geography dimension the logic is the same :  
+
+```SQL
+                  INSERT INTO CONSUMPTION.GEOGRAPHY_DIM (city, venue_name)
+                  SELECT city, venue FROM CLEAN.MATCH_DETAIL_CLEAN
+                  GROUP BY city, venue;
+```
+
+The other information regarding the stadium and coordinates can be populated using a GIS API.  
 
 
+Populating the match type the same way :  
 
+```SQL
+                  INSERT INTO CONSUMPTION.MATCH_TYPE_DIM (MATCH_TYPE)
+                  SELECT  match_type FROM clean.match_detail_clean GROUP BY match_type;
+```
 
+Now for the date dimension we will build using date function based on the max and min dates in the match clean table :  
 
-
-
-
-
-
-
-
+![{9059E0EB-42A5-42A9-9959-66A2E29BC694}](https://github.com/user-attachments/assets/e2275a1e-78f1-41d4-a975-63bfe961cf89)  
 
 
 
