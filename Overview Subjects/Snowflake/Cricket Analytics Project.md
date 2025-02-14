@@ -866,13 +866,48 @@ Populating the match type the same way :
                   SELECT  match_type FROM clean.match_detail_clean GROUP BY match_type;
 ```
 
-Now for the date dimension we will build using date function based on the max and min dates in the match clean table :  
+Now for the date dimension we will build using stored procedure based on the max and min dates in the match clean table :  
 
 ![{9059E0EB-42A5-42A9-9959-66A2E29BC694}](https://github.com/user-attachments/assets/e2275a1e-78f1-41d4-a975-63bfe961cf89)  
 
+The stored procedure will insert date in the date dimension dynamicaly using variables from a selection that will generate date based on the min and max date:  
 
+```SQL
+      DECLARE 
+              min_date date;
+              max_date date;
+              row_count INT;
+              sql_stat text;
+              res RESULTSET;
+      BEGIN
+              min_date := (SELECT min(event_date) FROM clean.match_detail_clean);
+              max_date := (SELECT max(event_date) FROM clean.match_detail_clean); 
+              row_count := (SELECT DATEDIFF(DAY, :min_date ,  :max_date));
+              sql_stat := 'SELECT DATEADD(DAY, ROW_NUMBER() OVER (ORDER BY seq4()) - 1,''' || :min_date || ''')::date AS date_value   
+                          FROM TABLE(GENERATOR(ROWCOUNT => ' || :row_count || '))'
+```
 
+The functions that will generate the range of dates between the max and min date variables are GENERATOR(ROWCOUNT => integer) and seq4() combined together.  
 
+Let's create a sequence of 30 numbers starting from 0 :  
+
+```SQL
+            SELECT SEQ4() FROM TABLE(GENERATOR(ROWCOUNT => 30));
+
+```
+Note that the table function is used to transform the list generated.  
+
+![{E80E2EAF-2416-476A-9634-DF0DD7B77E74}](https://github.com/user-attachments/assets/9439f064-7066-4139-942f-b14948096ae8)  
+
+now we can add a column that will use these values inside a DATEADD function to generate the dates starting from the min date : 
+
+![{62FFD201-22D2-4094-AEA8-C2228EFF5C01}](https://github.com/user-attachments/assets/7d7e1fd5-accd-478e-bbe2-5672d183f137)  
+
+The SEQ function may generate some gaps. So to insure that we don't have any gaps we can add ROW_NUMBER function -1 to start with index 0.  
+
+```SQL
+            SELECT SEQ4(), DATEADD(DAY, ROW_NUMBER() OVER (ORDER BY seq4()) - 1,$min_date) FROM TABLE(GENERATOR(ROWCOUNT => 30));
+```
 
 
 
