@@ -782,6 +782,8 @@ Using database tool such as SSMS or Dbeaver we can view the ER diagram of our co
 
 #### 4.7.4 Populating the fact and dimension tables : 
 
+##### - Populating Team dimension table : 
+
 We can start with the simple one which is the team dimension. We can simply make a union of "First_team" and "Second_team" and perform a select distinct on the result :  
 
 ```SQL
@@ -817,6 +819,7 @@ Let's insert this data in our team table :
                 ORDER BY team_name
                 ;
 ```
+##### - Populating Player dimension table : 
 
 The player dimension is also a simple one and we can follow the same logic :  
 
@@ -848,6 +851,8 @@ Then we can insert data in the player table in the consumption layer :
                 JOIN consumption.team_dim t ON t.team_name = p.team;
 ```
 
+##### - Populating Geography dimension table : 
+
 For the geography dimension the logic is the same :  
 
 ```SQL
@@ -858,6 +863,7 @@ For the geography dimension the logic is the same :
 
 The other information regarding the stadium and coordinates can be populated using a GIS API.  
 
+##### - Populating Player dimension table : 
 
 Populating the match type the same way :  
 
@@ -865,6 +871,8 @@ Populating the match type the same way :
                   INSERT INTO CONSUMPTION.MATCH_TYPE_DIM (MATCH_TYPE)
                   SELECT  match_type FROM clean.match_detail_clean GROUP BY match_type;
 ```
+
+##### - Populating Date dimension table : 
 
 Now for the date dimension we will build using stored procedure based on the max and min dates in the match clean table :  
 
@@ -909,6 +917,225 @@ The SEQ function may generate some gaps. So to insure that we don't have any gap
             SELECT SEQ4(), DATEADD(DAY, ROW_NUMBER() OVER (ORDER BY seq4()) - 1,$min_date) FROM TABLE(GENERATOR(ROWCOUNT => 30));
 ```
 
+Now from this date column generated we can give it a name and add other detailed columns based on it such as the day name, weekend or not and so on ...  
 
+![{FFAD35EC-935B-4129-823A-4F3DD1CB015C}](https://github.com/user-attachments/assets/fd05ec81-3b48-48e8-912e-83a199ea1a2a)  
+
+```SQL
+            SET min_date = (SELECT min(event_date) FROM clean.match_detail_clean);
+            SET max_date = (SELECT max(event_date) FROM clean.match_detail_clean); 
+            
+            SELECT
+                date_value AS Full_Dt,
+                EXTRACT(DAY FROM date_value) AS Day,
+                EXTRACT(MONTH FROM date_value) AS Month,
+                EXTRACT(YEAR FROM date_value) AS Year,
+                CASE WHEN EXTRACT(QUARTER FROM date_value) IN (1, 2, 3, 4) THEN EXTRACT(QUARTER FROM date_value) END AS Quarter,
+                DAYOFWEEKISO(date_value) AS DayOfWeek,
+                EXTRACT(DAY FROM date_value) AS DayOfMonth,
+                DAYOFYEAR(date_value) AS DayOfYear,
+                DAYNAME(date_value) AS DayOfWeekName,
+                CASE When DAYNAME(date_value) IN ('Sat', 'Sun') THEN 1 ELSE 0 END AS IsWeekend
+            FROM
+            ( SELECT SEQ4(), DATEADD(DAY, ROW_NUMBER() OVER (ORDER BY seq4()) - 1,$min_date) date_value FROM TABLE(GENERATOR(ROWCOUNT => 30)) );
+```
+
+We can also create a variable that will calculate the rowcount value using the differene between the max and the min date value + 1 (to include the max date also) and replcae the integer 30. Hewever, the generate function does not allow the use of variables inside it so we need to wrap the whole sql query inside an EXECUTE IMMEDIATE query that will hardcode all the variables in the query. Note that EXECUTE IMMEDIATE needs the query to be a string !  
+The full stored procedure is the following :  
+
+```SQL
+                  CREATE OR REPLACE PROCEDURE generate_dates()
+                  RETURNS TABLE()
+                  LANGUAGE SQL
+                  AS
+                  
+                  DECLARE 
+                          min_date date;
+                          max_date date;
+                          row_count INT;
+                          sql_stat text;
+                          res RESULTSET;
+                  BEGIN
+                          min_date := (SELECT min(event_date) FROM clean.match_detail_clean);
+                          max_date := (SELECT max(event_date) FROM clean.match_detail_clean); 
+                          row_count := (SELECT DATEDIFF(DAY, :min_date ,  :max_date) + 1);
+                          TRUNCATE TABLE CRICKET.CONSUMPTION.DATE_DIM;
+                          sql_stat := 'INSERT INTO cricket.consumption.date_dim (Full_Dt, Day, Month, Year, Quarter, DayOfWeek,      
+                                       DayOfMonth, DayOfYear, DayOfWeekName, IsWeekend)
+                                          SELECT
+                                              date_value AS Full_Dt,
+                                              EXTRACT(DAY FROM date_value) AS Day,
+                                              EXTRACT(MONTH FROM date_value) AS Month,
+                                              EXTRACT(YEAR FROM date_value) AS Year,
+                                              CASE WHEN EXTRACT(QUARTER FROM date_value) IN (1, 2, 3, 4) THEN EXTRACT(QUARTER FROM date_value) END AS Quarter,
+                                              DAYOFWEEKISO(date_value) AS DayOfWeek,
+                                              EXTRACT(DAY FROM date_value) AS DayOfMonth,
+                                              DAYOFYEAR(date_value) AS DayOfYear,
+                                              DAYNAME(date_value) AS DayOfWeekName,
+                                              CASE When DAYNAME(date_value) IN (''Sat'', ''Sun'') THEN 1 ELSE 0 END AS IsWeekend
+                                          FROM
+                                          (
+                                          SELECT DATEADD(DAY, ROW_NUMBER() OVER (ORDER BY seq4()) - 1,''' || :min_date || ''')::date AS date_value   
+                                          FROM TABLE(GENERATOR(ROWCOUNT => ' || :row_count || '))
+                                          )';
+                          res := (EXECUTE IMMEDIATE :sql_stat);
+                          RETURN TABLE(res)
+                  
+                          ;
+                  END;
+                  
+                  CALL generate_dates();
+```
+
+We insure that we truncate the table each time we need to call the SP since it is a simple table.  
+
+##### - Populating Match fact table : 
+
+For the Match fact table we will need to populate the foreign keys first which will need joins between the MATCH_DETAIL_CLEAN (at the silver layer) and  all the dimension tables already populated. Also some calculations will be retrieved from the delivery clean table.    
+
+For example we can retrieve the date ID, the first team ID and the second team ID using the following query.  
+
+```SQL
+              SELECT 
+                  m.match_type_number AS match_id,
+                  dd.date_id AS date_id,
+                  ftd.team_id AS first_team_id,
+                  std.team_id AS second_team_id,
+              FROM 
+                  cricket.clean.match_detail_clean m
+                  JOIN date_dim dd ON m.event_date = dd.full_dt
+                  JOIN team_dim ftd ON m.first_team = ftd.team_name 
+                  JOIN team_dim std ON m.second_team = std.team_name;
+```
+
+![{3FD5826E-B513-484E-B0D4-4C8CAF403789}](https://github.com/user-attachments/assets/dae7f752-c6df-4a4f-b60b-5e84120ff4d8)  
+
+We can follow the samz logic for the rest of the columns and then add the calculations and finish the query with the group by clause :  
+
+```SQL
+                SELECT 
+                    m.match_type_number AS match_id,
+                    dd.date_id AS date_id,
+                    0 AS referee_id,
+                    ftd.team_id AS first_team_id,
+                    std.team_id AS second_team_id,
+                    mtd.match_type_id AS match_type_id,
+                    vd.venue_id AS venue_id,
+                    50 AS total_overs,
+                    6 AS balls_per_overs,
+                    max(CASE WHEN d.team = m.first_team THEN  d.over ELSE 0 END ) AS OVERS_PLAYED_BY_TEAM_A,
+                    sum(CASE WHEN d.team = m.first_team THEN  1 ELSE 0 END ) AS balls_PLAYED_BY_TEAM_A,
+                    sum(CASE WHEN d.team = m.first_team THEN  d.extras ELSE 0 END ) AS extra_balls_PLAYED_BY_TEAM_A,
+                    sum(CASE WHEN d.team = m.first_team THEN  d.extra_runs ELSE 0 END ) AS extra_runs_scored_BY_TEAM_A,
+                    0 fours_by_team_a,
+                    0 sixes_by_team_a,
+                    (sum(CASE WHEN d.team = m.first_team THEN  d.runs ELSE 0 END ) + sum(CASE WHEN d.team = m.first_team THEN  d.extra_runs ELSE 0 END ) ) AS total_runs_scored_BY_TEAM_A,
+                    sum(CASE WHEN d.team = m.first_team AND player_out IS NOT null THEN  1 ELSE 0 END ) AS wicket_lost_by_team_a,    
+                    
+                    max(CASE WHEN d.team = m.second_team THEN  d.over ELSE 0 END ) AS OVERS_PLAYED_BY_TEAM_B,
+                    sum(CASE WHEN d.team = m.second_team THEN  1 ELSE 0 END ) AS balls_PLAYED_BY_TEAM_B,
+                    sum(CASE WHEN d.team = m.second_team THEN  d.extras ELSE 0 END ) AS extra_balls_PLAYED_BY_TEAM_B,
+                    sum(CASE WHEN d.team = m.second_team THEN  d.extra_runs ELSE 0 END ) AS extra_runs_scored_BY_TEAM_B,
+                    0 fours_by_team_b,
+                    0 sixes_by_team_b,
+                    (sum(CASE WHEN d.team = m.second_team THEN  d.runs ELSE 0 END ) + sum(CASE WHEN d.team = m.second_team THEN  d.extra_runs ELSE 0 END ) ) AS total_runs_scored_BY_TEAM_B,
+                    sum(CASE WHEN d.team = m.second_team AND player_out IS NOT null THEN  1 ELSE 0 END ) AS wicket_lost_by_team_b,
+                    tw.team_id AS toss_winner_team_id,
+                    m.toss_decision AS toss_decision,
+                    m.matach_result AS matach_result,
+                    mw.team_id AS winner_team_id
+                     
+                from 
+                    cricket.clean.match_detail_clean m
+                    JOIN date_dim dd ON m.event_date = dd.full_dt
+                    JOIN team_dim ftd ON m.first_team = ftd.team_name 
+                    JOIN team_dim std ON m.second_team = std.team_name 
+                    JOIN match_type_dim mtd ON m.match_type = mtd.match_type
+                    JOIN geography_dim vd ON m.venue = vd.venue_name AND m.city = vd.city
+                    JOIN cricket.clean.delivery_match_clean_tb d  ON d.match_type_number = m.match_type_number 
+                    JOIN team_dim tw ON m.toss_winner = tw.team_name 
+                    JOIN team_dim mw ON m.winner= mw.team_name 
+                    
+                GROUP BY
+                    m.match_type_number,
+                    date_id,
+                    referee_id,
+                    first_team_id,
+                    second_team_id,
+                    match_type_id,
+                    venue_id,
+                    total_overs,
+                    toss_winner_team_id,
+                    toss_decision,
+                    matach_result,
+                    winner_team_id
+                        ;
+```
+
+![{48975168-6E61-418D-ABDA-9C90EFCE8EE0}](https://github.com/user-attachments/assets/fccef7f2-17e0-4f27-a914-e96ae76b4062)  
+
+Now we can wrap it inside an insert claue :  
+
+```SQL
+            INSERT INTO CONSUMPTION.MATCH_FACT
+
+            SELECT 
+                m.match_type_number AS match_id,
+                dd.date_id AS date_id,
+                0 AS referee_id,
+                ftd.team_id AS first_team_id,
+                std.team_id AS second_team_id,
+                mtd.match_type_id AS match_type_id,
+                vd.venue_id AS venue_id,
+                50 AS total_overs,
+                6 AS balls_per_overs,
+                max(CASE WHEN d.team = m.first_team THEN  d.over ELSE 0 END ) AS OVERS_PLAYED_BY_TEAM_A,
+                sum(CASE WHEN d.team = m.first_team THEN  1 ELSE 0 END ) AS balls_PLAYED_BY_TEAM_A,
+                sum(CASE WHEN d.team = m.first_team THEN  d.extras ELSE 0 END ) AS extra_balls_PLAYED_BY_TEAM_A,
+                sum(CASE WHEN d.team = m.first_team THEN  d.extra_runs ELSE 0 END ) AS extra_runs_scored_BY_TEAM_A,
+                0 fours_by_team_a,
+                0 sixes_by_team_a,
+                (sum(CASE WHEN d.team = m.first_team THEN  d.runs ELSE 0 END ) + sum(CASE WHEN d.team = m.first_team THEN  d.extra_runs ELSE 0 END ) ) AS total_runs_scored_BY_TEAM_A,
+                sum(CASE WHEN d.team = m.first_team AND player_out IS NOT null THEN  1 ELSE 0 END ) AS wicket_lost_by_team_a,    
+                
+                max(CASE WHEN d.team = m.second_team THEN  d.over ELSE 0 END ) AS OVERS_PLAYED_BY_TEAM_B,
+                sum(CASE WHEN d.team = m.second_team THEN  1 ELSE 0 END ) AS balls_PLAYED_BY_TEAM_B,
+                sum(CASE WHEN d.team = m.second_team THEN  d.extras ELSE 0 END ) AS extra_balls_PLAYED_BY_TEAM_B,
+                sum(CASE WHEN d.team = m.second_team THEN  d.extra_runs ELSE 0 END ) AS extra_runs_scored_BY_TEAM_B,
+                0 fours_by_team_b,
+                0 sixes_by_team_b,
+                (sum(CASE WHEN d.team = m.second_team THEN  d.runs ELSE 0 END ) + sum(CASE WHEN d.team = m.second_team THEN  d.extra_runs ELSE 0 END ) ) AS total_runs_scored_BY_TEAM_B,
+                sum(CASE WHEN d.team = m.second_team AND player_out IS NOT null THEN  1 ELSE 0 END ) AS wicket_lost_by_team_b,
+                tw.team_id AS toss_winner_team_id,
+                m.toss_decision AS toss_decision,
+                m.matach_result AS matach_result,
+                mw.team_id AS winner_team_id
+                 
+            from 
+                cricket.clean.match_detail_clean m
+                JOIN date_dim dd ON m.event_date = dd.full_dt
+                JOIN team_dim ftd ON m.first_team = ftd.team_name 
+                JOIN team_dim std ON m.second_team = std.team_name 
+                JOIN match_type_dim mtd ON m.match_type = mtd.match_type
+                JOIN geography_dim vd ON m.venue = vd.venue_name AND m.city = vd.city
+                JOIN cricket.clean.delivery_match_clean_tb d  ON d.match_type_number = m.match_type_number 
+                JOIN team_dim tw ON m.toss_winner = tw.team_name 
+                JOIN team_dim mw ON m.winner= mw.team_name 
+                
+            GROUP BY
+                m.match_type_number,
+                date_id,
+                referee_id,
+                first_team_id,
+                second_team_id,
+                match_type_id,
+                venue_id,
+                total_overs,
+                toss_winner_team_id,
+                toss_decision,
+                matach_result,
+                winner_team_id
+                    ;
+```
 
 
