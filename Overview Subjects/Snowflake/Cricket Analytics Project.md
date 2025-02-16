@@ -779,6 +779,32 @@ Using database tool such as SSMS or Dbeaver we can view the ER diagram of our co
 
 ![{A995DCAD-4549-4FEA-993F-49010B2AE7DA}](https://github.com/user-attachments/assets/4bbcdbcf-ae7b-4285-8199-0545c81bb5db)  
 
+We can also add another fact table containing the detailed deliveries of each match like the following : 
+
+```SQL
+                  USE DATABASE CRICKET;
+                  USE SCHEMA CONSUMPTION;
+                  USE ROLE SYSADMIN;
+                CREATE or replace TABLE delivery_fact (
+                    match_id INT ,
+                    team_id INT,
+                    bowler_id INT,
+                    batter_id INT,
+                    non_striker_id INT,
+                    over INT,
+                    runs INT,
+                    extra_runs INT,
+                    extra_type VARCHAR(255),
+                    player_out VARCHAR(255),
+                    player_out_kind VARCHAR(255),
+                
+                    CONSTRAINT fk_del_match_id FOREIGN KEY (match_id) REFERENCES match_fact (match_id),
+                    CONSTRAINT fk_del_team FOREIGN KEY (team_id) REFERENCES team_dim (team_id),
+                    CONSTRAINT fk_bowler FOREIGN KEY (bowler_id) REFERENCES player_dim (player_id),
+                    CONSTRAINT fk_batter FOREIGN KEY (batter_id) REFERENCES player_dim (player_id),
+                    CONSTRAINT fk_stricker FOREIGN KEY (non_striker_id) REFERENCES player_dim (player_id)
+                );
+```
 
 #### 4.7.4 Populating the fact and dimension tables : 
 
@@ -1137,5 +1163,8 @@ Now we can wrap it inside an insert claue :
                 winner_team_id
                     ;
 ```
+
+##### - Populating Deliveries fact table :
+
 
 
