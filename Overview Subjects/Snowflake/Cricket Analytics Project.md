@@ -1207,7 +1207,87 @@ After building our Gold layer which is nothing else than a datawarehouse, we can
 ![{2E14C48B-3CF2-40D8-85FE-C8239F211EDA}](https://github.com/user-attachments/assets/76665443-2de9-4da8-a646-09cd10dc7663)  
 
 
+### 5. Automate the data flow :
 
+We managed so far to build our lakehouse with all the needed components, but what if new data (a new json file in our case) arrives? should we repeat the whole process manually ? This where the automation is needed !  
+Several tools can do this but in our project we will use mainly the built-in functionnalities of snowflake to automate the process of data loading.  
 
+![image](https://github.com/user-attachments/assets/b8e0d300-7dcf-42ae-8e38-b72e17d9737e)  
+
+3 snowflake objects are needed :  
+
+- Snowpipe : is Snowflake’s continuous data ingestion service, designed to automatically load data from external storage (AWS S3, Azure Blob, GCS) into Snowflake as soon as new files arrive.
+- Snowflake stream :  captures row-level changes (INSERTs, UPDATEs, DELETEs) on a table. Streams are used to track new data loaded by Snowpipe before further processing.
+- Snowflake task : automates execution of SQL or Snowpark scripts at scheduled intervals. Tasks can process data from streams and transform it into final tables.
+
+![{D21B87A0-9B7D-40FF-B970-20CDF91D910F}](https://github.com/user-attachments/assets/45cf18a0-9c61-439d-bb33-6e23135e99dc)  
+
+To use a snowpipe we need to configure azure to store events of the blob storage and send notifications to the snowflake to be captured to trigger the snowpipe. This will need a configuration of an **Event subscription**:  
+
+![{CF6BC2ED-EE5D-45EB-89B7-ED71238D8097}](https://github.com/user-attachments/assets/4f9d77fe-1aaa-47bf-baeb-3b3573c592ba)  
+
+![{51A9F905-B200-40D0-A285-71EB7653994A}](https://github.com/user-attachments/assets/459e1f2c-f4df-4655-b660-8461e4c2dae1)  
+
+We specify where to store the events. In this case we will use the storage Queue:  
+
+![{D17F600B-3F28-45FD-8244-E083BE8D1AD7}](https://github.com/user-attachments/assets/5ab7d177-bfed-4df0-be37-de9898fd81ea)  
+
+We choose one or create a new Queue:  
+
+![{E6170701-A240-4A19-A82B-3DFA0197BE04}](https://github.com/user-attachments/assets/73b11648-6d20-480d-8e7f-7d43856b70c5)  
+
+In the filter section we can specify that we want this events subscription to listen to only one container:  
+
+![{643C187D-2387-46F7-B8E9-17998E72F5B1}](https://github.com/user-attachments/assets/f9e41799-1712-4f5b-9846-c284c3100d9c)  
+
+The result sent to the queue is a JSON file and similar to the following :  
+
+![{559C4FFB-C4B8-44F7-B672-63C7BE8E87B0}](https://github.com/user-attachments/assets/0892ad45-4d88-4e9d-9f10-bb7961560cf4)  
+
+![{78AD3C01-3CFB-494A-94E1-CD91ABD6D5CF}](https://github.com/user-attachments/assets/9fe66e60-fa9e-4488-a8bb-531cf634c3ae)  
+
+The notifications are captured in snowflake using **notification integration** and will trigger the pipe each time a file is added in the external storage (Azure in our case).  
+
+```SQL
+            CREATE  NOTIFICATION INTEGRATION EventFiles
+            ENABLED =TRUE
+            TYPE=QUEUE
+            NOTIFICATION_PROVIDER=AZURE_STORAGE_QUEUE
+            AZURE_STORAGE_QUEUE_PRIMARY_URI='*****'
+            AZURE_TENANT_ID='****';
+```
+**Note that this will need a first authentification (we can find the link to consent in the result of the DESC query on the NOTIFICATION INTEGRATION) as it uses an app registration to connect to AZURE events (We also need to grant this app the Queue Blob Contributor Role.)**  
+
+Then we create the pipe as follows: 
+
+```SQL
+
+            CREATE OR REPLACE pipe "load_to_raw"
+              auto_ingest = true
+              integration = 'EventFiles'
+              AS
+            COPY INTO CRICKET.RAW.MATCH_RAW_TABLE
+            FROM (
+                SELECT 
+                    t.$1:meta::object AS meta, 
+                    t.$1:info::variant AS info, 
+                    t.$1:innings::array AS innings, 
+                    --
+                    metadata$filename,
+                    metadata$file_row_number,
+                    metadata$file_content_key,
+                    metadata$file_last_modified
+                FROM @CRICKET_JSON_FILES_CONTAINER_ONLY
+                (FILE_FORMAT => 'cricket.land.json_ff') t
+                )
+            ON_ERROR = continue
+            ;
+
+ALTER PIPE BANK_TRANSACTIONS_PIPE REFRESH;
+```
+
+Now the snowpipe is running and will capture notifications and trigger the Copy Into query !  
+
+We can do this in another way using only tasks. A task to run each 5 min for example to Copy data into the table !  
 
 
