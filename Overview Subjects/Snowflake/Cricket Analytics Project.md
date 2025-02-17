@@ -1166,5 +1166,30 @@ Now we can wrap it inside an insert claue :
 
 ##### - Populating Deliveries fact table :
 
+The same logic applies to the deliveries fact table :  
+
+```SQL
+                INSERT INTO delivery_fact
+                SELECT 
+                    d.match_type_number AS match_id,
+                    td.team_id,
+                    bpd.player_id AS bower_id, 
+                    spd.player_id batter_id, 
+                    nspd.player_id AS non_stricker_id,
+                    d.over,
+                    d.runs,
+                    CASE WHEN d.extra_runs IS NULL THEN 0 ELSE d.extra_runs END AS extra_runs,
+                    CASE WHEN d.extra_type IS NULL THEN 'None' ELSE d.extra_type END AS extra_type,
+                    CASE WHEN d.player_out IS NULL THEN 'None' ELSE d.player_out END AS player_out,
+                    CASE WHEN d.player_out_kind IS NULL THEN 'None' ELSE d.player_out_kind END AS player_out_kind
+                FROM 
+                    cricket.clean.DELIVERY_MATCH_CLEAN_TB d
+                    JOIN team_dim td ON d.team = td.team_name
+                    JOIN player_dim bpd ON d.bowler = bpd.player_name
+                    JOIN player_dim spd ON d.batter = spd.player_name
+                    JOIN player_dim nspd ON d.non_striker = nspd.player_name;
+```
+
+![{2D346410-4683-4DE2-A46C-584060EA6F23}](https://github.com/user-attachments/assets/30a0dfc7-268e-46d4-84df-2d3c802eaeeb)  
 
 
