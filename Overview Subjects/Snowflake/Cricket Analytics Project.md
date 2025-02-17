@@ -1192,7 +1192,7 @@ The same logic applies to the deliveries fact table :
 
 ![{2D346410-4683-4DE2-A46C-584060EA6F23}](https://github.com/user-attachments/assets/30a0dfc7-268e-46d4-84df-2d3c802eaeeb)  
 
-### 4. Data Viz :
+### 5. Data Viz :
 
 After building our Gold layer which is nothing else than a datawarehouse, we can connect to it using a BI tool such as PowerBI and view the modele as well as create some graphs !  
 
@@ -1207,7 +1207,7 @@ After building our Gold layer which is nothing else than a datawarehouse, we can
 ![{2E14C48B-3CF2-40D8-85FE-C8239F211EDA}](https://github.com/user-attachments/assets/76665443-2de9-4da8-a646-09cd10dc7663)  
 
 
-### 5. Automate the data flow :
+### 6. Automate the data flow :
 
 We managed so far to build our lakehouse with all the needed components, but what if new data (a new json file in our case) arrives? should we repeat the whole process manually ? This where the automation is needed !  
 Several tools can do this but in our project we will use mainly the built-in functionnalities of snowflake to automate the process of data loading.  
@@ -1221,6 +1221,8 @@ Several tools can do this but in our project we will use mainly the built-in fun
 - Snowflake task : automates execution of SQL or Snowpark scripts at scheduled intervals. Tasks can process data from streams and transform it into final tables.
 
 ![{D21B87A0-9B7D-40FF-B970-20CDF91D910F}](https://github.com/user-attachments/assets/45cf18a0-9c61-439d-bb33-6e23135e99dc)  
+
+#### 6.1 Use of snowpipe to automate data loading from stage:
 
 To use a snowpipe we need to configure azure to store events of the blob storage and send notifications to the snowflake to be captured to trigger the snowpipe. This will need a configuration of an **Event subscription**:  
 
@@ -1289,5 +1291,24 @@ ALTER PIPE BANK_TRANSACTIONS_PIPE REFRESH;
 Now the snowpipe is running and will capture notifications and trigger the Copy Into query !  
 
 We can do this in another way using only tasks. A task to run each 5 min for example to Copy data into the table !  
+
+
+#### 6.2 Use of tasks to automate data loading from stage and table populating :
+
+We have one big raw table which is the raw area that feeds 3 tables in the clean area :  
+
+![{C278128C-88D9-449F-884B-2D9E9D8E95E4}](https://github.com/user-attachments/assets/e9b691c1-fcf3-4e60-92f4-9b77572743bc)  
+
+So we will need to build 3 streams on the raw table to feed the 3 tables since a stream is only consumed once !  
+
+```SQL
+                  CREATE OR REPLACE STREAM CRICKET.RAW.match_stream ON TABLE CRICKET.RAW.MATCH_RAW_TABLE APPEND_ONLY = TRUE;
+                  
+                  CREATE OR REPLACE STREAM CRICKET.RAW.player_stream ON TABLE CRICKET.RAW.MATCH_RAW_TABLE APPEND_ONLY = TRUE;
+                  
+                  CREATE OR REPLACE STREAM CRICKET.RAW.delivery_stream ON TABLE CRICKET.RAW.MATCH_RAW_TABLE APPEND_ONLY = TRUE;
+```
+
+
 
 
