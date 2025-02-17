@@ -23,7 +23,7 @@ Here is a simple diagram that shows the structure of the project :
 After loading files in the blob storage (in production case it is recommanded to use ADLS Gen 2 to benifit from the hierarchy if needed), we connect snowflake to the azure storage using external stage.  
 With a files format, we will be able to parse the json data and then load it into Snowflake.  
 
-#### 1.1 Medallion achitecture: 
+#### 3.1 Medallion achitecture: 
 
 Following the medallion architecture of lakehouses, we created 4 schemas (the first one is optional as we could directly read from the external stage) : 
 - Landing area : it is simply a schema that will hold a table containing all the json files as rows. This area is aptional!
@@ -1191,5 +1191,23 @@ The same logic applies to the deliveries fact table :
 ```
 
 ![{2D346410-4683-4DE2-A46C-584060EA6F23}](https://github.com/user-attachments/assets/30a0dfc7-268e-46d4-84df-2d3c802eaeeb)  
+
+### 4. Data Viz :
+
+After building our Gold layer which is nothing else than a datawarehouse, we can connect to it using a BI tool such as PowerBI and view the modele as well as create some graphs !  
+
+![{2B1C99FF-A5A7-40C3-9900-BAC5714C4D43}](https://github.com/user-attachments/assets/883ce9c0-1acd-4e77-8e96-485a6baca9ff)  
+
+![{9DBE859B-7F99-400F-9713-6F6B192968B7}](https://github.com/user-attachments/assets/c54ef59f-a25a-4aa2-9ea8-851dc816127d)  
+
+![{1A9DA1EB-BD62-484C-BE6C-670EB0FDF2E4}](https://github.com/user-attachments/assets/3cf84b4e-ff2a-4412-8155-dca880407055)  
+
+![{5128121A-E170-4A06-B353-E47E042F3EC7}](https://github.com/user-attachments/assets/3f87983d-25be-4d54-bfe1-b1a21e34ee86)  
+
+![{2E14C48B-3CF2-40D8-85FE-C8239F211EDA}](https://github.com/user-attachments/assets/76665443-2de9-4da8-a646-09cd10dc7663)  
+
+
+
+
 
 
