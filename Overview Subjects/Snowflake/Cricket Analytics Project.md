@@ -1309,6 +1309,160 @@ So we will need to build 3 streams on the raw table to feed the 3 tables since a
                   CREATE OR REPLACE STREAM CRICKET.RAW.delivery_stream ON TABLE CRICKET.RAW.MATCH_RAW_TABLE APPEND_ONLY = TRUE;
 ```
 
+ Now these streams will  capture all the changes in the tables so we can use them in the insert query later on. **Note that the streams above will track only the inserts since we specified the APPEND_ONLY to true. If Wa are dealing with SCD type 2 we will need to track inserts and updates so we should not set the APPEND_ONLY to true. By default the stream tracks inserts, updates and deletes. We can filer on the result to choose only inserts an updates like follows**:  
 
+
+```SQL
+                  SELECT * 
+                  FROM my_stream
+                  WHERE METADATA$ACTION != 'DELETE';
+```
+
+We need to create now a task that will run on a schedule to copy data in the first big table in the raw area !  
+
+```SQL
+                  CREATE OR REPLACE TASK CRICKET.RAW.load_json_files
+                  WAREHOUSE = 'COMPUTE_WH'
+                  SCHEDULE = '5 minute'
+                  AS 
+                  COPY INTO CRICKET.RAW.MATCH_RAW_TABLE
+                  FROM (
+                      SELECT 
+                          t.$1:meta::object AS meta, 
+                          t.$1:info::variant AS info, 
+                          t.$1:innings::array AS innings, 
+                          --
+                          metadata$filename,
+                          metadata$file_row_number,
+                          metadata$file_content_key,
+                          metadata$file_last_modified
+                      FROM @CRICKET_JSON_FILES_CONTAINER_ONLY
+                      (FILE_FORMAT => 'cricket.land.json_ff') t
+                      )
+                  ON_ERROR = continue
+                  ;
+```
+
+Now we need a task that will depend on the first task and take the content of the raw stream and insert it in the clean table :  
+
+```SQL
+                CREATE OR REPLACE TASK CRICKET.RAW.load_to_clean_match_table
+                WAREHOUSE = 'COMPUTE_WH'
+                AFTER CRICKET.RAW.load_json_files
+                WHEN SYSTEM$STREAM_HAS_DATA('CRICKET.RAW.match_stream')
+                AS
+                INSERT INTO cricket.clean.match_detail_clean 
+                select
+                    info:match_type_number::int as match_type_number, 
+                    info:event.name::text as event_name,
+                    case
+                    when 
+                        info:event.match_number::text is not null then info:event.match_number::text
+                    when 
+                        info:event.stage::text is not null then info:event.stage::text
+                    else
+                        'NA'
+                    end as match_stage,   
+                    info:dates[0]::date as event_date,
+                    date_part('year',info:dates[0]::date) as event_year,
+                    date_part('month',info:dates[0]::date) as event_month,
+                    date_part('day',info:dates[0]::date) as event_day,
+                    info:match_type::text as match_type,
+                    info:season::text as season,
+                    info:team_type::text as team_type,
+                    info:overs::text as overs,
+                    info:city::text as city,
+                    info:venue::text as venue, 
+                    info:gender::text as gender,
+                    info:teams[0]::text as first_team,
+                    info:teams[1]::text as second_team,
+                    case 
+                        when info:outcome.winner is not null then 'Result Declared'
+                        when info:outcome.result = 'tie' then 'Tie'
+                        when info:outcome.result = 'no result' then 'No Result'
+                        else info:outcome.result
+                    end as matach_result,
+                    case 
+                        when info:outcome.winner is not null then info:outcome.winner
+                        else 'NA'
+                    end as winner,   
+                
+                    info:toss.winner::text as toss_winner,
+                    initcap(info:toss.decision::text) as toss_decision,
+                    --
+                    file_name ,
+                    file_row_number,
+                    file_hashkey,
+                    modified_ts
+                from CRICKET.RAW.match_stream;
+```
+
+The same thing for the player clean table : 
+
+```SQL
+                  CREATE OR REPLACE TASK CRICKET.RAW.load_to_clean_player_table
+                  WAREHOUSE = 'COMPUTE_WH'
+                  AFTER CRICKET.RAW.load_to_clean_match_table
+                  WHEN SYSTEM$STREAM_HAS_DATA('CRICKET.RAW.player_stream')
+                  AS
+                  INSERT INTO cricket.clean.match_detail_clean 
+                  SELECT
+                      raw.INFO:match_type_number::int as match_type_number,
+                      p.key::text as team,
+                      players.value::text as player_name,
+                      file_name ,
+                      file_row_number,
+                      file_hashkey,
+                      modified_ts
+                  
+                  FROM CRICKET.RAW.player_stream raw,
+                  LATERAL FLATTEN(input => raw.INFO:players) p,
+                  LATERAL FLATTEN(input => p.value) players;
+```
+
+Also the delivery clean table :  
+
+```SQL
+                  CREATE OR REPLACE TASK CRICKET.RAW.load_to_clean_delivery_table
+                  WAREHOUSE = 'COMPUTE_WH'
+                  AFTER CRICKET.RAW.load_to_clean_player_table
+                  WHEN SYSTEM$STREAM_HAS_DATA('CRICKET.RAW.delivery_stream')
+                  AS
+                  INSERT INTO cricket.clean.match_detail_clean 
+                  select
+                  INFO:match_type_number::int as match,
+                  i.value:team::text as team,
+                  o.value:over+1::int over,
+                  d.value:bowler::text bowler,
+                  d.value:batter::text batter,
+                  d.value:non_striker::text non_striker,
+                  d.value:runs:batter::text runs,
+                  d.value:runs:extras::text extras,
+                  d.value:runs:total::text total,
+                  e.key::text extra_type,
+                  e.value::number extra_runs,
+                  w.value:player_out::text player_out,
+                  w.value:kind::text player_out_kind,
+                  w.value:player_out_filders::variant player_out_filders,
+                  file_name ,
+                  file_row_number,
+                  file_hashkey,
+                  modified_ts
+                  from CRICKET.RAW.delivery_stream m,
+                  lateral flatten(input=> innings) i,
+                  lateral flatten (input=>i.value:overs) o,
+                  lateral flatten (input=>o.value:deliveries) d,
+                  lateral flatten (input=>d.value:extras, outer=> TRUE) e,
+                  lateral flatten (input=>d.value:wickets, outer=> TRUE) w
+                  ;
+```
+
+Now that we built the first tasks to populate the landing layer, we can view them using the DAG view in the UI : 
+
+![{160C649E-E8D9-433F-9DA6-9AB5468021AF}](https://github.com/user-attachments/assets/40d8097b-6f44-462c-9ced-f39fc79690f2)  
+
+We need other tasks to populate the consumption layer. We can either use the streams as we did above or use the "Merge Into" to insert the new elements and the updated ones.  
+
+Will use for the remaining tasks the merge into approach.  
 
 
