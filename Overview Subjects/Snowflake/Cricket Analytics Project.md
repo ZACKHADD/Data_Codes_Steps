@@ -1462,7 +1462,216 @@ Now that we built the first tasks to populate the landing layer, we can view the
 ![{160C649E-E8D9-433F-9DA6-9AB5468021AF}](https://github.com/user-attachments/assets/40d8097b-6f44-462c-9ced-f39fc79690f2)  
 
 We need other tasks to populate the consumption layer. We can either use the streams as we did above or use the "Merge Into" to insert the new elements and the updated ones.  
+```SQL
+                MERGE INTO consumption.team_dim AS tgt
+                
+                USING     
+                (
+                    SELECT 
+                        first_team team_name
+                    FROM CLEAN.match_detail_clean
+                    UNION ALL
+                    SELECT 
+                        second_team team_name
+                    FROM CLEAN.match_detail_clean
+                    ) AS src
+                    
+                ON tgt.team = src.team
+                
+                ORDER BY team_name
+                )
+                 WHEN NOT MATCHED THEN 
+                    INSERT (team)
+                    VALUES (src.team)
+                
+                 WHEN MATCHED THEN 
+                    UPDATE SET team = src.team;
+```
+In our case we have only inserts so no need to use a merge but we use another approch based on "Except" or "Minus". If we apply that to the team dimension we will have :  
 
-Will use for the remaining tasks the merge into approach.  
+```SQL
+                CREATE OR REPLACE TASK CRICKET.RAW.load_to_dim_team
+                WAREHOUSE = 'COMPUTE_WH'
+                AFTER CRICKET.RAW.load_to_clean_delivery_table
+                AS
+                INSERT INTO consumption.team_dim (team_name)
+                    SELECT * FROM (
+                        SELECT DISTINCT team_name
+                        FROM
+                            (
+                            SELECT 
+                                first_team team_name
+                            FROM CLEAN.match_detail_clean
+                            UNION ALL
+                            SELECT 
+                                second_team team_name
+                            FROM CLEAN.match_detail_clean
+                            )
+                        ORDER BY team_name
+                        )
+                    MINUS
+                    SELECT team_name FROM CRICKET.CONSUMPTION.TEAM_DIM
+                ;
+```
+The minus will simply perform a difference between the team dimension and the select that retrieve all the data of the team table including the old and new data. And since the difference is only the new rows that don't exist in the team dimension the minus returns only these new rows.  
 
+Same logic for the GEOGRAPHY dimension. We will just add a CASE clause to set the city to "NA" if it is null in the clean table:  
+
+```SQL
+                  CREATE OR REPLACE TASK CRICKET.RAW.load_to_dim_venue
+                  WAREHOUSE = 'COMPUTE_WH'
+                  AFTER CRICKET.RAW.load_to_clean_delivery_table
+                  AS
+                  INSERT INTO CRICKET.CONSUMPTION.GEOGRAPHY_DIM (city, venue_name)
+                    SELECT city, venue FROM 
+                     (SELECT 
+                         CASE WHEN city is null then 'NA' ELSE city END city, 
+                         venue
+                         FROM CRICKET.CLEAN.MATCH_DETAIL_CLEAN
+                         GROUP BY city, venue
+                     )
+                      MINUS
+                      SELECT city , venue_name FROM CRICKET.CONSUMPTION.GEOGRAPHY_DIM
+                  ;
+```
+
+We create also a task for the date dimension :  
+
+```SQL
+                CREATE OR REPLACE TASK CRICKET.RAW.load_to_dim_date
+                WAREHOUSE = 'COMPUTE_WH'
+                AFTER CRICKET.RAW.load_to_clean_delivery_table
+                AS
+                CALL generate_dates();
+```
+For the fact tables since it is generally larger than the dimension tables, it is not recommanded to use the MINUS or EXCEPT approach since it scans all the columns to perform the difference while the left join will only scan the necessery columns. We will use a left join : 
+
+```SQL
+                  CREATE OR REPLACE TASK CRICKET.RAW.load_to_match_fact
+                  WAREHOUSE = 'COMPUTE_WH'
+                  AFTER CRICKET.RAW.load_to_dim_team, CRICKET.RAW.load_to_dim_player ,CRICKET.RAW.load_to_dim_venue ,CRICKET.RAW.load_to_dim_date
+                  AS
+                  INSERT INTO CRICKET.CONSUMPTION.MATCH_FACT
+                      SELECT a.* FROM
+                      (
+                      SELECT 
+                          m.match_type_number AS match_id,
+                          dd.date_id AS date_id,
+                          0 AS referee_id,
+                          ftd.team_id AS first_team_id,
+                          std.team_id AS second_team_id,
+                          mtd.match_type_id AS match_type_id,
+                          vd.venue_id AS venue_id,
+                          50 AS total_overs,
+                          6 AS balls_per_overs,
+                          max(CASE WHEN d.team = m.first_team THEN  d.over ELSE 0 END ) AS OVERS_PLAYED_BY_TEAM_A,
+                          sum(CASE WHEN d.team = m.first_team THEN  1 ELSE 0 END ) AS balls_PLAYED_BY_TEAM_A,
+                          sum(CASE WHEN d.team = m.first_team THEN  d.extras ELSE 0 END ) AS extra_balls_PLAYED_BY_TEAM_A,
+                          sum(CASE WHEN d.team = m.first_team THEN  d.extra_runs ELSE 0 END ) AS extra_runs_scored_BY_TEAM_A,
+                          0 fours_by_team_a,
+                          0 sixes_by_team_a,
+                          (sum(CASE WHEN d.team = m.first_team THEN  d.runs ELSE 0 END ) + sum(CASE WHEN d.team = m.first_team THEN  d.extra_runs ELSE 0 END ) ) AS total_runs_scored_BY_TEAM_A,
+                          sum(CASE WHEN d.team = m.first_team AND player_out IS NOT null THEN  1 ELSE 0 END ) AS wicket_lost_by_team_a,    
+                          
+                          max(CASE WHEN d.team = m.second_team THEN  d.over ELSE 0 END ) AS OVERS_PLAYED_BY_TEAM_B,
+                          sum(CASE WHEN d.team = m.second_team THEN  1 ELSE 0 END ) AS balls_PLAYED_BY_TEAM_B,
+                          sum(CASE WHEN d.team = m.second_team THEN  d.extras ELSE 0 END ) AS extra_balls_PLAYED_BY_TEAM_B,
+                          sum(CASE WHEN d.team = m.second_team THEN  d.extra_runs ELSE 0 END ) AS extra_runs_scored_BY_TEAM_B,
+                          0 fours_by_team_b,
+                          0 sixes_by_team_b,
+                          (sum(CASE WHEN d.team = m.second_team THEN  d.runs ELSE 0 END ) + sum(CASE WHEN d.team = m.second_team THEN  d.extra_runs ELSE 0 END ) ) AS total_runs_scored_BY_TEAM_B,
+                          sum(CASE WHEN d.team = m.second_team AND player_out IS NOT null THEN  1 ELSE 0 END ) AS wicket_lost_by_team_b,
+                          tw.team_id AS toss_winner_team_id,
+                          m.toss_decision AS toss_decision,
+                          m.matach_result AS matach_result,
+                          mw.team_id AS winner_team_id
+                           
+                      from 
+                          cricket.clean.match_detail_clean m
+                          JOIN CRICKET.CONSUMPTION.date_dim dd ON m.event_date = dd.full_dt
+                          JOIN CRICKET.CONSUMPTION.team_dim ftd ON m.first_team = ftd.team_name 
+                          JOIN CRICKET.CONSUMPTION.team_dim std ON m.second_team = std.team_name 
+                          JOIN CRICKET.CONSUMPTION.match_type_dim mtd ON m.match_type = mtd.match_type
+                          JOIN CRICKET.CONSUMPTION.geography_dim vd ON m.venue = vd.venue_name AND m.city = vd.city
+                          JOIN cricket.clean.delivery_match_clean_tb d  ON d.match_type_number = m.match_type_number 
+                          JOIN CRICKET.CONSUMPTION.team_dim tw ON m.toss_winner = tw.team_name 
+                          JOIN CRICKET.CONSUMPTION.team_dim mw ON m.winner= mw.team_name 
+                          
+                      GROUP BY
+                          m.match_type_number,
+                          date_id,
+                          referee_id,
+                          first_team_id,
+                          second_team_id,
+                          match_type_id,
+                          venue_id,
+                          total_overs,
+                          toss_winner_team_id,
+                          toss_decision,
+                          matach_result,
+                          winner_team_id
+                          ) AS a
+                          
+                      LEFT JOIN  (SELECT match_id  FROM CRICKET.CONSUMPTION.MATCH_FACT) b ON a.match_id = b.match_id
+                      WHERE b.match_id is null;
+```
+
+We can also optimize the query by only joining the fact table with the selection of the match_id as the right table.  
+we  apply the same logic for the second fact table :  
+
+```SQL
+                    CREATE OR REPLACE TASK CRICKET.RAW.load_to_delivery_fact
+                    WAREHOUSE = 'COMPUTE_WH'
+                    AFTER CRICKET.RAW.load_to_match_fact
+                    AS
+                    INSERT INTO CRICKET.CONSUMPTION.delivery_fact
+                        SELECT a.* FROM 
+                        (SELECT
+                            d.match_type_number AS match_id,
+                            td.team_id,
+                            bpd.player_id AS bower_id, 
+                            spd.player_id batter_id, 
+                            nspd.player_id AS non_stricker_id,
+                            d.over,
+                            d.runs,
+                            CASE WHEN d.extra_runs IS NULL THEN 0 ELSE d.extra_runs END AS extra_runs,
+                            CASE WHEN d.extra_type IS NULL THEN 'None' ELSE d.extra_type END AS extra_type,
+                            CASE WHEN d.player_out IS NULL THEN 'None' ELSE d.player_out END AS player_out,
+                            CASE WHEN d.player_out_kind IS NULL THEN 'None' ELSE d.player_out_kind END AS player_out_kind
+                        FROM 
+                            cricket.clean.DELIVERY_MATCH_CLEAN_TB d
+                            JOIN CRICKET.CONSUMPTION.team_dim td ON d.team = td.team_name
+                            JOIN CRICKET.CONSUMPTION.player_dim bpd ON d.bowler = bpd.player_name
+                            JOIN CRICKET.CONSUMPTION.player_dim spd ON d.batter = spd.player_name
+                            JOIN CRICKET.CONSUMPTION.player_dim nspd ON d.non_striker = nspd.player_name) a
+                        LEFT JOIN (SELECT match_id  FROM CRICKET.CONSUMPTION.DELIVERY_FACT) b ON a.match_id = b.match_id 
+                        WHERE b.match_id is null;
+```
+
+The final DAG looks as follows :  
+
+![{0ADCC56B-8CB2-4905-B429-D98406325984}](https://github.com/user-attachments/assets/10a51537-c1c4-430b-893f-17b3c9cfe2fa)  
+
+By default all the tasks are suspended. We need to resume that, but to do so we need first to grant the sysadmin role this ability :  
+
+```SQL
+                        USE ROLE ACCOUNTADMIN;
+                        GRANT EXECUTE TASK, EXECUTE MANAGED TASK ON ACCOUNT TO ROLE SYSADMIN;
+                        USE ROLE SYSADMIN;
+```
+
+Then we resume tasks in the reverse order, starting with the latest then the oldest :  
+
+```SQL
+                      ALTER TASK CRICKET.RAW.load_to_delivery_fact RESUME;
+                      ALTER TASK CRICKET.RAW.load_to_match_fact RESUME;
+                      ALTER TASK CRICKET.RAW.load_to_dim_date RESUME;
+                      ALTER TASK CRICKET.RAW.load_to_dim_venue RESUME;
+                      ALTER TASK CRICKET.RAW.load_to_dim_player RESUME;
+                      ALTER TASK CRICKET.RAW.load_to_dim_team RESUME;
+                      ALTER TASK CRICKET.RAW.load_to_clean_delivery_table RESUME;
+                      ALTER TASK CRICKET.RAW.load_to_clean_player_table RESUME;
+                      ALTER TASK CRICKET.RAW.load_to_clean_match_table RESUME;
+                      ALTER TASK CRICKET.RAW.load_json_files RESUME;
+```
 
