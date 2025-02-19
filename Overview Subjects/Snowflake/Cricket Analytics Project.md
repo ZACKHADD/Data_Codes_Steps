@@ -1336,7 +1336,7 @@ We need to create now a task that will run on a schedule to copy data in the fir
                           metadata$file_row_number,
                           metadata$file_content_key,
                           metadata$file_last_modified
-                      FROM @CRICKET_JSON_FILES_CONTAINER_ONLY
+                      FROM @CRICKET.PUBLIC.CRICKET_JSON_FILES_CONTAINER_ONLY
                       (FILE_FORMAT => 'cricket.land.json_ff') t
                       )
                   ON_ERROR = continue
@@ -1400,61 +1400,61 @@ Now we need a task that will depend on the first task and take the content of th
 The same thing for the player clean table : 
 
 ```SQL
-                  CREATE OR REPLACE TASK CRICKET.RAW.load_to_clean_player_table
-                  WAREHOUSE = 'COMPUTE_WH'
-                  AFTER CRICKET.RAW.load_to_clean_match_table
-                  WHEN SYSTEM$STREAM_HAS_DATA('CRICKET.RAW.player_stream')
-                  AS
-                  INSERT INTO cricket.clean.match_detail_clean 
-                  SELECT
-                      raw.INFO:match_type_number::int as match_type_number,
-                      p.key::text as team,
-                      players.value::text as player_name,
-                      file_name ,
-                      file_row_number,
-                      file_hashkey,
-                      modified_ts
-                  
-                  FROM CRICKET.RAW.player_stream raw,
-                  LATERAL FLATTEN(input => raw.INFO:players) p,
-                  LATERAL FLATTEN(input => p.value) players;
+                CREATE OR REPLACE TASK CRICKET.RAW.load_to_clean_player_table
+                WAREHOUSE = 'COMPUTE_WH'
+                AFTER CRICKET.RAW.load_to_clean_match_table
+                WHEN SYSTEM$STREAM_HAS_DATA('CRICKET.RAW.player_stream')
+                AS
+                INSERT INTO CRICKET.CLEAN.PLAYER_CLEAN_TB
+                SELECT
+                    raw.INFO:match_type_number::int as match_type_number,
+                    p.key::text as team,
+                    players.value::text as player_name,
+                    file_name ,
+                    file_row_number,
+                    file_hashkey,
+                    modified_ts
+                
+                FROM CRICKET.RAW.player_stream raw,
+                LATERAL FLATTEN(input => raw.INFO:players) p,
+                LATERAL FLATTEN(input => p.value) players;
 ```
 
 Also the delivery clean table :  
 
 ```SQL
-                  CREATE OR REPLACE TASK CRICKET.RAW.load_to_clean_delivery_table
-                  WAREHOUSE = 'COMPUTE_WH'
-                  AFTER CRICKET.RAW.load_to_clean_player_table
-                  WHEN SYSTEM$STREAM_HAS_DATA('CRICKET.RAW.delivery_stream')
-                  AS
-                  INSERT INTO cricket.clean.match_detail_clean 
-                  select
-                  INFO:match_type_number::int as match,
-                  i.value:team::text as team,
-                  o.value:over+1::int over,
-                  d.value:bowler::text bowler,
-                  d.value:batter::text batter,
-                  d.value:non_striker::text non_striker,
-                  d.value:runs:batter::text runs,
-                  d.value:runs:extras::text extras,
-                  d.value:runs:total::text total,
-                  e.key::text extra_type,
-                  e.value::number extra_runs,
-                  w.value:player_out::text player_out,
-                  w.value:kind::text player_out_kind,
-                  w.value:player_out_filders::variant player_out_filders,
-                  file_name ,
-                  file_row_number,
-                  file_hashkey,
-                  modified_ts
-                  from CRICKET.RAW.delivery_stream m,
-                  lateral flatten(input=> innings) i,
-                  lateral flatten (input=>i.value:overs) o,
-                  lateral flatten (input=>o.value:deliveries) d,
-                  lateral flatten (input=>d.value:extras, outer=> TRUE) e,
-                  lateral flatten (input=>d.value:wickets, outer=> TRUE) w
-                  ;
+                CREATE OR REPLACE TASK CRICKET.RAW.load_to_clean_delivery_table
+                WAREHOUSE = 'COMPUTE_WH'
+                AFTER CRICKET.RAW.load_to_clean_player_table
+                WHEN SYSTEM$STREAM_HAS_DATA('CRICKET.RAW.delivery_stream')
+                AS
+                INSERT INTO CRICKET.CLEAN.DELIVERY_MATCH_CLEAN_TB
+                select
+                INFO:match_type_number::int as match,
+                i.value:team::text as team,
+                o.value:over+1::int over,
+                d.value:bowler::text bowler,
+                d.value:batter::text batter,
+                d.value:non_striker::text non_striker,
+                d.value:runs:batter::text runs,
+                d.value:runs:extras::text extras,
+                d.value:runs:total::text total,
+                e.key::text extra_type,
+                e.value::number extra_runs,
+                w.value:player_out::text player_out,
+                w.value:kind::text player_out_kind,
+                w.value:player_out_filders::variant player_out_filders,
+                file_name ,
+                file_row_number,
+                file_hashkey,
+                modified_ts
+                from CRICKET.RAW.delivery_stream m,
+                lateral flatten(input=> innings) i,
+                lateral flatten (input=>i.value:overs) o,
+                lateral flatten (input=>o.value:deliveries) d,
+                lateral flatten (input=>d.value:extras, outer=> TRUE) e,
+                lateral flatten (input=>d.value:wickets, outer=> TRUE) w
+                ;
 ```
 
 Now that we built the first tasks to populate the landing layer, we can view them using the DAG view in the UI : 
@@ -1674,4 +1674,88 @@ Then we resume tasks in the reverse order, starting with the latest then the old
                       ALTER TASK CRICKET.RAW.load_to_clean_match_table RESUME;
                       ALTER TASK CRICKET.RAW.load_json_files RESUME;
 ```
+
+![{35B8A576-3A57-49C4-B518-CCF62D83168E}](https://github.com/user-attachments/assets/48d5d21a-2bcb-4329-a783-de98b954ac44)  
+
+We can see that the first task runs correctly since it is schedueled every 5 min. The next one loading to the clean match table will be skipped since there is no data in the stream.  
+
+![{C142B7B9-DB78-49ED-B4B0-D8EBF01C3FDA}](https://github.com/user-attachments/assets/be2248d9-9bc3-4c18-962e-1b2a25cc17ae)  
+
+Now let's add a new file with some outlier data so we can identify them in process :  
+
+![{A78D708D-429C-4059-922C-A0437B927E07}](https://github.com/user-attachments/assets/7a699fca-05a8-4a40-bffe-c90590a6e87f)  
+
+We set the date to 2025-02-19, the city to paris and we change one palyer's name to "ZAKARIA H" and we set venue to blank.  
+
+![{DE8A7FC4-1B9E-4834-8B90-2435F910E513}](https://github.com/user-attachments/assets/b3915d14-2185-43ea-ac81-84152fd38d22)  
+
+Now let's load the new file in the blob storage :  
+
+![{57098EED-5914-4A63-9134-127C4FF77920}](https://github.com/user-attachments/assets/589a9cd1-818b-485e-9351-f56b8db50d67)  
+
+We need to manually refresh the external stage :  
+
+![{43A9018C-97F1-40A0-817A-ADF2FEB1B5B3}](https://github.com/user-attachments/assets/6a60a454-49b5-4d5c-9624-91c4914b784b)  
+
+It is refreshed :  
+
+![{5FC96CD4-A908-4F85-8C97-6B1AAB664EB5}](https://github.com/user-attachments/assets/35ceeda0-d83d-4d27-a86f-812316cd625f)  
+
+Now we wait for the flow to start. Than we can check the status and run history of every task in the graph to see is it succeeded or not :  
+
+![{0710CC08-BFC7-4BCD-9BAC-8272311C1432}](https://github.com/user-attachments/assets/ad71c10b-9e42-4ab0-8307-fea8941bed52)  
+
+Or we can use the DVM of tasks to list all the executed tasks:  
+
+```SQL
+                    SELECT NAME, STATE, ERROR_MESSAGE, SCHEDULED_TIME
+                    FROM TABLE(INFORMATION_SCHEMA.TASK_HISTORY())
+                    WHERE QUERY_START_TIME  > '2025-02-19 05:47:38.498 -0800';  
+```
+
+![{15B66959-B016-4C0A-8FA1-9D13ABBA4D06}](https://github.com/user-attachments/assets/adc28e37-8a5d-48e0-9c24-64847cfb9b5b)  
+
+We can see that all the tasks have suceeded !  
+
+Now we can check the data we changed in the file in the tables:  
+
+The new file was inserted.  
+
+![{67807A1D-C1EA-45AA-AB34-CBE9AF5B85E3}](https://github.com/user-attachments/assets/fc5f970f-f7d0-45f8-9d54-efc415895502)  
+
+The data of the new match were inserted in the match clean table and we can see the match_number = 10000 :  
+
+![{A697FBD7-F7DC-4761-A77B-AE6A62469DB9}](https://github.com/user-attachments/assets/33295315-ce55-4aed-8305-06d28bab6794)  
+
+The data of players of the new match were inserted also and we can see "ZAKARIA H"
+
+![{5E887A00-961F-4BB0-93D9-F94F685FF5D8}](https://github.com/user-attachments/assets/c8d28404-043e-4fb2-a1e2-5e66fe060e2a)  
+
+The same ting for the delivery clean table :  
+
+![{7FCF1ADD-E742-4898-B6C3-DA870F88504F}](https://github.com/user-attachments/assets/5ad0730a-28c0-4c9a-b260-a26bfe24a1aa)  
+
+Here we can see really the power of using metadata columns that links the raws to the file they come from. In case tasks failed for a reason we can come back to the concerned data liked to the concerned file and do our changes and we never lose data !  
+This same logic can be so beneficial in the consumption layer also.  
+
+In the date dimension we can see that data untill the new date "2025-02-20":  
+
+![{DE46899F-8318-4102-8451-47BC63373625}](https://github.com/user-attachments/assets/ddf51abc-8d48-4a57-a646-71832c8325b5)  
+
+The same thing for the player dimension :  
+
+![{DB02F870-BFAE-4328-94B5-640E140CE4A1}](https://github.com/user-attachments/assets/191f4e0c-66a2-47e6-a12b-1bb0ba889e9e)  
+
+And also for the match fact table :  
+
+![{9BD6D5AD-5B3F-4F83-B3F6-FDD42C3D6B5C}](https://github.com/user-attachments/assets/37f82da5-c15b-4a6e-8980-b8976b599237)  
+
+
+
+
+
+
+
+
+
 
