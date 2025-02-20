@@ -1751,10 +1751,20 @@ And also for the match fact table :
 ![{9BD6D5AD-5B3F-4F83-B3F6-FDD42C3D6B5C}](https://github.com/user-attachments/assets/37f82da5-c15b-4a6e-8980-b8976b599237)  
 
 
+Now that we built the whola lakehouse with the automated process of lading data, we will need one last brick in this project which is the CICD implementation.  
+
+### 7. CICD implementation using GitHub Actions :
 
 
+![{24456CE9-930B-417F-8FC6-7D1EB35E59E0}](https://github.com/user-attachments/assets/7764f2eb-f13e-460c-98d5-7032ae99c8e9)  
 
+Most of tools are imperative.  
 
+Some imprerative tools:  
+
+![{74546D84-2017-43ED-877B-89C260A8756B}](https://github.com/user-attachments/assets/228682be-d81f-443a-a019-fb6dc7389e6a)  
+
+![{B020CBDB-1993-45D2-9AFC-F3B2D35DDB2A}](https://github.com/user-attachments/assets/303894d3-5900-4bb4-931e-c194a71bbfb4)  
 
 
 
