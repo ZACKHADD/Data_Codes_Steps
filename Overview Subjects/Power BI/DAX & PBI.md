@@ -181,7 +181,13 @@ Note that if we limite the **row context** to only a part of the sales table (us
 
 ## Data Compressin optimization:
 
-Value encoding, Hash encoding ... 
+VertiPaq automatically selects the encoding type based on column cardinality (i.e., the number of unique values).  
+It chooses Value Encoding for numerical columns if they can fit in a compressed format.  
+Otherwise, it applies Hash Encoding.  
+✅ Optimizing encoding means reducing cardinality & making sure columns are in the most efficient format.  
+
+![{A19A9085-9849-43B7-B0F8-C53F4CC79EFA}](https://github.com/user-attachments/assets/db793cdd-b19e-4310-be21-151354711266)  
+
 
 https://intellitect.com/blog/power-bi-data-compression/#:~:text=Value%20encoding%20is%20the%20most,columns%20into%20two%20integer%20columns.  
 
