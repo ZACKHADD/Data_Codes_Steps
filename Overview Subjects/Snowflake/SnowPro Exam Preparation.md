@@ -1,7 +1,19 @@
 # This Document contains a recap of the Snowflake paid exam preparation course and other materials
 
 ## Data Architecture and cloud features:
-Snowflake is SaaS data plateform that has a hybrid architecture using a shared disk for the storage and a shared nothing for computing. This separates computing from storing data leveringin high scalabitily !
+Snowflake is SaaS data plateform that has a hybrid architecture using a shared disk for the storage and a shared nothing for computing. This separates computing from storing data leveringin high scalabitily !  
+Generally the cloud data systems one of the two either Shared disk or shared nothing architecture !  
+
+![image](https://github.com/user-attachments/assets/2d778e8e-514d-4db7-80d9-b498d500cf7d)  
+
+![image](https://github.com/user-attachments/assets/a7dc74d2-16ad-4559-a40a-73c06fddbc2b)  
+
+![image](https://github.com/user-attachments/assets/1f08eddc-f1db-4ae7-b1ac-d1be0e49a395)  
+
+Snowflake is a hybrid of these two :  
+
+![image](https://github.com/user-attachments/assets/5e016d97-d9c7-4bd7-9ae5-eec12ad044a4) 
+
 Snowflake can only run on cloud and all the infrastructure used in it is provided from one of the 3 famous cloud providers : AWS, AZURE and GCP. (Originally designed to run on AWS).  
 
 Snowflake has three layer architecture :  
