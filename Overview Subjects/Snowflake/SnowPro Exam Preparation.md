@@ -1,8 +1,11 @@
 # This Document contains a recap of the Snowflake paid exam preparation course and other materials
 
 ## Data Architecture and cloud features:
+Snowflake is SaaS data plateform that has a hybrid architecture using a shared disk for the storage and a shared nothing for computing. This separates computing from storing data leveringin high scalabitily !
+Snowflake can only run on cloud and all the infrastructure used in it is provided from one of the 3 famous cloud providers : AWS, AZURE and GCP. (Originally designed to run on AWS).  
+
 Snowflake has three layer architecture :  
-- Srorage layer linked to the cloud provider
+- Storage layer linked to the cloud provider
 - The compute layer which is simply the snowflke engine
 - The Cloud services layer dealing automaticaly with optimization, gouvernance security and so on
 
