@@ -58,7 +58,13 @@ The type of computing warehouse is important and depends on the use case and the
 
 ### Several Editions :
 
-![{90EEAD00-AB29-47C0-9A69-809CE82982AE}](https://github.com/user-attachments/assets/b0dcd6c5-4d88-4eda-8103-f54a8465f3b7)  
+![image](https://github.com/user-attachments/assets/bbf29850-ef51-413c-a51e-6507506edf4d)  
+
+The Business Critical edition offers higher levels of data protection and enhanced security to support organizations with very sensitive data, for example, data that must comply with regulations. With this edition, we can enable private connectivity to our Snowflake account, or use our own customer-managed key to encrypt data in Snowflake. Business Critical includes all the features and services of the Enterprise and Standard editions.  
+
+Virtual Private Snowflake. This offers the highest level of security for organizations that have strict requirements around data protection, such as governmental bodies or financial institutions.  
+
+The services layer is shared between accounts. If you were to create a VPS edition account, this wouldn't be the case. Services like the metadata store wouldn't be shared.  
 
 ### Snowflake Catalog and objects : 
 
