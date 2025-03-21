@@ -32,7 +32,7 @@ Data cache in snowflake is so important as it avoids averheads and unessesary co
   - Checking Virtual Warehouse Cache: If this warehouse has executed a similar query recently, it reads from its local cache (avoiding storage access, making it much faster). If the warehouse cache is empty, it fetches data from storage.
   - Fetching from Storage (If Needed): If no cache is available, the warehouse reads micro-partitions from storage (slowest step) and loads them into the memory. This data is cached for future queries.
   - Returning Results: Snowflake compresses results and stores them in the result cache for reuse.
-
+**Note that to trigger data prunning when using where clause, we should not use functions with the condition such as : UPPER(region) = 'US';**
 - The Cloud services layer dealing automaticaly with optimization, gouvernance security and so on:
 
 ![image](https://github.com/user-attachments/assets/6be0ae41-ae85-4d35-ade8-6f62e6b01ee9)  
