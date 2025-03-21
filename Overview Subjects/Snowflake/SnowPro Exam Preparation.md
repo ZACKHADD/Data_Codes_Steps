@@ -1,6 +1,7 @@
 # This Document contains a recap of the Snowflake paid exam preparation course and other materials
 
 ## Data Architecture and cloud features:
+
 Snowflake is SaaS data plateform that has a hybrid architecture using a shared disk for the storage and a shared nothing for computing. This separates computing from storing data leveringin high scalabitily !  
 Generally the cloud data systems one of the two either Shared disk or shared nothing architecture !  
 
@@ -16,12 +17,13 @@ Snowflake is a hybrid of these two :
 
 Snowflake can only run on cloud and all the infrastructure used in it is provided from one of the 3 famous cloud providers : AWS, AZURE and GCP. (Originally designed to run on AWS).  
 
-Snowflake has three layer architecture :  
-- Storage layer linked to the cloud provider :
+### Snowflake has three layer architecture : 
+
+1- Storage layer linked to the cloud provider :
   
 ![image](https://github.com/user-attachments/assets/4b01cb99-1a96-4de9-8d42-132227e84ed4)
 
-- The compute layer which is simply the snowflke engine : if we are on AWS it is simply a cluster of EC2 instances.
+2- The compute layer which is simply the snowflke engine : if we are on AWS it is simply a cluster of EC2 instances.
 
 ![image](https://github.com/user-attachments/assets/28acd1e2-d9c2-4f29-9653-62b8192dae23)  
 
@@ -32,8 +34,12 @@ Data cache in snowflake is so important as it avoids averheads and unessesary co
   - Checking Virtual Warehouse Cache: If this warehouse has executed a similar query recently, it reads from its local cache (avoiding storage access, making it much faster). If the warehouse cache is empty, it fetches data from storage.
   - Fetching from Storage (If Needed): If no cache is available, the warehouse reads micro-partitions from storage (slowest step) and loads them into the memory. This data is cached for future queries.
   - Returning Results: Snowflake compresses results and stores them in the result cache for reuse.
-**Note that to trigger data prunning when using where clause, we should not use functions with the condition such as : UPPER(region) = 'US';**
-- The Cloud services layer dealing automaticaly with optimization, gouvernance security and so on:
+
+**Note that to trigger data prunning when using where clause, we should not use functions with the condition such as : UPPER(region) = 'US'; this will force snowflake to scan all partitions and apply the upper transformation row by row before filtering since the metadata is not precomputed with upper function**
+
+along side with the micro-partitionning that is automatic following the order of insertion, we can **Cluster** data which is the same thing only using specific keys we explicitly define rather than the order of insertion !  
+
+3- The Cloud services layer dealing automaticaly with optimization, gouvernance security and so on:
 
 ![image](https://github.com/user-attachments/assets/6be0ae41-ae85-4d35-ade8-6f62e6b01ee9)  
 
