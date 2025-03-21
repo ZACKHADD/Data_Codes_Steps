@@ -17,9 +17,25 @@ Snowflake is a hybrid of these two :
 Snowflake can only run on cloud and all the infrastructure used in it is provided from one of the 3 famous cloud providers : AWS, AZURE and GCP. (Originally designed to run on AWS).  
 
 Snowflake has three layer architecture :  
-- Storage layer linked to the cloud provider
-- The compute layer which is simply the snowflke engine
-- The Cloud services layer dealing automaticaly with optimization, gouvernance security and so on
+- Storage layer linked to the cloud provider :
+  
+![image](https://github.com/user-attachments/assets/4b01cb99-1a96-4de9-8d42-132227e84ed4)
+
+- The compute layer which is simply the snowflke engine : if we are on AWS it is simply a cluster of EC2 instances.
+
+![image](https://github.com/user-attachments/assets/28acd1e2-d9c2-4f29-9653-62b8192dae23)  
+
+Data cache in snowflake is so important as it avoids averheads and unessesary costs. Here how it works when a query is executed :  
+- Step-by-step execution:
+  - Query Planning: Snowflake checks the metadata cache to identify which micro-partitions are needed (each column has medatada regarding min/max, distinct values .. and if we have a where clause in the query snowflake skips the partitions where the min/max does not contain the where clause valeue). If partition pruning is possible, only relevant partitions are considered.
+  - Checking Result Cache: If the exact query was executed before and **data hasn’t changed**, Snowflake instantly returns results from the result cache (No compute cost ✅).
+  - Checking Virtual Warehouse Cache: If this warehouse has executed a similar query recently, it reads from its local cache (avoiding storage access, making it much faster). If the warehouse cache is empty, it fetches data from storage.
+  - Fetching from Storage (If Needed): If no cache is available, the warehouse reads micro-partitions from storage (slowest step) and loads them into the memory. This data is cached for future queries.
+  - Returning Results: Snowflake compresses results and stores them in the result cache for reuse.
+
+- The Cloud services layer dealing automaticaly with optimization, gouvernance security and so on:
+
+![image](https://github.com/user-attachments/assets/6be0ae41-ae85-4d35-ade8-6f62e6b01ee9)  
 
 ![{7D6D69AB-75B1-42F2-851F-ABB70C07DD38}](https://github.com/user-attachments/assets/7342a7db-7122-43ce-966b-d80bafeec179)  
 
