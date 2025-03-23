@@ -68,19 +68,141 @@ The services layer is shared between accounts. If you were to create a VPS editi
 
 ### Snowflake Catalog and objects : 
 
+![image](https://github.com/user-attachments/assets/6d134ef2-12fa-4ca0-9f88-bdbff6da0f67)  
+The first level of hierarchy is the organization. An organization can hold multiple accoucnts (up to 25). We can set some administration rules such as replications and accounts creation.  
+Then we have the Account level where we will have all the databases and the other objects. If created by snowflake, the structure will contain locator, regon and the cloud provider. If created in an organization using ORGADMIN role it contain the name of the organisation.  
+
+![image](https://github.com/user-attachments/assets/43176a27-dc88-4cfb-9ffb-83c880b2faa6)  
+
 Snowflake has a list of objects in the ecosystem that are listed bellow :
 - Databases
 - Schemas
-- Table Types
-- View Types
+- Table Types:
+
+![image](https://github.com/user-attachments/assets/97a090f0-141a-4a50-8440-05eea3cd5752)  
+
+Transient tables are staging ones. They hold temporary data but available accross sessions.  
+- View Types:
+  
+![image](https://github.com/user-attachments/assets/cc2b2745-c083-4882-9ee7-e2b2189343cb)  
+
+Materilized views are said **Precomputed Datasets**
+
 - Data Types
-- User-defined Functions (UDFs) and User-defined Table Functions (UDTFs)
+- User-defined Functions (UDFs) and User-defined Table Functions (UDTFs):
+
+![image](https://github.com/user-attachments/assets/1b87cc33-c148-419e-a491-b67f52a47991)  
+
+![image](https://github.com/user-attachments/assets/aafdd2a6-6d78-48dc-a556-bb2579b03fcb)  
+
+![image](https://github.com/user-attachments/assets/888684de-ce22-4158-a99b-d7357bdd8034)  
+
 - Stored Procedures
-- Streams :  For CDC and incremental loading of data
-- Tasks : Used to schedule and automate SQL queries or procedures in Snowflake, which can include operations on tables or pipes themselves.
+- Streams :  For CDC and incremental loading of data. A select statement does not consume the stream while using it in a DML does.  
+- Tasks : Used to schedule and automate SQL queries or procedures in Snowflake, which can include operations on tables or pipes themselves. A DAG is constructed when we link several tasks together but note that all tasks need to have the same owner and belong to the same schema and database !
 - Pipes : Specifically designed for automatically loading data from external stages into Snowflake tables, often used for real-time or continuous data ingestion.
 - Shares
 - Sequences :  auto incremented values.
+
+### Billing : 
+Several types of elements impact the snowflake billing:  
+
+![image](https://github.com/user-attachments/assets/b16e67a8-9bb4-41a8-ad56-2226ab2f96bf)  
+
+The cloud services are all the queries we use and does not use a user managed warehouse. Such as Creating a table !  
+The serverless services on the other hand can be snowpipes, database replications and clustering !
+
+![image](https://github.com/user-attachments/assets/1b8794d1-739c-44dc-b1ac-6149b9be1741)  
+
+### External tools :  
+
+Snow SQL, partners and connectors !  
+
+### Snowflake Scripting : 
+
+We can write sql code in a procedural logic in what we call anonymous block (excuted outside a stored procedure) and in SP.  
+
+![image](https://github.com/user-attachments/assets/9ab2aeb7-53b0-45a2-92c9-16a7564054ae)  
+
+Also in SP :  
+
+![image](https://github.com/user-attachments/assets/2137d7d6-c788-4dfa-81d2-d052c7d45fa3)  
+
+Note that declare and exceptions are optionals in a block :  
+
+![image](https://github.com/user-attachments/assets/0a709309-8765-4032-862d-589af6284a62)  
+
+We can use also the looping constructs :  
+
+![image](https://github.com/user-attachments/assets/478af32c-3e23-435d-9447-9561f2aa6875)  
+
+We can also loop on records inside a table. For this we use cursors :  
+
+![image](https://github.com/user-attachments/assets/2d63ac67-3cbf-4aa1-96d2-6faf35b1f809)  
+
+We can also store the result of a SQL query in a Resultset object to be used in a SP or a script and make a SQL query dynamic :  
+
+```SQL
+DECLARE res RESULTSET;
+DECLARE query TEXT;
+
+SET query = 'SELECT name FROM employees WHERE department = ''Sales'';';
+SET res = (EXECUTE IMMEDIATE :query);
+
+SELECT * FROM TABLE(res);
+```
+In Snowflake, a ResultSet is an object that stores the output of a query execution. It allows you to programmatically fetch and manipulate query results within stored procedures, scripts, or Snowflake connectors. 
+
+### Snowpark :  
+
+![image](https://github.com/user-attachments/assets/86151bd5-627d-4137-8119-f60098ee5543)  
+
+Key Features of Snowpark  
+✅ 1. Native Support for Python, Java, and Scala  
+Unlike traditional SQL-based transformations, Snowpark lets you use Python, Java, or Scala to process data.  
+
+Example: Instead of writing SELECT * FROM table WHERE ..., you can use Python DataFrames.  
+
+✅ 2. Pushdown Execution in Snowflake  
+Code is executed inside Snowflake’s compute engine, reducing data movement.  
+
+No need to export data to external environments (e.g., Spark clusters or pandas in Python).  
+
+✅ 3. Object-Oriented DataFrame API  
+Snowpark provides a DataFrame API, similar to pandas (Python) or Spark DataFrames, for manipulating data.  
+
+Example in Python:  
+
+```Python
+from snowflake.snowpark import Session
+
+session = Session.builder.configs({...}).create()  # Create Snowflake session
+df = session.table("sales").filter("region = 'US'")  # Query data
+df.show()  # Display results
+
+```
+✅ 4. Supports UDFs (User-Defined Functions) and Stored Procedures  
+You can write custom functions in Python, Java, or Scala and run them within Snowflake.  
+
+Example: A Python UDF in Snowflake:  
+
+```python
+Copier
+Modifier
+from snowflake.snowpark.functions import udf
+
+@udf
+def square_number(x: int) -> int:
+    return x * x
+```
+
+This function can be called in Snowflake SQL:  
+
+``` sql
+Copier
+Modifier
+SELECT square_number(10);  -- Returns 100
+```  
 
 All data in Snowflake is stored in database tables, logically structured as collections of columns and rows. To best utilize Snowflake tables, particularly large tables, it is helpful to have an understanding of the physical structure behind the logical structure.  
 **Micro-partitions and data clustering**, two of the principal concepts utilized in Snowflake physical table structures.  
