@@ -187,8 +187,6 @@ You can write custom functions in Python, Java, or Scala and run them within Sno
 Example: A Python UDF in Snowflake:  
 
 ```python
-Copier
-Modifier
 from snowflake.snowpark.functions import udf
 
 @udf
@@ -199,8 +197,6 @@ def square_number(x: int) -> int:
 This function can be called in Snowflake SQL:  
 
 ``` sql
-Copier
-Modifier
 SELECT square_number(10);  -- Returns 100
 ```  
 
