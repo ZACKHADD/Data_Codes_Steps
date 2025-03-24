@@ -223,7 +223,65 @@ By default a role to which we affect a another role will inherit all the previle
 
 ### Previleges :  
 
+Each role in snowflake has some previleges. We can create custom roles with specified grants to do a specific job like an analyst for example.  
 ![{BDB80F4A-3C0A-4FB4-9FDB-7365C8E53D5B}](https://github.com/user-attachments/assets/90629cc9-f8b8-44f5-9b7c-12d69a797278)  
+
+### Authentication:  
+
+There several ways we can authenticate to snowflake:  
+
+✅ 1. Snow UI User authentication:  
+
+Using user name and password :  
+
+![{773DBC07-435C-43F5-92D6-2D1232EB7FD3}](https://github.com/user-attachments/assets/d4c926a9-3c13-46ee-b14f-eb970305ff75)  
+
+To add another layer of security we can add Multifactor authentication using Duo Security:  
+
+![{B156BC7D-683B-42F6-9CF2-AD3568F9981D}](https://github.com/user-attachments/assets/cca8a0bf-fb91-460a-b5c3-6b30d9baa454)  
+
+![{3845C23F-D685-406D-88A9-23A24197A5AF}](https://github.com/user-attachments/assets/a62d7629-6b2f-43f8-84f5-7df01079d248)  
+
+✅ 2. Federated authentication (SSO):  
+
+![{452E8B7E-F3C9-44FB-BDA7-858A307C3416}](https://github.com/user-attachments/assets/8aa7fca0-13fc-4ffe-8e00-8a5e4fc6ad19)  
+
+✅ 3. Key pair authentication:  
+
+It used when we would like to connect to snowflake using a client application such as terraform without using directly password in the code :  
+
+![{201FD6B1-9E3F-48FA-9017-EF3391570631}](https://github.com/user-attachments/assets/0607e77f-46a8-4b8c-8638-31af1fea5f47)  
+
+✅ 4. Oauth and Scim:  
+
+![{A270AF0B-F354-4C15-8A40-101351C899DE}](https://github.com/user-attachments/assets/d1c61194-0a22-46df-9e2d-46c49269a06b)  
+
+### Network policies :   
+
+When we define a network policy in Snowflake, it restricts user authentication to only the allowed IP addresses specified in the policy. 
+Meaning that if a user tries to authenticate from an unauthorized IP, Snowflake rejects the connection.  
+
+![{E77D6607-18E4-4FBC-872C-915A92AF2B51}](https://github.com/user-attachments/assets/946f730e-b2d8-46a1-8ed4-7c7244e0e170)  
+
+- Account-Level Policy: Affects all users and roles.  
+- User-Level Policy: Overrides account-level policies for specific users.
+
+```SQL
+CREATE NETWORK POLICY restrict_office_ips 
+    ALLOWED_IP_LIST = ('192.168.1.100', '203.0.113.42') 
+    BLOCKED_IP_LIST = ('45.67.89.10');
+```
+We then use alter Account or User to set the Network_Policy.  
+
+```SQL
+ALTER ACCOUNT SET NETWORK_POLICY = restrict_office_ips;
+ALTER USER john_doe SET NETWORK_POLICY = restrict_office_ips;
+```
+
+
+
+
+
 
 
 
