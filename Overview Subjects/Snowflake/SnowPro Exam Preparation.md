@@ -199,6 +199,33 @@ This function can be called in Snowflake SQL:
 ``` sql
 SELECT square_number(10);  -- Returns 100
 ```  
+## Acocunt Access and security:  
+
+### Roles:  
+
+Snowflake uses two access controle frameworks :  
+
+![{539EB27E-6AEB-4E82-9000-331FB7C702B2}](https://github.com/user-attachments/assets/2870497b-da33-4f9f-b5f5-d8cf6d782946)  
+
+We have by system defined roles :  
+
+![{FEF76E61-626C-4598-9559-C6B197C2DC67}](https://github.com/user-attachments/assets/b96afbe7-cb40-4432-8e15-f0d22d6f9e35)  
+
+![{71F50619-982E-4B08-A9E3-70968B54D1EC}](https://github.com/user-attachments/assets/08c7e495-a659-41d4-8e34-27920143bb1e)  
+
+
+But we can also create custom roles with granular previleges :  
+
+![{BAD95782-05B4-4510-B42F-18716BB803A8}](https://github.com/user-attachments/assets/989061d9-dcfa-4e60-8d8e-4dde8556a9b0)  
+
+All the custom roles need to be affected to a system defined role (in the most cases sysadmin) so that the objects owned by these roles can be tracked by accountadmin for example !  
+By default a role to which we affect a another role will inherit all the previleges of this latter !  
+
+### Previleges :  
+
+![{BDB80F4A-3C0A-4FB4-9FDB-7365C8E53D5B}](https://github.com/user-attachments/assets/90629cc9-f8b8-44f5-9b7c-12d69a797278)  
+
+
 
 All data in Snowflake is stored in database tables, logically structured as collections of columns and rows. To best utilize Snowflake tables, particularly large tables, it is helpful to have an understanding of the physical structure behind the logical structure.  
 **Micro-partitions and data clustering**, two of the principal concepts utilized in Snowflake physical table structures.  
