@@ -335,6 +335,55 @@ In this way even snowflake and the cloud provider cannot read the data as it is 
 
 ![image](https://github.com/user-attachments/assets/4de08414-628c-4a76-8dd5-8eb94d4d4065)  
 
+We can only set one row access policy per table !  
+
+### Secured Views :  
+
+In standard views, when we define a view it is related to a whole table behind:  
+
+```SQL
+CREATE VIEW employees AS
+SELECT id, name, department 
+FROM employees;
+```
+The table behind has also the salary column for each employee but we hide it in this view. Now when users query the view, Snowflake rewrite the query and applies query optimizations such as:
+    
+    1- Predicate Pushdown → Applying WHERE filters as early as possible.
+    
+    2- Join Reordering → Reordering joins for efficiency.
+    
+    3- Column Pruning → Removing unused columns to reduce data scanned.
+    
+    4- Aggregation Pushdown → Performing aggregations earlier in execution.
+
+While standard views mostly restrict direct column access, they can leak metadata and data relationships through: 
+
+- Error messages (revealing hidden columns)
+- Query timing (inference attacks)
+- Nested data functions (JSON, arrays)
+- Statistical anomalies (error handling differences)
+
+All this may give the attacker a way to guess the hidden columns and maybe the values also !  
+
+Secure views explicitly block these side channels:  
+
+![image](https://github.com/user-attachments/assets/8e6885ca-58a2-4ec6-a02f-d179f678451f)  
+
+It does this by bypassing some of the view optimizations performed by the Query Optimizer. But note that these views are slower and for that reason, making views which don't have strict security requirements, secure is discouraged by Snowflake.  
+
+### Account Usage and information schema :
+These schemas are so important for metadata analysis of our account and schemas. For the account it holds all what happend to the account objects :  
+
+![image](https://github.com/user-attachments/assets/ef84220b-0082-4ef0-8791-9b614ad52afe)  
+
+The information schema is present in every database and it gives quite similar information but only for the corresponding database. The metadata here are refreshed faster than the account usage :  
+
+![image](https://github.com/user-attachments/assets/15d62cb6-4651-46a5-b9b9-4bef202c430e)  
+
+When to use what ? :  
+
+![image](https://github.com/user-attachments/assets/bb83948f-f7b3-4a45-b442-fdc3c6e54fc0)  
+
 
 
 
