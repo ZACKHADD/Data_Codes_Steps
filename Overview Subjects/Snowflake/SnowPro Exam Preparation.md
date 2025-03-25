@@ -278,6 +278,62 @@ ALTER ACCOUNT SET NETWORK_POLICY = restrict_office_ips;
 ALTER USER john_doe SET NETWORK_POLICY = restrict_office_ips;
 ```
 
+### Data Encryption :  
+
+Data in snowflake is enrypted end to end using two encryption mechanisms :  
+
+![image](https://github.com/user-attachments/assets/a612f4ad-99e1-4070-9bcb-37199d3f19e2)  
+
+The flow encryption depends on where data is stored :  
+
+![image](https://github.com/user-attachments/assets/2d89e6d0-8efe-4e33-af1a-4023ee1e8ae2)  
+
+We can set our client side encryption in the external storage but we will need to provide the encryption key to snowflake so it can store data and then encrypt!  
+
+The encryption is so resilient thanks to the hierarchical key model used :  
+
+![image](https://github.com/user-attachments/assets/0dcd20fa-4248-473a-993d-dbc35edc6258)  
+
+This means that if a key is exposed the other components for example files or micro-partitions are  not exposed !  
+The mother key is stored seperatly in a AWS cloudHSM service.  
+
+To enhance this encryption process snowflake uses Key rotation that raplaces envery 30 days the account and the table keys while keeping the older keys onlu to decrypte the data previously encrypted !  
+
+![image](https://github.com/user-attachments/assets/26656688-afd5-4dd3-a8ae-cd2a5b8d483c)  
+
+The Rekeying however is another service we can activate (additionnal cost) that changes the keys retired that exceed one year and completely reencrypt its data :  
+
+![image](https://github.com/user-attachments/assets/ecad1894-980c-45a0-a493-149a8b069d6d)  
+
+The last feature where we add another securty layer is the Tri-secret secure and customer managed keys where we simply manage our own keys in a service like KMS or Azure key vaults !  
+
+![image](https://github.com/user-attachments/assets/6ca59327-8b7d-4753-aefe-05aebdeff9f1)  
+
+### Column level security :  
+
+We can set security on a column using data masking :  
+
+![image](https://github.com/user-attachments/assets/dde43eff-38a8-427d-8bfd-7d7d9f1c6771)  
+
+If the user queries data and he is anauthorized to see it it will be masked. For example for emails only the domain name will show !  
+
+To create a masking policy we can do as follows :  
+
+![image](https://github.com/user-attachments/assets/85cc369c-33a9-4b90-ad6a-077a0d1d3ebd)  
+
+Data masking has several properties :  
+
+![image](https://github.com/user-attachments/assets/91486ac1-363f-4617-9301-9c0e5e35dfc4)  
+
+We can also use external functions to mask data inside masking policies. This is called external tokenization:  
+
+![image](https://github.com/user-attachments/assets/85bf9b63-72b7-4138-beb6-260a6afc71f7)  
+
+In this way even snowflake and the cloud provider cannot read the data as it is stored tokenized and needs the function to be detokenized !  
+
+### Row level policies:  
+
+![image](https://github.com/user-attachments/assets/4de08414-628c-4a76-8dd5-8eb94d4d4065)  
 
 
 
