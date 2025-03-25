@@ -384,9 +384,32 @@ When to use what ? :
 
 ![image](https://github.com/user-attachments/assets/bb83948f-f7b3-4a45-b442-fdc3c6e54fc0)  
 
+### Object tagging :  
 
+they can be very helpful to group objects of a buisiness for example.  
 
+![image](https://github.com/user-attachments/assets/81538055-2d72-46f3-a326-1f325559b284)  
 
+object tags are schema level objects, so we'll need to have a database and schema set to create one. This will store all the tags and only the data stewarts can have access to that and later maybe give access to others to apply tags on account objects !  example :  
+
+```SQL
+ALTER WAREHOUSE COMPUTE_WH SET TAG business_unit = "Finance"
+
+# we can also when creating the tag (or altering it) add a list of allowed values
+
+CREATE OR REPLACE TAG business_unit ALLOWED_VALUES  'sales', 'finance', 'hr'
+```
+**Note that a child object will inherit the tag of the parent object !. Also an object can have up to 50 unique tag !**  
+
+Tags can be used also to enhance the data governance and security. For example we can use tags on columns to automatically enforce masking policies.  
+
+![image](https://github.com/user-attachments/assets/bf285afe-4dc2-4299-8682-faa3138ec76a)  
+
+This data governance using tags is handeled by a data stewart or a team of data stewarts in two aproaches centrelized when they create and apply tags and decentrelized when they only create tags and give the possibility to others to apply these tags :  
+
+![image](https://github.com/user-attachments/assets/1e972bad-7c78-4e3c-96af-4fb119a22693)  
+
+Snowflake recommend creating a custom role like a tag admin, which can be granted to a data steward user.  
 
 
 
