@@ -666,21 +666,7 @@ Note that a materialized view is essentially a precomputed result set that is ph
 
 Instead of using LIMIT, most systems recommend using techniques like window functions or ROW_NUMBER() to simulate the effect of limiting data in a controlled and predictable manner.  
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+### Clustring :  
 
 All data in Snowflake is stored in database tables, logically structured as collections of columns and rows. To best utilize Snowflake tables, particularly large tables, it is helpful to have an understanding of the physical structure behind the logical structure.  
 **Micro-partitions and data clustering**, two of the principal concepts utilized in Snowflake physical table structures.  
@@ -695,6 +681,9 @@ How it works :
 - Snowflake prunes unnecessary micro-partitions at query time, reducing scan costs.
 
 By default micro partitionning groups data based on the insert order ! **so if this order is randomly inserting data then the prunning will not be that efficient and we may need to cluster data**!  
+
+![image](https://github.com/user-attachments/assets/958576e7-0892-45ff-9aa7-02d24f7f6258)  
+
 How Does Clustering Work?
 - Snowflake checks how well data is ordered within micro-partitions.
 - If needed, it automatically reclusters data in the background (for large tables).
@@ -706,8 +695,82 @@ We can use this command to cluster based on a columns or multiple columns :
 ```SQL
           CLUSTER BY {Column1, Column2 ...}
 ```
-#### Clustering Depth
+
+### Clustering Depth
 The clustering depth for a populated table measures the average depth (1 or greater) of the overlapping micro-partitions for specified columns in a table. The smaller the average depth, the better clustered the table is with regards to the specified columns.  
+
+![image](https://github.com/user-attachments/assets/446c99c0-37a1-4e6e-b09f-e0fe43aecebb)  
+
+### Automatic clustering :  
+
+We can manually set the clustering on a columns or several columns that are used in most queries to improve the performance. Once the key or keys are set, snowflake would run periodically a recluster operation to rearange data (by creating new micro partitions clustered as needed).  
+
+![image](https://github.com/user-attachments/assets/35b32fbc-b0c7-4a58-b7f5-2e45be8a313a)  
+
+the true indication of whether a clustering key is required is whether queries are taking unreasonably long to execute, especially when filtering and sorting on frequently used columns. It's important to decide carefully as there is a cost associated with clustering, which should be compared with the benefits gained. Larger tables benefit from clustering simply because even if small tables are poorly clustered, their performance is still good.  
+
+Clustering is most effective for tables that are **frequently queried and change infrequently**. The more frequently a table is queried, the more benefit you'll get from clustering. **However, the more frequently a table changes, the higher the cost will be to maintain the clustering. The cost of maintaining a key might outweigh the performance benefit given by clustering.**  
+
+The cardinality when choosing clustering keys is so important. high-cardinality columns result in randomly distributed values across partitions. This means related rows are scattered across multiple partitions.  
+In this case Snowflake cannot prune partitions efficiently because Transaction_ID for example is scattered. It will likely have to scan many partitions to find the row (the metadata of max and min won't work since data is randomly partitioned).  
+
+![image](https://github.com/user-attachments/assets/6d04e856-ad73-4993-8a7e-8e32be1213cd)  
+
+Also, if the cardinality is so low the partitions would overlap (since the size of the partition has a limit) with high clustering depth and snowflake would scan too much micro partitions to find tha wanted values.  
+
+it's suggested that when using multi keys clustering that the lowest cardinality is selected first, followed by the higher cardinality. 
+
+![image](https://github.com/user-attachments/assets/651bbfae-d8ce-433f-a085-7d96a3c3b99e)  
+
+Example of a well clustered key :  
+
+![image](https://github.com/user-attachments/assets/36c2305f-66b8-4f6a-95cf-a13a59c24bb1)  
+
+The higher total constant partitions is the better clustering is. Average ovelaps and depth sould be low and the partition depth histogram must be skewed on the left meaning most of partitions have a low partition depth!  
+
+Example of bad clustered key :  
+
+![image](https://github.com/user-attachments/assets/b4bc8456-b961-4587-a645-7e1a16ed986a)  
+
+We can clearly see here that to retrieve a value we would scan all the micro partitions !  
+
+in a query we can see in the profile if it did benifit from the good clustering or not by checking the pruning information :  
+
+![image](https://github.com/user-attachments/assets/4b818651-d203-4028-974d-53ca1a2d37c3)  
+
+Finaly, the automatic clustering uses serverless compute (since is does it for a first time and maintains it periodicaly) and uses also the storage and we can use the AUTOMATIC_CLUSTERING_HISTORY to see how much credits does the clustering comsume.  
+
+### Search Optimization Service:  
+
+In some scenarios when a user might need to look up an individual value. On a very large table, say terabytes in size, this operation can be costly and time consuming.  
+
+The search optimization service is a table level property aimed at improving the performance of these types of queries called selective point lookup queries.  
+
+![image](https://github.com/user-attachments/assets/61087cf5-371f-4c32-97f1-9e66923264af)  
+
+Once set as a property on a table, it creates an auxiliary index structure on selected columns to quickly locate values without scanning entire partitions.  
+**It is very Useful for high-cardinality columns, point lookups, and sparse queries (e.g., searching by email, UUID).** in opposition to clustering on high cardinality keys. Snowflake automatically maintains the index, but there’s a cost associated with it.  
+
+Search Optimization Service supports searching the following data types: fixed point numbers, so INTEGER and NUMERIC, DATE, TIME, and TIMESTAMP, VARCHAR and BINARY.  
+- Without Search Optimization:  
+❌ Snowflake scans all partitions (because email is high-cardinality, pruning is ineffective).
+
+- With Search Optimization Enabled:  
+✅ Snowflake instantly finds the relevant partition(s) and retrieves the row → Faster query.
+
+📌 When to Use Search Optimization:  
+✅ Point Lookups (WHERE id = 123456)  
+✅ High-Cardinality Filters (WHERE email = 'x@example.com')  
+✅ Sparse Queries (queries returning very few rows)  
+
+📌 When NOT to Use Search Optimization:  
+❌ Range Queries (WHERE order_date > '2024-01-01') → Pruning works better!  
+❌ Full Table Scans → No benefit from search optimization.  
+❌ Small Tables → The overhead is unnecessary.  
+
+![image](https://github.com/user-attachments/assets/d8d6d214-8479-4388-bd22-3997514bf49e)  
+
+And lastly here, we can run a SHOW TABLES command to check the status of search optimization and its progress. This shows the percentage of the table that has been optimized so far.  
 
 #### Types of tables : 
 
