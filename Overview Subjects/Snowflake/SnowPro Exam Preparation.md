@@ -411,6 +411,106 @@ This data governance using tags is handeled by a data stewart or a team of data 
 
 Snowflake recommend creating a custom role like a tag admin, which can be granted to a data steward user.  
 
+## Performance Concepts: Virtual Warehouses 
+
+### How VW work:  
+
+A virtual warehouse is simply a cluster of insrances that performes computations:  
+
+![{D4770917-404A-41A2-BE03-9A25C60B9973}](https://github.com/user-attachments/assets/715ed352-949f-46e0-9715-fd711250daa6)  
+
+They can be created and modified on the fly :  
+
+![{132C5E2A-E55C-4230-A71B-34096EA82FF7}](https://github.com/user-attachments/assets/f2d18f0a-f884-4594-8183-f6a9d5e603b1)  
+
+The are completely flexible which makes them suits a lot of worloads types :  
+
+![{6842F704-D3FB-4295-BF97-2BB9ADD7D893}](https://github.com/user-attachments/assets/34963c5a-b2a2-4d5e-b2b8-8299ba4b5f55)  
+
+the warehouse has 3 properties :  
+
+![{5694D3DC-E600-4D6F-88B1-D74C80AA2CE8}](https://github.com/user-attachments/assets/8f29bf09-1131-46f4-8a6e-036b435238ec)  
+
+Note that if for billing optimizations reasons we decide to set the auto suspend to it's lowest it may results to more query execution time as the warehouse needs to be resumed each time and also we get charged the minimmum cost each time which is 60 min.  
+Also the cache gets deleted so we don't benifit from its performance enhancement.  
+
+Billing is based on warehouse running time, not per query. Snowflake charges per second (with a minimum of 60 seconds) when a warehouse is active (running).  
+If a warehouse is running but no queries are executed, it still incurs charges because it is consuming compute resources.  
+
+### Ressource monitors
+
+The ressource monitors helps optimizing and track our costs :  
+
+![{907BB773-10F8-4F50-BD87-0C917AA47BD2}](https://github.com/user-attachments/assets/f6932e7c-d868-40c5-893b-878de02b4998)  
+
+we can create ressource monitors with several properties and attach them to warehouses :  
+
+![{48104337-977B-4B8B-94BD-3444E0A89D97}](https://github.com/user-attachments/assets/18b0adff-866a-42d3-9a7d-c9c54246635c)  
+
+This will notify us whenever we reach the a percentage of cost. We can set the ressource monitors on account also which will track the cost of all the warehouses in the account.  
+
+### Scaling up and scaling out:  
+
+The scaling up has a relation with improving the performance of queries when it exceed the capacity of the warehouse so we resize the warehouse adding new nodes to the same cluster :  
+
+![{CF2C8AC1-D401-4DAB-879C-E4EF8DCFDE9D}](https://github.com/user-attachments/assets/b65d6f6e-0d8f-4f58-a431-3553e8863b1f)  
+
+This operation is manual !  
+
+Whereas the scaling out has a relation with respnding to queries coming from multiple users in the same time to enhance the concurency :  
+
+![{14B04A7F-8E78-4581-95AD-E6724E769E86}](https://github.com/user-attachments/assets/4662b1ae-2aaa-4acc-a8fd-389699c6995b)  
+
+By default and starting from the enterprise edition, all warehouses have multi clustring set with a min and max set to 1.  
+
+We can also set some scaling out policies :  
+
+![{AFB0F24E-C1B1-4390-81A5-835B8CF91335}](https://github.com/user-attachments/assets/cc368442-561a-457e-bcfe-37521a1fd9f1)  
+
+![{82D8370E-89DC-41B0-B8E1-78EED0167D28}](https://github.com/user-attachments/assets/e96ab651-1a40-4174-9850-4d9948c23f80)  
+
+Some properties are important in the warehouse creation that set for example the timeout :  
+
+![{583910CB-B918-4F56-B160-D0E47BF8D3FB}](https://github.com/user-attachments/assets/95c32083-d8bd-4fdf-ac91-e1db643a089b)  
+
+The default max queries before queuing is 8.  
+
+### Query acceleration service :  
+
+The Query Acceleration Service, or QAS, is a feature we can enable on a virtual warehouse. Its purpose is to dynamically add serverless compute power to a warehouse, only when a sufficiently complex query needs it. Since it is not set by us as we do with normal warehouses we call it serverless as it is handeled by snowflake ! In this case we pay for only the part of the query that was handeled by the QAS !    
+
+![{E0907E01-C3C4-4E44-92E2-69ED5095401C}](https://github.com/user-attachments/assets/40f92b98-d97a-4e31-9d60-754ec8fc41ed)  
+
+Example :  
+
+![{D014DDD3-077A-4E3D-9AFE-A13C265B824A}](https://github.com/user-attachments/assets/7189b36c-de6e-4aa4-ae2c-476e1956e587)  
+
+For a single peak if wa scale up we would be pating for a larger warehouse ! scaling out would work but it will depend on the scaling policy defined ! so the perfect thing would be the QSA that would be cheeper and would accelarate the execusion !  
+
+However not all the queries can be accelerated !! Snowflake decides that !  
+
+![{69D62693-D41E-49FB-A1E2-999AAFF0431F}](https://github.com/user-attachments/assets/9a6a7c1d-f9ba-4477-908b-55e5954b2841)  
+
+![{83E32A21-1AEC-4E4D-8C87-E51540CDEC2C}](https://github.com/user-attachments/assets/920b2383-30bc-4920-9814-cc602c4019cc)  
+
+![{AABFD250-254A-4A50-A523-3F659EB273A1}](https://github.com/user-attachments/assets/5a8745dc-bb30-4175-bd99-0f610198300c)  
+
+![{0CF3E5A3-BA40-4D17-8A05-13973ED0B576}](https://github.com/user-attachments/assets/44cde67c-9077-4f8e-86dc-0f081c62db1f)  
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 All data in Snowflake is stored in database tables, logically structured as collections of columns and rows. To best utilize Snowflake tables, particularly large tables, it is helpful to have an understanding of the physical structure behind the logical structure.  
