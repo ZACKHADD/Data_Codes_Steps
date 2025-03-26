@@ -497,7 +497,176 @@ However not all the queries can be accelerated !! Snowflake decides that !
 
 ![{0CF3E5A3-BA40-4D17-8A05-13973ED0B576}](https://github.com/user-attachments/assets/44cde67c-9077-4f8e-86dc-0f081c62db1f)  
 
- 
+## Performance concepts : Query optimization
+
+Optimizing the queries we run in snowflake is an important thing along side with the warehouse optimizations we already highlited above ! There are several tools to identify when the query optimization is needed :  
+
+![{36337975-AEB2-43ED-87A9-04004E2EF1FA}](https://github.com/user-attachments/assets/43597a57-c56c-4e58-b58c-f4dc3057a71e)  
+
+Query history is available for everyone regardless of the role they have but no one can see the results of the queries of other users.  
+
+The query profile gives a graphical representation of how snowflake executes the query just like and EXPLAIN query would !  
+
+![{AB78125E-2F00-4F89-A02C-2F617EADC28A}](https://github.com/user-attachments/assets/38eb433f-4c97-4674-8cd1-93aa07deb8c0)  
+
+![{66CD3EBC-1811-462E-A1AC-8C5397363AB7}](https://github.com/user-attachments/assets/16b64ba8-deab-4261-906b-16e82a09bf12)  
+
+The UI query history is limited to 14 days. If we want more we can use the account usage schema. Only the accountADMIN can query this schema and it has a latency of 45 min compared to the information schema in each database that has 0 latency but only goes up to 7 days of history.  
+
+### SQL tuning :  
+
+If we want to optimize queries we need first to know the order of execution of the queries !  
+
+![{B2DFBFFE-6D5B-49A4-B627-314E5E6B7F3B}](https://github.com/user-attachments/assets/0c93c528-fa2e-40ad-bc6b-ccb8d9947bbe)  
+
+This order is important since it first filter data before applying more expensive operations. **Always use filrer operations as early as possible !**  
+
+Using limit when ordering data can significantly improve the performance as it only order the filtered data :  
+
+![{B2C408EA-DEEC-4DBC-8F0B-EDA7A7456940}](https://github.com/user-attachments/assets/8b6c3dac-c8e1-4da2-b52c-e78ade05a4bc)  
+
+This is to avoid spilling to local disk. This occurs when Snowflake runs out of memory (RAM) while processing a query and needs to temporarily store intermediate results on disk instead. This can significantly slow down query performance since disk I/O is much slower than memory access.  
+
+Several reasons can cause spilling to local disk : 
+
+- Large Joins or Aggregations: Queries require more memory than available in the warehouse.
+- Sorting or Window Functions: These operations may generate large intermediate result sets.
+- High Concurrency: Multiple queries compete for the same memory resources.
+- Suboptimal Warehouse Size: The warehouse is too small for the workload.
+
+The spilling can also happen to remore storage which is even worst !  
+
+So as we see optimizing joins is so important here to reduce the intermediate operations that generates heavy intermediate datasets !  
+
+![{130BE077-B2AE-472D-8D73-D5D9651EB1E8}](https://github.com/user-attachments/assets/ceb90988-f576-4e1f-80b7-a2452bef831a)  
+
+Order by is an expensive operation so we need to handel its position very carefully and use it only when needed and preferably with LIMIT:  
+
+![{96108407-5C31-4314-A09F-6A0CA1CE0B16}](https://github.com/user-attachments/assets/14faad2f-ae94-4612-909b-b24008ae25c4)  
+
+The group by also is an important operation that we need to use carefully and most of time with low to medium cardinality columns :  
+
+![{DA4C43DE-9F62-4E20-ABD7-A5AD5E1DC952}](https://github.com/user-attachments/assets/5e8e41a6-01ec-4549-a7d4-4048007a7c58)  
+
+Lets wrap up all of this : 
+
+1️⃣ Snowflake’s Storage & Compute Layers
+
+Snowflake follows a decoupled storage and compute model:
+
+- Storage Layer (e.g., AWS S3, Azure Blob, Google Cloud Storage)
+- Stores data as compressed, immutable micro-partitions.
+- This layer is separate from compute.
+- Data remains here until queried.
+
+Virtual Warehouse (Compute Layer)
+
+- Retrieves only the required micro-partitions from storage.
+- Loads them into local SSD storage (warehouse cache).
+- Uses RAM for intermediate computations.
+- No persistent data is stored here—only cached data for optimization.
+
+2️⃣ How Query Execution Works
+
+When you run a query, Snowflake:
+
+- Prunes the micro-partitions → Only relevant partitions are fetched.
+- Loads them into warehouse SSD cache → To avoid direct storage access.
+- Processes data in RAM → Joins, aggregations, sorting, etc., are done here.
+- Returns results → If everything fits in RAM, the query runs optimally.
+
+3️⃣ When Does Spilling to Disk Happen?
+
+If RAM isn’t enough to hold intermediate results, Snowflake moves them to local SSD (warehouse disk) for temporary storage.
+
+- First Level of Spilling → Moves data from RAM to local SSD (warehouse disk).
+✅ Still relatively fast since SSDs are used.
+
+- Second Level of Spilling → If local SSD is also full, data spills to remote storage (AWS S3, Azure Blob, etc.).
+❌ This is very slow because it requires network I/O.
+
+4️⃣ Why is Spilling a Performance Issue?
+
+- RAM → SSD is slow (compared to keeping everything in memory).
+- SSD → Remote Storage is even slower (adds network overhead).
+- Queries that spill extensively can take much longer to complete.
+
+### Caches in snowflake :  
+
+Several caches at each layer : 
+
+- Metadata Cache:  
+
+![{E669FD9E-A195-4B30-8AC8-80E73A2EA385}](https://github.com/user-attachments/assets/079812bf-0b7b-4d39-9b1b-409a72f89e00)  
+
+Note that Queries that only access metadata in Snowflake are free because they do not use a virtual warehouse. Instead, they fetch precomputed information from Snowflake’s metadata cache.  
+
+- Result Cache :
+
+This is where the results of queries are hold up to 24h and it extends each time the same query is used up to 31 days after which it is purged. This is very helpful to reduce costs especially for BI puposes :  
+
+![{8BA080FC-FA80-4A88-9355-9555D08675E9}](https://github.com/user-attachments/assets/f68f0e81-04cd-4550-b833-5255d2ebbfe5)  
+
+🚀 This means that if Power BI for example runs the same queries repeatedly, Snowflake won’t charge extra compute costs!  
+
+We can verify this in the query profile :  
+
+![{D9924443-4331-42D1-A433-BC2511B3840C}](https://github.com/user-attachments/assets/5039183b-f7a0-4faa-ad6d-a0675e54cb40)
+
+✅ Result Cache applies if:
+
+- The same query is executed (no formatting or structure changes).
+- The underlying data hasn't changed (no INSERT, UPDATE, DELETE, or TRUNCATE).
+- The query is executed within 24 hours (or refreshed within 31 days in higher editions).
+- The same role/user runs the query (some cache optimizations depend on the role).
+
+**Remember that we only pay for storage and computing !**  
+
+### Warehouse cache (generates costs):  
+
+![{8E779625-47B8-4D12-BD8D-D973CD70202F}](https://github.com/user-attachments/assets/330e5005-0252-4c0e-8d38-4c91e9fbd506)  
+
+If we rerun a queries (different in the syntax) that will use the same partitions the warehouse cached is used. And we can see in the query profile that it uses 100% of data processed from the warehouse cache and not the remore cache:  
+
+![{8EEACA52-FF46-4E0B-AD2D-FC246E252E19}](https://github.com/user-attachments/assets/67d5203e-44d5-42f0-ab93-3153185b2b92)  
+
+If we use queries that will add other data, only the new data will be processed from the remote storage and the rest is already in the warehouse cache and we can see that in the query profile with a processing % in the remore storage lower than 100% :  
+
+![{85427661-5928-4AD6-8FDD-A61B0F26CED3}](https://github.com/user-attachments/assets/2cba4c58-0456-452e-9c13-56694d6ed8fc)  
+
+
+How the warehouse caching is used? :  
+
+1️⃣ First Query Execution:
+
+- The virtual warehouse reads micro-partitions from remote cloud storage.
+- Data is stored in memory (RAM) and cached on local SSDs of compute nodes.
+- The query runs and returns results.
+
+2️⃣ Subsequent Queries (Within Active Warehouse Session):
+
+- If another query needs the same micro-partitions, it is fetched directly from the Local Disk Cache, avoiding slow cloud storage reads.
+- Much faster execution compared to the first run.
+
+3️⃣ When the Warehouse is Suspended or Reassigned:
+
+- Local Disk Cache is cleared when the warehouse stops.
+- Restarting the warehouse means queries must re-fetch data from remote storage unless cached in Result Cache (Service Layer).
+
+### Materialized views:  
+Materialized views improve the performance, especially if used on top of external tables.  
+
+![image](https://github.com/user-attachments/assets/98459ed9-15f6-4381-9f78-8d994e1a9352)  
+
+However there are some limitations such as using only one table, no joins and some SQL functions are not allowed :  
+
+![{F5917CAE-DED9-4E57-AAA0-A1CBC027DEBF}](https://github.com/user-attachments/assets/1d2e318a-76d2-410a-bc5a-0adc4d31591d)  
+
+Note that a materialized view is essentially a precomputed result set that is physically stored in the database. The goal of a materialized view is to optimize performance by saving the result of an expensive query and allowing the database to retrieve that result instead of recomputing it each time a query is run. LIMIT, on the other hand, restricts the result set to only a specific number of rows. If you use LIMIT in the definition of a materialized view, the database would store only a subset of the data, which defeats the purpose of a materialized view.  
+
+Instead of using LIMIT, most systems recommend using techniques like window functions or ROW_NUMBER() to simulate the effect of limiting data in a controlled and predictable manner.  
+
+
 
 
 
