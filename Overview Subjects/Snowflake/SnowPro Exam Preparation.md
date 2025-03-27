@@ -788,7 +788,138 @@ Since micro-partitions cannot be changed, Snowflake does NOT physically move dat
 
 https://docs.snowflake.com/en/user-guide/tables-micro-partitions
 
-#### Connecting snowflake to external data:
+## Data Loading and unloading :  
+
+There are various methods of data ingress and egress in Snowflake, we have bulk data loading via the copy to table statement, continuous data loading with the serverless feature, Snowpipe, and data unloading with the copy to location command.  
+
+![image](https://github.com/user-attachments/assets/9244dad7-f297-4de9-929f-75da5f3a42a3)  
+
+### Stages: 
+Stages are so important to hold row data before loading it into tables. There are two types of stages in snowflake. External and internal storages.  
+
+![image](https://github.com/user-attachments/assets/1c8886ef-aa39-4d22-a37c-cf79b56793d9)  
+
+#### Internal stages: 
+Internal stages are a storage handeled by snowflake where we can load data temporarily before loading it into a table. We have 3 types of internal stages, two of them are by default available and the third is created manually:  
+
+![image](https://github.com/user-attachments/assets/365d9fa0-a2ff-4a68-802d-e7e0c572d5cb)  
+
+**Note that Uncompressed files are automatically compressed using GZIP when loaded into an internal stage, unless explicitly set not to.**  
+
+1️⃣ User Stage:  
+🔹 What is it?
+- A personal staging area for each Snowflake user.
+- Automatically available—each user has their own private storage space.
+- Can only be accessed by the specific user.
+
+🔹 Use Case: 
+✅ Storing temporary files before loading them into tables.  
+✅ Uploading small datasets for personal testing.  
+
+🔹 How to Use It:  
+📤 Upload a file to your user stage:  
+
+```sql
+PUT file://path/to/data.csv @~;
+```
+
+📥 Check files in your user stage:  
+
+``` sql
+LIST @~;
+```
+
+📤 Load data from user stage into a table:
+
+```sql
+COPY INTO my_table FROM @~ FILE_FORMAT = (TYPE = 'CSV');
+```
+
+📌 **The @~ refers to the current user's stage.**
+
+2️⃣ Table Stage  
+
+🔹 What is it?  
+
+- A staging area tied to a specific table.
+- Each table in Snowflake automatically has its own internal stage.
+- Only accessible by users with privileges on the table.
+
+🔹 Use Case:  
+
+✅ Storing files specific to a table before inserting data.  
+✅ Automating data loads for a table without needing external storage.  
+
+🔹 How to Use It: 
+
+📤 Upload a file to the table stage: 
+
+```sql
+PUT file://path/to/data.csv @%my_table;
+```
+📥 Check files in the table stage:
+
+```sql
+LIST @%my_table;
+```
+📤 Load data from the table stage:
+
+```sql
+COPY INTO my_table FROM @%my_table FILE_FORMAT = (TYPE = 'CSV');
+```
+
+📌 **The @%my_table refers to the stage of the table my_table.**
+
+3️⃣ Named Stage  
+
+🔹 What is it?  
+
+- A manually created internal stage that can be shared across multiple users and tables.
+- Unlike user or table stages, it is explicitly created.
+- Provides more flexibility and control over data storage.
+
+🔹 Use Case:  
+✅ Centralized storage for multiple tables or shared data.  
+✅ Organizing files before processing in Snowflake.  
+✅ Better access control—you can grant privileges on the stage.  
+
+🔹 How to Create & Use It:  
+📌 Create a named stage:  
+
+```sql
+CREATE STAGE my_stage;
+```
+
+📤 Upload a file to the named stage:
+
+```sql
+PUT file://path/to/data.csv @my_stage;
+```
+
+📥 Check files in the named stage:
+
+```sql
+LIST @my_stage;
+```
+
+📤 Load data from the named stage into a table:
+
+```sql
+COPY INTO my_table FROM @my_stage FILE_FORMAT = (TYPE = 'CSV');
+```
+
+📌 **Named stages must be explicitly created, unlike user and table stages.**  
+
+Note that PUT is not supported in the snowsight UI worksheets but in the SnoSQL CLI :  
+
+![image](https://github.com/user-attachments/assets/64dd401d-c3a9-45e2-91d4-39234ccaa126)  
+
+![image](https://github.com/user-attachments/assets/f94620fa-4e03-4049-9026-53292beef050)  
+
+#### Exteranal Stages: 
+External stages are of named stage type only !:  
+
+![image](https://github.com/user-attachments/assets/46791e0d-4c62-41aa-8e14-82fd56c78074)  
 
 Similarly to synapse, when connecting ro external data we need create external data source or in this case external stage !  but to connect, we need also to create a **Storage integration** that will authenticate to the source like ADLS gen2 or we can use directly SAS token : 
 
@@ -799,8 +930,6 @@ Similarly to synapse, when connecting ro external data we need create external d
 Once created we will need to consent for a first time using the consent url : 
 
 ![{AFF3D708-D8F4-447C-80E0-1D74F62CFD55}](https://github.com/user-attachments/assets/198ac549-c2a0-4f54-bce6-5cdc952e58f8)  
-
-
 
 to create the storage integration : 
 
@@ -814,6 +943,100 @@ to create the storage integration :
                         -- storage_blocked_locations = ( 'azure://<location1>', 'azure://<location2>' )
                         -- comment = '<comment>';
 ```
+
+![image](https://github.com/user-attachments/assets/45a890a3-4211-43f0-8f07-d16e832764e2)  
+
+### Data Loading :  
+
+Data can be loaded using several ways:  
+- Insert Method (using select,value, overwrite ..)
+- Copy into using the UI and code
+- PUT
+
+#### Copy Into :
+
+Copy into is one of the important functions to load data into tables from stages.  
+
+![image](https://github.com/user-attachments/assets/e9cd4988-0c35-41b8-9866-4bae7c52077e)  
+
+We can specify what exactly to copy using some parameters :  
+
+![image](https://github.com/user-attachments/assets/d8334e06-5baa-4bfb-8a1f-0418127953d4)  
+
+We can also perform some transormations while loading :  
+
+![image](https://github.com/user-attachments/assets/c1a7548c-abcb-4080-8c26-665108f3e685)  
+
+![image](https://github.com/user-attachments/assets/4fd3ee78-a742-4772-a08f-8676ae9de770)  
+
+We have also some options with the copy into we can use :  
+
+![image](https://github.com/user-attachments/assets/5a100795-c8cd-4a74-9b86-dada0fc8330f)  
+
+Also a good practice would be to set some validation parameters to be sure that the copy into will go well **Before loading** ==> Dry Run:  
+
+![image](https://github.com/user-attachments/assets/9dbf25e6-7d0c-4846-a60d-b44abd1d4d16)  
+
+If we encounter an error while testing the loading we can get more details about that using the VALIDATE function :  
+
+```SQL
+SELECT * FROM VALIDATE(table, job_id=>'id_of_the_dry_run_query') 
+```
+This is a great way to debug errors that we would encounter if we try to load data !  
+
+These methods don't support COPY INTO <table> commands
+
+#### File Formats:  
+
+File formats are useful to tell snowflake how to parse the files used in the copy into statement :  
+
+![image](https://github.com/user-attachments/assets/76cc7277-36a6-4dff-9e85-c5c5fd62db0e)  
+
+We can set the file format at the COPY INTO statement, at the TABLE level using ALTER TABLE *** SET STAGE_FILE_FORMAT=(FORMAT_NAME='CSV_FILE_FORMAT') or at the stage level using :  ALTER STAGE *** SET FILE_FORMAT = CSV_FILE_FORMAT. For the latter two ways we can use COPY INTO directly with no file format to specify as it is already attached to the table or the stage.  
+
+Snowflake recommend compressing the file stored in a stage, whether that be an external or internal stage.  
+
+![image](https://github.com/user-attachments/assets/b353e244-0563-43ee-8002-23691ff1c5c1)  
+
+
+#### SnowPipe:  
+
+Snowpipe is a serverless feature that allows to manually loand data into a table whenever a new file arrives at the stage level especially if we deal with streaming data :  
+
+![image](https://github.com/user-attachments/assets/d4015303-e8b6-4d31-8ef1-3d49c61aa7d6) 
+
+AUTO_INGEST = TRUE : 
+this method involves configuring cloud blob storage like an S3 bucket to send Snowflake a notification telling it that a new file has been uploaded. This will act as a trigger for Snowflake to go ahead and execute the copy into statement defined in the pipe. This method only works with external stages.  
+
+![image](https://github.com/user-attachments/assets/65255a95-3ee3-4998-bbbe-e5acfc16ef91)  
+
+AUTO_INGEST = FALSE : 
+
+If on the other hand you set auto ingest a false, you're telling Snowflake that you'll let them know yourself when a new file is uploaded via a call to a Snowflake resting point. This method works both with internal and external stages.  
+
+In this scenario we make use of a Snowflake rest endpoint to notify a pipe that a file has been uploaded to a stage. This applies to both internal and external stages. Client applications for which there are Java and Pythons SDKs provided can call Snowflake via a public insert files rest endpoint providing a list of file names that were uploaded to the stage along with a reference to a pipe.  
+For the files that matched the list provided in the API call, Snowflake provided compute resources will execute the copy into table command in the pipe definition to populate the target table.  
+
+![image](https://github.com/user-attachments/assets/fdf26333-968c-492f-8cc2-4a1c64b86c4b)  
+
+Some key differences between Snowpipes and Bulk Loading :  
+
+![image](https://github.com/user-attachments/assets/fc2a0414-b0f7-4840-8606-0896c9c622da)  
+
+best practices for data loading to keep costs down and ensure good performance. These recommendations apply to both bulk loading and continuous data loading with SnowPipe. We should split large files into multiple files around a hundred to 250 megabytes of compressed data. This is because a single server in a warehouse can process up to eight files in parallel. So providing one large file will not utilize the whole warehouse's capacity. Files exceeding a hundred gigabytes are not recommended to be loaded and should be split.  
+
+The reverse is also true if we have many files which are very small, for example, messages of 10 kilobytes, it would be a good idea to bundle these up into larger files to avoid including too much processing overhead.  
+
+![image](https://github.com/user-attachments/assets/18075501-07e4-4ff4-acac-e82b7bfe4f18)  
+
+Organizing stage data has the benefit of creating a natural order of data, which after copying into Snowflake, translates into micro partitions that are more evenly distributed and therefore have the potential for improved pruning.  
+
+As SnowPipe aims to load a file within one minute, it's recommended not to upload files at a shorter frequency than that. If we were to load very small files more often than once per minute, SnowPipe would not be able to keep up with the processing overheard and the files would back up in the queue in current costs.  
+
+### Data Unloading:  
+
+
+
 ### Labs hacks:
 
 tO list all the content of an external stage we can use LIST command.
