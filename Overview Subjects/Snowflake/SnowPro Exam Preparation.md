@@ -1122,6 +1122,20 @@ Casting can be done using 3 methods :
 
 The AS datatype function is the same in terms of functionality to the TO datatype function. However, it's only used for converting values from a variant column.
 
+#### Semi structured data options :  
+
+![image](https://github.com/user-attachments/assets/747c6c8a-77db-4718-81d8-98530bc1d3a2)  
+
+- Flatten function :
+
+![image](https://github.com/user-attachments/assets/d0635ec5-5b06-482e-b2fe-cddf1b18199b)  
+
+![image](https://github.com/user-attachments/assets/1fb0d95a-a40e-4f5e-93fd-6b40fa0da399)  
+
+![image](https://github.com/user-attachments/assets/1d9c0850-f2ed-4237-824b-b5f1e6e7b7ee)
+
+
+
 
 
 
