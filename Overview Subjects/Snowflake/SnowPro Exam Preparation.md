@@ -1035,6 +1035,94 @@ As SnowPipe aims to load a file within one minute, it's recommended not to uploa
 
 ### Data Unloading:  
 
+Data unloading is the process of getting data out of snowflake.  
+
+![image](https://github.com/user-attachments/assets/473acbdb-c21e-473a-ba20-23c99091e879)  
+
+We can use for that two methods:  COPY INTO LOCATION and GET method.  
+
+![image](https://github.com/user-attachments/assets/4bae4029-da71-48cf-bddb-9bfb8dd9d463)  
+
+The COPY INTO will export data to the external stage and then we can use GET (works only in the CLI) to download the files to the local file system.  
+
+![image](https://github.com/user-attachments/assets/1f3d2427-ed11-4274-9593-384706d069e7)  
+
+Data files unloaded to cloud storage can be encrypted if a security key is provided to Snowflake.  
+
+![image](https://github.com/user-attachments/assets/65baa6bc-8264-4cad-98b7-69bacbb5a618)  
+
+Some options can be used with the COPY INTO LOCATION :  
+
+![image](https://github.com/user-attachments/assets/57b072b9-a4da-4690-ae33-c26abf1ac180)  
+
+The GET command is essentially the reverse of PUT, you specify a source stage in a target local directory to download the file to. Typically, this command is executed after using the COPT INTO location command. GET cannot be used for external stages. You would access those via their own utilities like the AWS console or CLI. GET can only be used with internal stages.  
+
+![image](https://github.com/user-attachments/assets/98d2a5d4-28d5-4c43-94e1-9df3b26e4b86)  
+
+### Loading semi-structured data:  
+
+Snowflake has extended the standard SQL language to include purpose-built, semi-structured data types. These allow us to store semi-structured data inside a relational table.  
+
+![image](https://github.com/user-attachments/assets/1637582f-c135-477b-82aa-2efb87dadd5d)  
+
+#### Data types 
+
+Semi structured data have several types :  
+
+- Array:
+
+![image](https://github.com/user-attachments/assets/934b9707-096b-4b75-9919-cbd74b178d67)  
+
+- Object :
+
+![image](https://github.com/user-attachments/assets/3e7c5fde-2827-4dbe-8ec4-29aa1a7fd2eb)  
+
+- Variant:
+
+The basic idea with the variant is that it can hold any other data type, objects, arrays, numbers, anything. This is why you might see it referred to as a universal semi-structured data type in the documentation. Objects and arrays are really just restrictions of the variant type.  
+It's primarily used for storing whole, semi-structured data files.  
+
+![image](https://github.com/user-attachments/assets/3f5173d1-b87c-4a14-b69f-2a0cb9a4a721)  
+
+Variant data type can hold up to 16 megabytes of compressed data per row, so if we're loading a large file into a variant column that exceeds that threshold, an error will be thrown. we'll either have to split that JSON file prior to loading it or use a file format option to separate the JSON objects in a file so they're loaded as separate rows.  
+
+#### Semi strcutured file formats :  
+
+Snowflake have taken a few of the most popular semi-structured file formats and figured out a way to load these into their storage, intelligently extracting columns from their complex structures and transforming them into Snowflake's column and file format.  
+
+This is what we mean by natively supporting semi-structured data.  
+
+![image](https://github.com/user-attachments/assets/7e1f71eb-f7ae-48b4-9981-4696d0b20a30)  
+
+![image](https://github.com/user-attachments/assets/629dde2d-8477-4757-997b-57ab5051351f)  
+
+![image](https://github.com/user-attachments/assets/fd29579f-b1cb-4b1f-b570-b14a941f18a0)  
+
+Strip outer array is quite an important option, as it's a very convenient way to bypass the 16 megabyte limit on a variant column during data loading, The top level elements in a JSON file are generally listed in an array. so by setting this option to true the array is removed and each JSON object is stored as a separate row.  
+
+Loading semi structured data can be done using 3 ways :  
+
+![image](https://github.com/user-attachments/assets/604121d4-e7d8-4259-a207-713b51637d41)  
+
+The unloading is similar to the structured data :  
+
+![image](https://github.com/user-attachments/assets/4ee2a579-81e2-4ba9-9098-7138ae7e01aa)  
+
+#### Accessing semi structured data :  
+
+Several ways to access semi structured data :  
+
+![image](https://github.com/user-attachments/assets/9210bbb0-f572-4bd5-9136-e167c037a9b3)  
+
+#### Casting semi structured data :  
+
+Casting can be done using 3 methods :  
+
+![image](https://github.com/user-attachments/assets/fdd5e096-e37a-43bd-9fbe-9fb1cdc8ae91)  
+
+The AS datatype function is the same in terms of functionality to the TO datatype function. However, it's only used for converting values from a variant column.
+
+
 
 
 ### Labs hacks:
