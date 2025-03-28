@@ -1128,11 +1128,222 @@ The AS datatype function is the same in terms of functionality to the TO datatyp
 
 - Flatten function :
 
+FLATTEN() is a table function in Snowflake that explodes semi-structured data (arrays, objects, or variants) into multiple rows.  
+👉 It takes nested data (JSON, XML, ARRAY, OBJECT, VARIANT, etc.) and returns each element as a separate row.
+
+FLATTEN() expects a single input, but when using a subquery without LATERAL, it can return multiple rows, which Snowflake doesn’t allow in this context.  
+
+LATERAL on the other hand ensures FLATTEN() processes each row individually. It's like performing a join to apply flatten to each row in the table !  
+
 ![image](https://github.com/user-attachments/assets/d0635ec5-5b06-482e-b2fe-cddf1b18199b)  
 
 ![image](https://github.com/user-attachments/assets/1fb0d95a-a40e-4f5e-93fd-6b40fa0da399)  
 
 ![image](https://github.com/user-attachments/assets/1d9c0850-f2ed-4237-824b-b5f1e6e7b7ee)
+
+```SQL
+SELECT jt.id, f.value AS hobby
+FROM json_table jt,
+LATERAL FLATTEN(input => jt.data:hobbies) f;
+```
+
+### Data Transformations :  
+
+Several function are supported in snowflake :  
+
+![image](https://github.com/user-attachments/assets/bb20af61-bcf9-44ee-8e89-58b9484ada81)  
+
+#### Scalar functions :  
+
+![image](https://github.com/user-attachments/assets/1b0eb107-4469-4b2e-9423-bdf9e001cb84)  
+
+Example :  
+
+![image](https://github.com/user-attachments/assets/7ebd3bb0-635d-49c1-afc8-640a5bab61ba)  
+
+#### Aggregate functions :  
+
+![image](https://github.com/user-attachments/assets/2e1dac6e-a76e-4467-b2ee-d12abeb7b226)  
+
+- Estimation Functions :
+
+![image](https://github.com/user-attachments/assets/34e6b571-fb25-4ec9-8a67-cf6d24151574)  
+
+why use an estimation function if we already have the distinct keyword, which when used in conjunction with count, will give us an accurate and exact output of the number of distinct values in a column? Executing a count distinct operation requires an amount of memory proportional to the cardinality, which could be quite costly for very large tables. So Snowflake have implemented something called the HyperLogLog cardinality estimation algorithm. This returns an approximation of the distinct number of values of a column. The main benefit being that it consumes significantly less memory and is therefore suitable for when input is quite large.  
+
+![image](https://github.com/user-attachments/assets/0338561f-2102-4f26-b118-02097fb935b6)  
+
+![image](https://github.com/user-attachments/assets/268943d6-f51b-40de-b1c7-83fab8af0d25)  
+
+Comparision between distinct(count(*)) and HHL():  
+
+![image](https://github.com/user-attachments/assets/991006fd-8578-4680-86f5-110a9d5dd6ca)  
+
+![image](https://github.com/user-attachments/assets/f43e7e9a-f640-4df4-9959-2489b246aa30)  
+
+![image](https://github.com/user-attachments/assets/2ac58e12-aad8-434d-8e35-2b87045f5b8e)  
+
+MINHASH two input parameters, K and an expression.
+
+K determines how many hash values we like to be calculated on the input rows. The higher this number, the more accurate an estimation can be. But bear in mind, increasing this number also increases the computation time.The max value you can set is 1024.  
+
+![image](https://github.com/user-attachments/assets/dbae0efb-445d-4d51-8a5a-2d40d06bb1fc)  
+
+- Frequency estimation :
+
+![image](https://github.com/user-attachments/assets/cdef6e79-22d7-4883-ba1a-7f09a4eda238)  
+
+![image](https://github.com/user-attachments/assets/93ca43a8-3ba7-4806-a6bd-b35c9341c814)  
+
+
+This function has three input parameters. The column we like to calculate the frequency of values for, the number of values we'd like to be approximated, and the maximum number of distinct values that can be tracked at a time during the estimation process. Increasing this max number makes the estimation more accurate, and in theory uses more memory. Although setting it to the max still has good performance.  
+
+If we want exact value :  
+
+![image](https://github.com/user-attachments/assets/665e909a-0d38-40b2-abc4-814df07d69d5)  
+
+- Percentile estimation :
+
+![image](https://github.com/user-attachments/assets/19a3222a-440c-414f-9581-dfa22ec8a9b5)  
+
+Example :  
+
+![image](https://github.com/user-attachments/assets/b193c54c-2823-4540-9d3b-ec1e3d2dfb93)  
+
+what score we'd have to achieve to get as good or better than 80% of other students,we'd plug in 0.8. For this group of 10 students, we'd have to achieve at least 74 to be at the 80th percentile.  
+
+#### Windows functions :  
+
+![image](https://github.com/user-attachments/assets/f24d2c79-fa64-4f1c-976f-52f628b64d35)  
+
+#### Table functions : 
+
+![image](https://github.com/user-attachments/assets/6c2303e5-1e98-48cf-a69a-6711d1ee345b)  
+
+Example :  
+
+![image](https://github.com/user-attachments/assets/d3d88c13-fd1a-4636-bffc-e22c041124de)  
+
+Note that to query all table functions, we wrape them in TABLE().  
+
+#### System functions :  
+
+![image](https://github.com/user-attachments/assets/7ce1945a-a75d-4f2f-aeff-dc140b864b30)  
+
+![image](https://github.com/user-attachments/assets/79a13b05-5549-49a4-8d72-0c772b5f3381)  
+
+![image](https://github.com/user-attachments/assets/16b6d5f7-b94a-4936-92f0-c7806f698407)  
+
+#### Table Sampling :  
+
+These function are useful to choose the sample of data to work with by giving probabilities to each row or block of data to apear in the final sample:  
+
+![image](https://github.com/user-attachments/assets/b8f1fe43-b57c-4421-b38d-2d25e612fa2e)  
+
+The above methods generate random size but the bellow can generate a fixed size:  
+
+![image](https://github.com/user-attachments/assets/94eb51c0-902e-4de6-8836-e2ae22d18e7d)  
+
+### Unstructured data :  
+
+How snowflake handels unstructured data ?  
+
+![image](https://github.com/user-attachments/assets/2e46c044-23eb-49c6-aee6-463174ea426d)  
+
+6 functions for this type of data :  
+
+![image](https://github.com/user-attachments/assets/995f1710-780a-4272-96f1-903e1f1af25e)  
+
+From an unstructured data we use these functions to generate URLS:  
+
+![image](https://github.com/user-attachments/assets/a47fa0eb-af67-4d82-a2b3-9cca3353ce37)  
+
+Then querying it like the following can give  access to the file :  
+
+![image](https://github.com/user-attachments/assets/660e52a3-e74b-449d-8317-2bf0e17992dc)  
+
+Note that this method generates a URL with a time limit of 24 hours.  
+
+If we want to give access to other users to these URLS we can use them in a view :  
+
+![image](https://github.com/user-attachments/assets/e5d4ef56-473b-425f-9d91-605a317b0a5c)  
+
+
+We can produce permenant URLS using another function :  
+
+![image](https://github.com/user-attachments/assets/3c927c2d-8021-477b-94e9-bd7ed385c62b)  
+
+The encryption part needed if the access to the URLs gives an error like corrupted files meaning that the files behined are encrypted !  
+
+- BUILD_SCOPED_FILE_URL :
+  
+  - Purpose: Generates a URL for accessing a file stored in a Snowflake internal stage.  
+  - Use Case: This function is used when you want to create a URL that provides direct access to files stored in an internal stage within Snowflake. It's more commonly used when dealing with Snowflake's internal file storage and doesn't work with external cloud storage services (such as Amazon S3 or Azure Blob).  
+
+- BUILD_STAGE_FILE_URL :  
+
+  - Purpose: Generates a URL for accessing a file stored in an external stage (like Amazon S3, Azure Blob Storage, or Google Cloud Storage).
+
+  - Use Case: This function is typically used for external stages and creates a URL for accessing the file from the cloud service (such as an S3 bucket). Unlike GET_PRESIGNED_URL, which generates a temporary presigned URL, BUILD_STAGE_FILE_URL provides a regular URL (not presigned) to the external file.
+
+- GET_PRESIGNED_URL : 
+  - Unlike the above methods that needs to be signd in to snowflake to use the URLs, the GET_PRESIGNED_URL method generate a presigned URL that allows temporary, secure access to a file stored in an external stage (e.g., Amazon S3, Microsoft Azure Blob Storage, or Google Cloud Storage) without requiring direct Snowflake credentials.  
+
+![image](https://github.com/user-attachments/assets/42903c71-6df2-4edf-b171-a30da592adfe)  
+ 
+
+Example :  
+
+![image](https://github.com/user-attachments/assets/95d3e12f-696f-4e47-b753-66a890611c4d)  
+
+![image](https://github.com/user-attachments/assets/6d18c82a-88e1-4938-9cd7-0a2a198ccf07)  
+
+![image](https://github.com/user-attachments/assets/2b7cabdb-1e50-420d-b0db-b7c85025d469)  
+
+#### Directory Table :
+
+There's simply an interface we can query to retrieve metadata about the files residing in a stage. Their output is somewhat similar to the list function we reviewed when looking at stages. And here is the syntax for querying a stage with a directory table enabled, Select star from directory, parentheses, and stage name. And unlike the list command, it includes an additional field relevant to unstructured data access called FILE_URL. This is a Snowflake hosted file URL identical to the URL you'd get if you executed the build stage file URL function. We also have additional information like the file size, the file hash, and the last modified time of a stage file.  
+
+![image](https://github.com/user-attachments/assets/84e118b5-870d-4b53-8ce1-536e547819d4)  
+
+Manual refresh of Directory Tables :  
+
+![image](https://github.com/user-attachments/assets/ae048eae-9f70-4de1-9c0b-a103421b5b91)  
+
+Automated refresh of Directory Tables :
+
+Relevant for external stages only, is to set up automated refreshers. This is done by setting up event notifications in the cloud provider in which your stage is hosted.  
+
+![image](https://github.com/user-attachments/assets/7a301db5-8d6a-4360-8605-11ef8279cbc6)  
+
+#### File support REST API :  
+
+File support REST API allows us to download data files from either an internal stage or an external stage programmatically, ideal for building custom applications, like a custom dashboard that renders product images, for example.  
+
+![image](https://github.com/user-attachments/assets/882c1f05-a9c6-4d18-af39-c32c11ff5d2d)  
+
+USAGE Role needed for External stage and READ Role for internal stage.  
+
+Example :  
+
+![image](https://github.com/user-attachments/assets/ccbcc7d8-c034-4e2a-a0d9-b2e338756206)  
+
+Here we hardcoded the value, but we could do something like use the SQL REST API to make a call to a stored procedure that generates the URL for us.  
+
+
+## Storage, Data Protection and data Sharing :  
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
