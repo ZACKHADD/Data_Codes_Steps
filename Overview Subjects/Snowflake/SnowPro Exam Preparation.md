@@ -1341,6 +1341,119 @@ When loading data into snowflake, this latter creates micropartitions in a propr
 
 By default data are partitioned based on the order of insertion.  
 
+![{AED5469A-8E1F-4DF2-9685-8882EF5A896A}](https://github.com/user-attachments/assets/c99dea94-34ec-4e59-9ca2-c5c94a136769)  
+
+This column storage is best for reading data faster thanks to data prunning capabilities ! The prunning is the fact that snowflake uses the micropartitions metadata (min, max ..) to filter data !  
+
+![{37526445-731C-4739-9E2B-F354B8F525C2}](https://github.com/user-attachments/assets/31de619a-6668-4a76-a801-c7b78b98459d)  
+
+That's why also the min, max and row count do not need warehouses to be computed !  
+
+![{B1A7761C-0A7A-4E84-B2C8-166215BFAC5F}](https://github.com/user-attachments/assets/bc7d584c-dd24-474a-abfb-2e650dbe9f96)  
+
+
+### Data lifecycle : 
+
+Snowflake cares alot about the data loss situations, hence it added some features to prevent that !  
+
+![{BFDBD494-5F81-4B7E-9012-AA26453D4D3A}](https://github.com/user-attachments/assets/ed56d9a2-cf43-4f09-b748-54aef301daed)  
+
+#### Time travel :  
+
+Time travel is a feature that keeps track of objects such as schemas, tables and databases so that the user can restore them id needed afer removal.  
+
+![{FF6080B7-6E9E-40A2-877B-33C29B249D5F}](https://github.com/user-attachments/assets/31761313-4beb-490d-bccf-acc7fad76a17)  
+
+Time travel has a retention period to be set :  
+
+
+this follows the objects hierarchy in snowflake meaning that if we set 90 days retention period on the database it would be the same for the schemas and tables under that database unless we specify a different retention period in the elementary object !  
+
+![{733865BA-AFDC-4929-BA47-965E936BC122}](https://github.com/user-attachments/assets/77ba1d98-6ee4-447a-890b-c772a80c4a7c)  
+
+To use time travel we need to follow 3 sql queries : AT, BEFORE and UNDROP  
+
+![{1C093DA9-29EA-4391-B562-F71CE2FF8798}](https://github.com/user-attachments/assets/31d7af36-1889-4dc4-9942-1c96898a5c5f)  
+
+
+#### Fail Safe :  
+
+There is another layer that keeps the removed data even if we exceed the time travel ! but this feature is completely managed by snowflake :  
+
+![{95B7E1EE-9BD6-49D4-A031-AF188A9569B6}](https://github.com/user-attachments/assets/9a60c42e-99a9-4b47-aa5f-31e0399cdf2e)  
+
+#### Cloning :  
+
+Cloning is feature that creates duplicates of snowflake objects without the need to duplicate data. The two objects have seperate but similar architecture and the share the same data (Metadata files pointing to the data). Only new date or updated ones are specific to each copy meaning the if we update data using the cloned table for example new partitions will be created and will only be linked to this table :  
+
+![{4CE4D411-5C51-49E6-A9BB-18B12BBFA230}](https://github.com/user-attachments/assets/1103a20e-061e-4eb7-87bd-426f9534424f)  
+
+Note that cloning databases and schemas is recursive and clones subobjects such as tables, views ... even if we can't directly clone views.  
+
+![{B3E1C772-D2BE-49B1-88FC-EF936F7E9554}](https://github.com/user-attachments/assets/d780a76d-e245-4854-86ac-73891107abd7)  
+
+The are however some limitations of cloning :  
+
+![{6383C85A-C6F9-4DE1-8307-AC0E8442E0FD}](https://github.com/user-attachments/assets/046feb91-92f0-4324-ab31-889b7c87e231)  
+
+With this said, cloned tables do not keep track of loaded files and can lead to loading the same file twice and having dupplicated data !  
+We can use alos cloning with the time travel feature :  
+
+![{CC3C0DD1-5E0F-4D4F-B81F-ED711BE2CCA6}](https://github.com/user-attachments/assets/3f6dc90f-b059-489d-a843-8af8958d8798)  
+
+#### Replication :  
+
+It happens between accounts and it moves data from an account to another :  
+
+![{02770500-F7C9-4E60-974E-9BE7DFE6F420}](https://github.com/user-attachments/assets/ba748beb-7a48-4c51-a72a-9dc556f30edc)  
+
+
+![{B4D880A6-B111-4A72-AA5B-06DDC1E90A7B}](https://github.com/user-attachments/assets/a5d3d72a-8f8e-47e4-a258-1bc0d9f664a2)  
+
+
+#### Billing storage :  
+
+Snowflake calculate a daily average storage and by the end of the month another monthly average to estimate the billing :  
+
+![{9DFD4379-1267-4CFC-8ADA-D76DEDE155F5}](https://github.com/user-attachments/assets/de271a0c-03f9-4e5a-bc78-df49eca6c007)  
+
+#### Secure Data sharing :  
+
+This is a powerful feature that makes it safer to share data inside or outside the company :  
+
+![{203D115E-CB5D-4305-8FDA-445D5BD03D68}](https://github.com/user-attachments/assets/89c2ae3b-30b0-4663-965b-ec242f6b5dd6)  
+
+The consumer will only pay for the computing resources.  
+
+What can we share :  
+
+![{76176EF8-1BEF-4EEA-8BD5-34AA47FCE29E}](https://github.com/user-attachments/assets/1c9031aa-adee-4299-b4df-f804f482262f)  
+
+![{E2E26B16-E22E-4D46-B264-0A6BE543D541}](https://github.com/user-attachments/assets/fad2730f-fd24-4cbc-880b-16012986955f)  
+
+Any new object created within a shared database will not automatically be added to a share. We have to explicitly add the grant to a share to make it accessible to consumers. Future grants cannot be used in shares.  
+
+![{9834A3DE-1968-4DFE-AD28-87E69EDBFB86}](https://github.com/user-attachments/assets/0acff8a5-e7ef-4bdf-b05f-752affdb3cc2)  
+
+![{A1DD30CF-D281-445A-AA8A-D05566010AF8}](https://github.com/user-attachments/assets/36d4f3c2-418d-4322-a8de-397bbcb8582d)  
+
+If a provider would like to share with an account outside of its region, for example, it would involve replicating the database we'd like to share into an account within the same region as the consumer account and then creating a share from the replicated database.  
+
+![{99B25657-6C3D-4336-9410-6C434A5A7252}](https://github.com/user-attachments/assets/86538aa1-0792-4afb-b338-390fdb99effb)  
+
+![{E03DCD0B-6141-4FFB-8757-FEED5215A3CD}](https://github.com/user-attachments/assets/220ae99a-8bfb-4d71-b038-68512b9fff60)  
+
+We can also create reader accounts. This type of account is like a limited version of a standard account whose sole purpose is to provide access to database objects from the data provider to a non Snowflake user. They wouldn't have to enter an agreement with Snowflake. They're simply provided an account URL, username and password and can query the shared data as if they did have a full account.  
+
+![{E1093C0B-FFC8-4D77-9576-4FA9D77F9543}](https://github.com/user-attachments/assets/07954862-56c3-49ed-b48c-d27b862b064f)  
+
+
+
+
+
+
+
+
 
 
 
