@@ -1333,6 +1333,14 @@ Here we hardcoded the value, but we could do something like use the SQL REST API
 
 ## Storage, Data Protection and data Sharing :  
 
+The data storage part is so important and its understanding makes it much easier for us to manage the optimizations.  
+
+Data are stored behind the scene in the cloud provider storage servive we choosed initially when we created the snowflake account. Once the data are loaded we can no longer access it ! only using the SQL commands.  
+
+When loading data into snowflake, this latter creates micropartitions in a propriotary format similar to parquet files.  
+
+By default data are partitioned based on the order of insertion.  
+
 
 
 
