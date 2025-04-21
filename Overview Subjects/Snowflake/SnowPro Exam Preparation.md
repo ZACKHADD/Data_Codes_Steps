@@ -1447,29 +1447,14 @@ We can also create reader accounts. This type of account is like a limited versi
 
 ![{E1093C0B-FFC8-4D77-9576-4FA9D77F9543}](https://github.com/user-attachments/assets/07954862-56c3-49ed-b48c-d27b862b064f)  
 
+#### Data Exchange :  
+
+So what if we'd like to share our data publicly but only to a specific group of accounts? nA data exchange effectively allows us to create a private version of a data marketplace on the Snowsight UI, and invite other accounts to provide and consume data within it. That could be other departments in a company, suppliers, any trusted party that wants to produce or consume data.  
+
+We can set up a data exchange by contacting Snowflake Support and providing a name and description of the exchange. The data exchange feature is currently not available for VPS editions of Snowflake.  
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+![{9D5C6FC7-9912-434B-852C-5F0C229C4EAD}](https://github.com/user-attachments/assets/3e1d7def-2933-452e-a34e-1f3f935afa34)  
 
 ### Labs hacks:
 
