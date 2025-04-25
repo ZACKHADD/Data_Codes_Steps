@@ -1763,7 +1763,410 @@ Some imprerative tools:
 
 ![{74546D84-2017-43ED-877B-89C260A8756B}](https://github.com/user-attachments/assets/228682be-d81f-443a-a019-fb6dc7389e6a)  
 
+Some declarative tools:  
+
 ![{B020CBDB-1993-45D2-9AFC-F3B2D35DDB2A}](https://github.com/user-attachments/assets/303894d3-5900-4bb4-931e-c194a71bbfb4)  
+
+some tools are more powerfull dealing with some objects than others. For example **terraform** id best for managing the high level objects such as databases, roles, warehouses but for the other objects at the schema level other tools such as **Schemachange** come very handy !  
+
+We will use in our POC terraform for databases, warehouses and roles management and schemachange for the schema level objects management.  
+
+#### 7.1 Terraform :  
+
+Terraform is a great tool that lets us write code to manage cloud stuff like servers, databases, networks, and more—just like you'd write code for an app.
+
+🔧 Key Features:
+
+- Infrastructure as Code (IaC): Declare what you want (e.g., “I need 3 servers in AWS”), and Terraform builds it.
+
+- Multi-cloud Support: Works with AWS, Azure, GCP, and many others.
+
+- Declarative Syntax: You describe the desired state, not the steps to get there.
+
+- Plan & Apply Workflow:
+    - terraform plan: Shows what changes it will make.
+    - terraform apply: Actually makes those changes.
+
+- State Management: Keeps track of what resources exist and their configurations using a state file.
+
+A simple example :  
+
+```hcl
+provider "aws" {
+  region = "us-west-1"
+}
+
+resource "aws_instance" "my_server" {
+  ami           = "ami-123456"
+  instance_type = "t2.micro"
+}
+```
+
+This simple code generates an AWS server that simple (of course we need to setup the authentication to AWS first)  
+
+#### Structure :  
+
+Terraform can work using one single file where we declare all the needed configurations and ressources to create ! **But this will get sooo messy !**. Hence we use a conventional structure that helps organising our project and reuse some common elements !  
+
+A classic structure would be :  
+
+```bash
+project-root/
+│
+├── main.tf              # Main resources and configurations
+├── variables.tf         # Input variable definitions
+├── outputs.tf           # Output values (for chaining modules or debugging)
+├── terraform.tfvars     # Actual values for variables (optional)
+├── provider.tf          # Cloud provider config (e.g., AWS, Azure, etc.)
+├── versions.tf          # Terraform & provider version constraints
+├── modules/             # Reusable resource modules
+│   └── my_module/
+│       ├── main.tf
+│       ├── variables.tf
+│       ├── outputs.tf
+│
+└── environments/        # Separate configs for prod, dev, etc. (optional)
+    ├── dev/
+    │   └── terraform.tfvars
+    └── prod/
+        └── terraform.tfvars
+```
+
+🧱 File Breakdown
+🔹 main.tf
+Core infrastructure logic.  
+
+E.g., creating VPCs, EC2 instances, S3 buckets.  
+
+🔹 variables.tf  
+Defines all input variables:  
+
+```hcl
+Copier
+Modifier
+variable "region" {
+  type    = string
+  default = "us-east-1"
+}
+```
+🔹 terraform.tfvars
+Assigns values to variables (can be separate per environment).
+
+```hcl
+Copier
+Modifier
+region = "us-west-2"
+```
+🔹 outputs.tf
+Outputs values after provisioning (useful in multi-stage setups):
+
+```hcl
+Copier
+Modifier
+output "instance_id" {
+  value = aws_instance.my_instance.id
+}
+```
+🔹 provider.tf
+Cloud provider setup:
+
+```hcl
+Copier
+Modifier
+provider "aws" {
+  region = var.region
+}
+```
+🔹 versions.tf
+Lock Terraform version & provider versions:
+
+```hcl
+Copier
+Modifier
+terraform {
+  required_version = ">= 1.4.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+```
+
+📦 Using Modules (Optional but Recommended)
+Modules help break infrastructure into reusable, logical chunks. You can call them like this:
+
+```hcl
+Copier
+Modifier
+module "vpc" {
+  source = "./modules/vpc"
+  cidr_block = "10.0.0.0/16"
+}
+```
+
+We will follow a quite similar structure for our project !  
+
+```bash
+Snowflake_TF_CC_CICD/
+├── environments/              # Separate env configurations (like dev, prod)
+│   ├── dev/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── terraform.tfvars
+│   │   ├── backend.tf         # we use remote state file backend for each envirement (the file is stored in AZURE blob storage)
+│   │   ├── outputs.tf
+│   ├── prod/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── terraform.tfvars
+│   │   ├── backend.tf         # we use remote state file backend for each envirement (the file is stored in AZURE blob storage)
+│   │   ├── outputs.tf
+├── modules/                   # Reusable modules
+│   ├── database/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   ├── roles/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   ├── warehouse/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+├── .github/
+│   └── workflows/
+│       └── terraform.yml      # GitHub Actions CI/CD workflow
+├── .gitignore
+└── backend.tf                 # If using remote state backend (optional)
+```
+
+the snippet above shows the global structure combining both environnements DEV and PROD. In real deployment we will have two branchs each with corresponding structure and not the combined one ! For example dev would be :  
+
+```bash
+Snowflake_TF_CC_CICD/
+├── environment/              # Separate env configurations (like dev, prod)
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── terraform.tfvars
+│   │   ├── backend.tf         # we use remote state file backend for each envirement (the file is stored in AZURE blob storage)
+│   │   ├── outputs.tf
+├── modules/                   # Reusable modules
+│   ├── database/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   ├── roles/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   ├── warehouse/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+├── .github/
+│   └── workflows/
+│       └── terraform.yml      # GitHub Actions CI/CD workflow
+├── .gitignore
+└── backend.tf                 # If using remote state backend (optional)
+```
+
+We have used a cmd script to produce automaticaly this file structure.  
+
+#### Implementation :  
+
+The files of terraform are two types: common files that are not specific to the environnement are others that are environnement specific such as the backend and terraform.tfvars ! the environnement specific files need to be mentionned in the **.gitignore** files so that they don't get replaced when merging branchs:  
+
+![image](https://github.com/user-attachments/assets/e15ffa9d-7b6f-4e3b-b5b2-32345bc84f86)  
+
+#### - Backend
+In our case we use terraform to manage snowflake infrastructure so the provider would be Snowflake. We can check terraform providers documentation that gives all the details regarding how to implement fot each provider !  
+
+To follow the best practices we will keep the state file that allows snowflake to track all the changes in a remote location : Azure blob storage !  
+
+This will need from us to setup the connection to this blob storage in the backend file :  
+
+```hcl
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "Eco_demos"         # The name of the resource group containing the storage account
+    storage_account_name = "ecodemostorage"    # The name of the storage account
+    container_name       = "terraformcicd"     # The container in the blob storage where the state file will be stored
+    key                  = "terraform_SRV_dev.tfstate" # The name of the state file (it can be any name, usually terraform.tfstate or per environment)
+  }
+}
+```
+
+To connect terraform will need an access key depending on the authentication configuration that we choose. The best practice is to use a service principal with a secret key and this needs to create a middle application (azure creates it for us but we need to be admin to do that) and this one will authenticate securely for terraform.  
+
+Since this is just a demo and not a real world scenario we will use a simpler method to authenticate : SAS - shared access signature !  
+This method generates a key that has a validation period with some permissions on the blob storage so that terraform can access it !  
+
+![image](https://github.com/user-attachments/assets/05950056-c7f3-475d-a017-a2129ebab39f)  
+
+The required permissions are read, write and list (behind the scene terraform will need to list all the containers to check if the one containing the state file is there before proceeding ).  
+Once the SAS is generated we can store it in an environment variable (locally and in the github environment secrets) to be used by terraform.  
+
+This is the corresponding backend file for the SAS authentication :  
+
+![image](https://github.com/user-attachments/assets/8dd4d89d-6784-47ac-8f05-d43e361a2101)  
+
+
+The SAS key environnement variable need to be named ARM_SAS_TOKEN so that terraform can read it automaticaly :  
+
+![image](https://github.com/user-attachments/assets/1f05f68a-a6cb-4a01-909b-49dbd0df6619)  
+
+if we have a service principle the secrets to connect to azure backend are the following : 
+
+``` bash
+export ARM_CLIENT_ID="your-client-id"
+export ARM_CLIENT_SECRET="your-client-secret"
+export ARM_SUBSCRIPTION_ID="your-subscription-id"
+export ARM_TENANT_ID="your-tenant-id"
+```
+
+These are variables to declare in our environment (local or in github also) and terraform will retrieve that automaticaly.  
+
+**Pay attention to how you set your environment variables locally !! Terraform looks for environment variables before falling back on the values in .tfvars files or variables.tf. Specifically, when an environment variable follows the pattern TF_VAR_<variable_name>, or a variable named the same way as the provider parameters, Terraform automatically uses it to populate the corresponding variable. For example if we have both SNOWFLAKE_PRIVATE_KEY_PATH and TF_VAR_SNOWFLAKE_PRIVATE_KEY, Terraform might be confused about which one to use. the best thing is to use environment variables only for things we can't store in the .tfvars or variables.tf files such as the private key.**  
+
+#### - Snowflake configuration
+
+The main.tf file is conventionaly used to specify the changes we want to make :  
+
+![image](https://github.com/user-attachments/assets/256a1d2d-b25c-468f-b137-5e34973ae753)  
+
+Here we specify the provider config and the objects to track. In our example the provider is snowflake and the objects are database, warehouse and roles.  
+
+The provider section is for snowflake parameters and authentication :  
+
+```hcl
+provider "snowflake" {
+  organization_name  = var.SNOWFLAKE_ORGANIZATION_NAME
+  account_name  = var.SNOWFLAKE_ACCOUNT_NAME
+  user          = var.SNOWFLAKE_USER
+  private_key   = base64decode(var.SNOWFLAKE_PRIVATE_KEY)
+  authenticator = "SNOWFLAKE_JWT"
+  role          = "ACCOUNTADMIN"
+}
+```
+
+the private key is to be generated using the SSH key pair authentication : a public key to be set in the user parameters in snowflake and a private key that terraform will use to authenricate !  
+
+To create the ssh key we first create a .ssh file that will hold the keys then we follow the instructions:  
+
+```cmd
+$ cd ~/.ssh
+$ openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out snowflake_tf_snow_key.p8 -nocrypt
+$ openssl rsa -in snowflake_tf_snow_key.p8 -pubout -out snowflake_tf_snow_key.pub
+```
+
+we open the public key file and we copy the key value (all of it): 
+example :  
+
+``` bash
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArW7MkZcU9XhKkOQz5iOT
+hfStGeBGHn2j3q+U8u7BoS0O4DZohT0Gy8n3CgZ9xzL8NmYMTtFf8yR7dghA4QOI
+pjwnhNdqjB6XxlA7NffzUGrJGLeME1rP2TYOn8aK1aPx8WnX+6m9oChZ2pXmU5np
+hGJbbkyp+5MiUE0uXeBFL9U9KMAYAkYI8U8HQIDAQAB
+-----END PUBLIC KEY-----
+```
+The private key is in the snowflake_tf_snow_key.p8 file. We can base encode it (best p)ractice when using cicd tools) and decode it in the provider section before using it !  ==>  hence the base64decode(var.SNOWFLAKE_PRIVATE_KEY) !  
+
+The authentication method to use by terraform to connect to snowflake is JWT !  
+
+**Pay attention to the synchronisation of the machine used since false time zone can generate a token that is already expired !**  ==> we can generate the same token that terraform generate using JWT library in python :  
+
+![image](https://github.com/user-attachments/assets/c533bf77-0ebb-4a1f-9111-0dd195eaa73e)  
+
+The code simply reads the private key and generate the token same as terraform does. Then we can check the token validity using the JWT debugger : **https://jwt.io/**  
+
+Then in snowflake we alter the users (or create them is not yet created) to affect keys to them (two users in our case dev user and prod user) :  
+
+```SQL
+USE ROLE ACCOUNTADMIN;
+
+CREATE USER TERRAFORM_SRV
+    TYPE = SERVICE
+    COMMENT = "Service user for Terraforming Snowflake"
+    RSA_PUBLIC_KEY = "<RSA_PUBLIC_KEY_HERE>";
+
+GRANT ROLE SYSADMIN TO USER TERRAFORM_SRV;
+GRANT ROLE SECURITYADMIN TO USER TERRAFORM_SRV; # needed to create roles
+
+ALTER USER ZACKHADD SET RSA_PUBLIC_KEY = "<RSA_PUBLIC_KEY_HERE>"; # to give access also to my user profile if i want to lanch terraform on my machine
+```
+
+**Note that we will use some variables to be read from the environnements either in local or github actions environnements (dev and prod each has its own variables) such as the SNOWFLAKE_USER (one for dev and the other for prod), the SNOWFLAKE_PRIVATE_KEY and ARM_SAS_TOKEN**  
+
+Locally we have only once environnement variable declared which is the SAS key. The snowflake user and other variables are only specified in the .tfvars file. However we declare in the github actions the needed variables per environnement to override the default value and use the correponding one (this is to be specified in the github actions cicd workflow to tell terraform which environnements to use) !  
+
+![image](https://github.com/user-attachments/assets/0478d989-f459-45b3-9e23-2ed7b17ce491)  
+
+In our example i use the default value of "ZACKHADD" as user but in the github actions it will be overwritten since we set environnement variables containing other values depending on the environnement :  
+
+![image](https://github.com/user-attachments/assets/57b44482-7405-4251-ae9f-08ce05b72424)  
+
+**Note that the variables declared with names that terraform knows override the one set in the default section of variables files or in the .tfvars file but the one set inline when we excute the terraform commandes override everything else !**  
+
+Now once all the setup to connect to snowflake is done we can test that locally usin **terraform init** command :  
+
+![image](https://github.com/user-attachments/assets/6c43df08-1f88-4ff2-9d22-212619c93a2d)  
+
+this will generate a sucess message and create the state file as well as some terrform files !  
+We can chek the Azure blob storage ro see the knewly create state file :  
+
+![image](https://github.com/user-attachments/assets/75595ae2-dcca-4d36-97b2-1e7756369236)  
+
+Now all is good for the connection part and terraform initialization !  
+
+Now let's see the other files. In our case we use the modules that makes it easy to make changes if the module is to be used in several locations ! we change only the module and all the locations will read that !  
+
+**Note whenever we use variables, these need to be declared ! either in the main file or in a seperate variables file. This only the declaration, we can specify the value in it also but better to use .tfcvars file that will hold the values.  **
+
+The modules also have a similar structure as the root : main, outputs and variables file since we use them in the main file of the module. This means that the variables are to be declared twice in the variables file of the module and the root one ! simply because each main file will check for the variables declaration in its level (root or module) and then search for the values int the .tfvars file.  
+
+the variables file is configured as follows :  
+
+![image](https://github.com/user-attachments/assets/62be6d76-b638-474e-8117-6ff77a2fc137)  
+
+It contains all the variables used in the main file such as connection credentials !  
+
+The modual one is similar but only for variables called in the module main file :  
+
+![image](https://github.com/user-attachments/assets/e3dcb61b-df71-4b18-b56b-0bc803a24a37)  
+
+Main file : databse example :  
+
+![image](https://github.com/user-attachments/assets/47c32edd-e3d0-468a-9ad9-fb8711218aa6)  
+
+Here we can see that the module creates a database with a name that will be retrieved from the .tfvars file in the root since there where we specified the database name value. **This file is environnement specific meaning we have one for dev and another one for prod !**. example of dev :  
+
+![image](https://github.com/user-attachments/assets/7c2526a5-0c1b-4ae6-a045-1862845da4c3)  
+
+Now we can test the locally; using **terraform plan**; what would terraform build if we would to apply the current configuration :  
+
+![image](https://github.com/user-attachments/assets/6fbb3e67-14d6-49de-be31-e3f8126dc78e)  
+
+Here we can see that all went well and terraform would create a database called DEV_DB, a role called DEV_ROLE and a warehouse called DEV_WH :  
+
+![image](https://github.com/user-attachments/assets/d6db3bcf-f797-4523-b3ef-00f78637afaa)  
+
+Here i run the locally the same configuration as the dev environnement !  
+
+The outputs files are for debuging puposes :  
+
+![image](https://github.com/user-attachments/assets/48e60204-2293-4e20-9aaa-9a27299b7dfe)  
+
+That is we see in the result of the plan command the outputs that will be created.  
+
+#### - CICD in github
+
+In this step we need to create a github workflow that will simulate the same work we did locally with all the commands to run and specifying also the variables to use depending on the environnement.  
+
+**Our goal is once we make change to a feature branch locally, we push it to the repo and create a PR that will merge the feature with the dev branch, which will trigger the workflow and run all the terraform commands in the dev environnement. Then another PR will merge the dev with prod and trigger the workflow to run all the terraform commands to create prod environnement objects**.  
 
 
 
