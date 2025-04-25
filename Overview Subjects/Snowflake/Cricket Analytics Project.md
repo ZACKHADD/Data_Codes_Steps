@@ -2166,7 +2166,236 @@ That is we see in the result of the plan command the outputs that will be create
 
 In this step we need to create a github workflow that will simulate the same work we did locally with all the commands to run and specifying also the variables to use depending on the environnement.  
 
-**Our goal is once we make change to a feature branch locally, we push it to the repo and create a PR that will merge the feature with the dev branch, which will trigger the workflow and run all the terraform commands in the dev environnement. Then another PR will merge the dev with prod and trigger the workflow to run all the terraform commands to create prod environnement objects**.  
+**Our goal is once we make change to a feature branch locally, we push it to the repo and create a PR that will merge the feature with the dev branch, which will trigger the workflow and run all the terraform commands in the dev environnement. Then another PR will merge the dev with prod and trigger the workflow to run all the terraform commands to create prod environnement objects**:  
+
+
+        +----------------------+
+        | 1. Local Development |
+        |    (feature branch)  |
+        +----------------------+
+                  |
+                  v
+        +-----------------------------+
+        | 2. Push & Create Pull Request|
+        |    feature -> dev            |
+        +-----------------------------+
+                  |
+                  v
+        +------------------------------+
+        | 4. Merge PR to dev branch    |
+        +------------------------------+
+                  |
+                  v                  
+        +------------------------------+
+        | 3. GitHub Actions Workflow   |
+        |    (Triggered on PR to dev)  |
+        | - terraform init             |
+        | - terraform fmt              |
+        | - terraform validate         |
+        | - terraform plan (dev env)   |
+        | - terraform apply (dev env)* |
+        +------------------------------+
+                  |
+                  v
+        +------------------------------+
+        | 5. Create PR: dev -> prod    |
+        +------------------------------+
+                  |
+                  v
+          +------------------------------+
+        | 4. Merge PR to dev branch    |
+        +------------------------------+
+                  |
+                  v                    
+        +------------------------------+
+        | 6. GitHub Actions Workflow   |
+        |    (Triggered on PR to prod) |
+        | - terraform init             |
+        | - terraform plan (prod env)  |
+        | - terraform apply (prod env) |
+        +------------------------------+
+
+To achieve this, we will create two branchs : one for Dev and the other for Prod (the main one). This means we will have exclude the environnement specific files when merging branchs like : backend (since it point to the environnement state file) and .tfvars files.  
+We can do this by specifying these files in the .gitattributes file :  
+
+![image](https://github.com/user-attachments/assets/024a5570-e764-431a-9d2a-398eccefc5cc)  
+
+This means that each environnement will keep its own files unmodified by the merge process !  
+
+Now we can create the Github workflow that will run the terraform commands in each environnement. This workflow will be parametrized so it can work the same in both environnements.  
+
+Since the terraform commands need to be executed in each **target** branch after the merge is completed to take the appropriate secrets of the corresponding environnement we will devide the workflow into two parts : 
+
+- The first will be triggered by the PR after its completion and will trigger the second workflow in the target branch environnement (to retrieve the appropriate secrets, otherwise it will be triggerd in the base branch and use the wrong secrets)
+- The second one contains all the terraform commands
+
+The github workflows are yaml files containing steps to run !  
+
+#### 1st workflow :
+
+```yaml
+name: Trigger Dev/Prod Workflow
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - prod
+    types:
+      - closed 
+jobs:
+  trigger-workflow:
+    name: 'Trigger Dev/Prod Workflow'
+    if: github.event.pull_request.merged == true  # Only run if the PR was merged
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Print Target Branch
+        run: |
+          echo "Target Branch: ${{ github.event.pull_request.base.ref }}"
+      - name: Trigger Dev/Prod Workflow
+        uses: actions/github-script@v6
+        with:
+#          github-token: ${{ secrets.REPO_PAT }}  # Use the PAT for authentication if needed
+          script: |
+            try {
+              const response = await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'terraform_snowflake.yml',  // Name of the second workflow
+                ref: '${{ github.event.pull_request.base.ref }}',  // Target branch (dev or prod)
+              });
+              console.log(`Workflow dispatch successful! Status: ${response.status}`);
+            } catch (error) {
+              console.error(`Error triggering workflow: ${error.message}`);
+              console.error(`Error details: ${JSON.stringify(error, null, 2)}`);
+              throw error;
+            }
+
+```
+The workflow is simple as it runs if a pull request is created to Dev or Prod and only after it's closed. The job trigger-workflow runs if the merge is done and then it creates the VM image "ubuntu-latest" then it performs the commands in the steps :  
+
+- Print the target branch (for debugging)
+- triggers the workflow in the target branch called "terraform_snowflake.yml"
+- uses try function to throw error if any
+
+#### 2nd workflow :
+
+```yaml
+name: Terraform Dynamic Deployment
+
+on:
+  workflow_dispatch:
+jobs:
+  terraform:
+    name: 'Terraform Apply'
+    runs-on: ubuntu-latest
+    environment: ${{github.ref_name }}
+    env:
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }} 
+      ARM_SAS_TOKEN: ${{ secrets.ARM_SAS_TOKEN }} 
+      
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      - name: Initialize Terraform
+        run: terraform init
+        working-directory: environment
+
+      - name: Check Terraform Formatting
+        run: terraform fmt -recursive # to do it for all the files even in subfolders
+        working-directory: environment
+
+      - name: Validate Terraform Configuration
+        run: terraform validate
+        working-directory: environment
+        
+      - name: Plan Terraform
+        run: |
+          terraform plan -var="SNOWFLAKE_USER=$SNOWFLAKE_USER" -var="SNOWFLAKE_PRIVATE_KEY=$SNOWFLAKE_PRIVATE_KEY" -var-file=terraform.tfvars -out=tfplan.out      
+        working-directory: environment
+        
+      - name: Apply Terraform
+        run: |
+          terraform apply -auto-approve -var="SNOWFLAKE_USER=$SNOWFLAKE_USER" -var="SNOWFLAKE_PRIVATE_KEY=$SNOWFLAKE_PRIVATE_KEY" -var-file=terraform.tfvars
+        working-directory: environment
+```
+
+The workflow is triggerd by the first one and it runs the terraform commands:  
+
+- it first provisions a ubuntu image then specifies the environnement and its secrests to be used then perfom the terraform steps
+- it checkouts first to the root the sets up terraform
+- it initializes terraform in the working directory of the environnement
+- then it formats all the files to avoid any errors
+- then it validates all the files and the configurations
+- then it plans the tasks to do in snowflake. Note that we specified the variables to be used inline to overwrite the default ones in the variables and tfvars files (used for local testing). We also specify -out=tfplan.out to tell terraform to save the plan steps and use it in the apply step
+- the it applys the plan to create all the ressources needed in the snowflake corresponding environnement (Dev or Prod)
+
+Now let's try this out! First we will push the changes made locally in the feature branch to the remore repository :  
+
+![image](https://github.com/user-attachments/assets/858729d5-2e43-467a-81d1-383e050abce5)  
+
+Now in github we will create the pull request from the feature to the Dev branch then from the Dev to the Prod:  
+
+![image](https://github.com/user-attachments/assets/d0e464ae-8d36-488b-b0c4-5c2a1dbe5a6c)  
+
+![image](https://github.com/user-attachments/assets/1c16b574-6847-4621-918c-a47f59b112a5)  
+
+![image](https://github.com/user-attachments/assets/fde39f6b-3df2-49bf-8e3b-106fb6d55c8a)  
+
+Under the Github actions workflows section we can see that both workflows were triggerd :  
+
+![image](https://github.com/user-attachments/assets/ee7e8090-9b88-413d-990b-7edd9adbf4e2)  
+
+The first one runs in the feature branch and the seconf in the Dev branch (target) and both of them have suceeded !  
+
+we can see the details of the job executed in the same section :  
+
+![image](https://github.com/user-attachments/assets/4e4a62ac-f87e-4682-b9c4-1105811ca3cc)  
+
+![image](https://github.com/user-attachments/assets/dc7de32d-469a-4d84-adc3-691092b3e393)  
+
+and we can see that the apply step have succeeded as expected :  
+
+![image](https://github.com/user-attachments/assets/d1e032e6-af20-4476-bb9b-866f233676a0)  
+
+Now we can check in snowflake to see if the ressources were correctly created :  
+
+The data base DEV_DB was created as expected : 
+
+![image](https://github.com/user-attachments/assets/d054bdac-b8af-4663-94ce-630ff978088b)  
+
+We can also see that in its attributes it says that it was created using terraform :  
+
+![image](https://github.com/user-attachments/assets/2a17d339-653e-46a9-bced-631691f14b62)  
+
+The role also DEV_ROLE:  
+
+![image](https://github.com/user-attachments/assets/63473f76-a25c-4266-9ddb-f7ed11584635)  
+
+And finaly the warehouse DEV_WH also :  
+
+![image](https://github.com/user-attachments/assets/49d8eb3d-97be-4df1-8b69-7c7e8d2b9510)  
+
+The same process will be followed when we create a PR from Dev to Prod !  
+
+
+
+
+
+
+
+
 
 
 
