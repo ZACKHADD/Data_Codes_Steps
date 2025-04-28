@@ -1,4 +1,4 @@
-# The present document gives an example of a Fabrci data pipline to check the existence of file before transformation and writing to the destination
+# The present document gives an example of a Fabric data pipline to check the existence of file before transformation and writing to the destination
 
 ## Action: The pipeline checks if the CSV source file exist or not before running a notebook that filters the data and write it down to a delta table in onelake.  
 
