@@ -1570,3 +1570,60 @@ We should pay attention to the settings of the timezone !! we can check the curr
                     FROM company_metadata;
 ```
 
+#### Query Spilling :
+
+Spilling in Snowflake refers to a situation where intermediate query results or operations like sorts, joins, aggregations, etc. cannot fit entirely in memory (RAM) allocated by the virtual warehouse. In such cases, Snowflake has to offload (or "spill") data to disk to complete the operation.  
+
+Spilling first happens to the warehouse local storage (SSD) then if not enaugh it goes to snowflake remote storage ! This is caused by the fact that the the intermediate data cannot fit in the warehouse RAM so it needs to be written to the local SSD or remote storage ! It is this operation and the reading one (once the warehouse will need the intermediate result) that generates the latency compared to writing and reading from the RAM !  
+
+The CPU works faster when writing and reading from RAM than the other disks !  
+
+### Focus on some exam questions : 
+
+- The PURGE property when set to true during the COPY INTO process, the files in the external stage will be removed !
+  
+![{02E6C24A-2E69-40B8-8427-FCC1E9896DF4}](https://github.com/user-attachments/assets/09da80bb-d0f1-47a3-b991-44d2535c280f)  
+
+- If the AUTOSUSPEND warehouse property is set to a too low amount of seconds, this will make the jobs slower since each time the warehouse would need to search data from the storage rather than its local cache ! (it gets purged after suspension)
+- Each table in Snowflake automatically has its own internal stage. To reference this stage we use "@%". While the user stage is referenced using "@~".
+- Column names are case insensitive but elements in json type for example are case sensitive
+- system$clustering_information retrieves clustering metadata for a column or columns
+- An API integration object (Can be used for external functions) stores information about an HTTPS proxy service, including information about:
+  - The cloud platform provider
+  - The type of proxy service
+  - The identifier and access credentials for a cloud platform role that has sufficient privileges to use the proxy service.
+- Store procedure is defined at a schema level
+- If periodic rekeying is enabled, then when the retired encryption key for a table is older than one year, Snowflake automatically creates a new encryption key and re-encrypts all data previously protected by the retired key using the new key.
+- External tables and internal named stages are never cloned.
+- min_cluster_count = max_cluster_count configuration would put a muti-cluster warehouse in maximized mode.
+- Every securable object is owned by a single role.
+- Tri-secret secure : a composite encryption key to encrypt data files made up a user provider key and a Snowflake key.
+- If query spilling happens, we need to increase the warehouse size and maybe decrease the batchs size !
+- Transient table has time travel of 1 day max and non fail safe !
+- The Snowflake Partner Connect allows you to easily create trial account with selected Snowflake business partners and integrate these accounts with Snowflake.
+- What is Discretionary Access Control (DAC)? : DAC is a model where object owners (like tables or views) can grant and revoke access to other users or roles at their discretion.
+- ON_ERROR when lading data means that we load from the file only the valid rows and not the rows containing errors!
+- Network policies currently support IPv4 type of IP address (restrict and manage IP address access to Snowflake accounts)
+- STRIP properties are for json file formats
+- Data consumers cannot re-share shared database objects.
+- VALIDATE function allows a user to view all errors encountered during a previous COPY INTO execution.
+- INFER_SCHEMA automatically detects a schema definition. A sample command making use of the INFER_SCHEMA function: 
+
+```SQL
+CREATE TABLE SS_TABLE
+
+USING TEMPLATE (
+
+  SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*))
+
+  FROM TABLE(
+
+      INFER_SCHEMA(
+
+      LOCATION=>'@MYSTAGE',
+
+      FILE_FORMAT=>'FF_PARQUET'
+
+)));
+```
+- SINGLE accepts a boolean that specifies whether to generate a single file or multiple files.
