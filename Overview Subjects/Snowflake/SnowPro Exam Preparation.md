@@ -1627,3 +1627,5 @@ USING TEMPLATE (
 )));
 ```
 - SINGLE accepts a boolean that specifies whether to generate a single file or multiple files.
+- Shared nothing (each node has its own CPU, RAM and local SSD disk) and shared disk (same storage layer for all computes) architecture
+- 
