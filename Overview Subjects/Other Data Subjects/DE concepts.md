@@ -1,3 +1,19 @@
+
+### Azure authentication : 
+
+| Feature                      | **Service Principal**                                    | **Managed Identity**                                           |
+| ---------------------------- | -------------------------------------------------------- | -------------------------------------------------------------- |
+| What is it?                  | Azure AD Application (App ID + Secret or Certificate)    | An identity tied to an Azure resource (e.g., VM, Function App) |
+| Who creates it?              | You or a 3rd party (like Snowflake) via app registration | Azure automatically creates it when enabling on a resource     |
+| Use across tenants?          | ✅ Yes — can be authorized across different tenants       | ❌ No — tied to one Azure subscription/tenant                   |
+| Authentication               | App secret or certificate + client ID                    | No secrets — Azure handles auth automatically                  |
+| Suited for external systems? | ✅ Yes — standard for SaaS integrations (like Snowflake)  | ❌ No — used for **Azure-hosted** apps and resources only       |
+| Lifespan                     | Long-lived, can be rotated manually                      | Rotated by Azure, scoped to resource lifetime                  |
+
+
+
+
+
 all systems store data in files — Snowflake, SQL Server, Databricks, Oracle, etc. Each system uses formats it can understand and process efficiently.
 
 But the real, technical distinction of a database isn’t just about "storing files." It’s about who owns and manages the data lifecycle and how tightly integrated that is with the execution engine and metadata catalog.
