@@ -992,7 +992,7 @@ File formats are useful to tell snowflake how to parse the files used in the cop
 
 ![image](https://github.com/user-attachments/assets/76cc7277-36a6-4dff-9e85-c5c5fd62db0e)  
 
-We can set the file format at the COPY INTO statement, at the TABLE level using ALTER TABLE *** SET STAGE_FILE_FORMAT=(FORMAT_NAME='CSV_FILE_FORMAT') or at the stage level using :  ALTER STAGE *** SET FILE_FORMAT = CSV_FILE_FORMAT. For the latter two ways we can use COPY INTO directly with no file format to specify as it is already attached to the table or the stage.  
+We can set the file format at the COPY INTO statement, at the TABLE level (only for table default stage !) using ALTER TABLE *** SET STAGE_FILE_FORMAT=(FORMAT_NAME='CSV_FILE_FORMAT') or at the stage level using :  ALTER STAGE *** SET FILE_FORMAT = CSV_FILE_FORMAT. For the latter two ways we can use COPY INTO directly with no file format to specify as it is already attached to the table or the stage.  
 
 Snowflake recommend compressing the file stored in a stage, whether that be an external or internal stage.  
 
