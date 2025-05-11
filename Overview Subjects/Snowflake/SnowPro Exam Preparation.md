@@ -1628,4 +1628,36 @@ USING TEMPLATE (
 ```
 - SINGLE accepts a boolean that specifies whether to generate a single file or multiple files.
 - Shared nothing (each node has its own CPU, RAM and local SSD disk) and shared disk (same storage layer for all computes) architecture
+- JDBC, ODBC, Python, GO, and C# are supported drivers in snowflake
+- Release stages : 1(early access), 2 (), 3(all accounts)
+- Snowflake Ecosystem
+- Snowflake partners :Data integration, SQL development, security & governance, BI and machine learning
+- JDBC & ODBC are most suited for BI
+- Using snowflake scripting in SnowSQL and classic interface we need delimeters arround the body : ' or $$
+- Dashboards, worksheets and folders can be shared between users (a user can send his worksheet to a nother)
+- ACID control is handeled by the cloud service layer. It also handels cloning, data exchange and sharing!
+- Only DMLs and Select need virtual warehouses. The rest is done using cloud service layer.
+- There some connctors for some databases and also for some tools such as : Spark, Kafka and Python
+- Python connector is pure python and has no dependencies on JDBC or ODBC
+- Temporary: Volatil, global and local temporary
+- CREATE OR REPLACE is atomic
+- MERGE, UPDATE, DELETE on large datasets are not atomic
+- We can create recursive views using recursive CTEs
+- All nu,eric data types are supported : number, float, real decimal
+- BOOLEAN : TRUE, FALSE (or 0) abd NULL
+- DATETIME is TIME_STAMP_NTZ (no timezone)
+- BINARY data type: files, images ... (maximum size is 8mb)
+- FF9 for fractionnal seconds9 nanosenceds
+- Only NEXTVAL is supported in snowflake not CURRVAL
+- PIPE_USAGE_HISTORY to track pipe usage
+- Network policy can be activated on the account or user level only. It is designed for users to allow or prevent them from connectingto snowflake using IP adresses
+- Only one Network policy per user or account
+- DUO mobile application is the application handeling the MFA in snowflake
+- MFA is per user and it is designed priùeraly to connect to the web interface but can be used with JDBC ODBC and snowsql.
+- SNOWSQL supports MFA
+- With the federated authentication SSO users connect trough external SAMPL complient identity provider such as Azure AD.
+- The pupose of roles os to grant previleges to Roles or users.
+- Securable objects are owned by only one role
+- We can add grants to default roles even public
+- 
 - 
