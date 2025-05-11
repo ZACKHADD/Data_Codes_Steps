@@ -1592,7 +1592,7 @@ The CPU works faster when writing and reading from RAM than the other disks !
   - The cloud platform provider
   - The type of proxy service
   - The identifier and access credentials for a cloud platform role that has sufficient privileges to use the proxy service.
-- Store procedure is defined at a schema level
+- Stored procedure is defined at a schema level
 - If periodic rekeying is enabled, then when the retired encryption key for a table is older than one year, Snowflake automatically creates a new encryption key and re-encrypts all data previously protected by the retired key using the new key.
 - External tables and internal named stages are never cloned.
 - min_cluster_count = max_cluster_count configuration would put a muti-cluster warehouse in maximized mode.
@@ -1647,14 +1647,14 @@ USING TEMPLATE (
 - Dashboards, worksheets and folders can be shared between users (a user can send his worksheet to a nother)
 - ACID control is handeled by the cloud service layer. It also handels cloning, data exchange and sharing!
 - Only DMLs and Select need virtual warehouses. The rest is done using cloud service layer.
-- There some connctors for some databases and also for some tools such as : Spark, Kafka and Python
+- There some connectors for some databases and also for some tools such as : Spark, Kafka and Python
 - Python connector is pure python and has no dependencies on JDBC or ODBC
 - Temporary: Volatil, global and local temporary
 - CREATE OR REPLACE is atomic
 - MERGE, UPDATE, DELETE on large datasets are not atomic
 - We can create recursive views using recursive CTEs
 - All nu,eric data types are supported : number, float, real decimal
-- BOOLEAN : TRUE, FALSE (or 0) abd NULL
+- BOOLEAN : TRUE, FALSE (or 0) and NULL
 - DATETIME is TIME_STAMP_NTZ (no timezone)
 - BINARY data type: files, images ... (maximum size is 8mb)
 - FF9 for fractionnal seconds9 nanosenceds
@@ -1663,11 +1663,14 @@ USING TEMPLATE (
 - Network policy can be activated on the account or user level only. It is designed for users to allow or prevent them from connectingto snowflake using IP adresses
 - Only one Network policy per user or account
 - DUO mobile application is the application handeling the MFA in snowflake
-- MFA is per user and it is designed priùeraly to connect to the web interface but can be used with JDBC ODBC and snowsql.
+- MFA is per user and it is designed primeraly to connect to the web interface but can be used with JDBC ODBC and snowsql.
 - SNOWSQL supports MFA
 - With the federated authentication SSO users connect trough external SAMPL complient identity provider such as Azure AD.
 - The pupose of roles os to grant previleges to Roles or users.
 - Securable objects are owned by only one role
 - We can add grants to default roles even public
-- 
-- 
+- large complex queries we scale up, several queries and users we scale out
+- Snowflake starts the query if at least 50% of servers needed are provisionned
+- To view the monitoring info of a warehouse we need MONITOR privilege (from 8 hours to 14 days)
+- QUEUED_OVERLOAD_TIME, QUEUED_PROVISIONING_TIME, QUEUED_REPAIR_TIME
+- Creating a new warehouse automaticaly sets it to active one being used in the session
