@@ -1628,6 +1628,16 @@ USING TEMPLATE (
 ```
 - SINGLE accepts a boolean that specifies whether to generate a single file or multiple files.
 - Shared nothing (each node has its own CPU, RAM and local SSD disk) and shared disk (same storage layer for all computes) architecture
+- MFA login is designed primarily for connecting to Snowflake through the
+    - web interface
+    - but is also fully-supported by SnowSQL
+    - and the Snowflake JDBC and ODBC drivers.
+- Snowpipe, when utilizing the REST API, isn't solely restricted to External Stages as data sources! the API can send data directly in the request body, effectively bypassing the need for pre-staging in an external location. This means data can be streamed directly from a client application to Snowflake.
+- When a Pipe is recreated using the CREATE OR REPLACE PIPE command: The Pipe load history is reset to empty
+- While Snowflake provides specific drivers for optimal performance and advanced features, it also supports standard JDBC and ODBC interfaces. These industry-standard interfaces allow applications and tools, even those without Snowflake specific drivers, to connect and interact with Snowflake databases.
+- Snowflake generates unique Query IDs for every query executed within its system. These IDs are not just unique within a single Snowflake account or region, but they are globally unique across all Snowflake deployments.
+- Snowflake tables are logical representations of underlying physical data
+- UPSERT DML command isn't supported by Snowflake : There is no command called UPSERT !
 - JDBC, ODBC, Python, GO, and C# are supported drivers in snowflake
 - Release stages : 1(early access), 2 (), 3(all accounts)
 - Snowflake Ecosystem
