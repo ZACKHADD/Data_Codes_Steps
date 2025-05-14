@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/3a241213-5570-4119-a9de-08e1d367ec95)# This document presents a use case on how to setup and configure DBT on Snowflake to handel data transformations
+# This document presents a use case on how to setup and configure DBT on Snowflake to handel data transformations
 
 We will go trough all the steps neede to configure dbt locally and connect it to snowflake then how to automate the deployment using Github Actions !
 
@@ -519,9 +519,24 @@ CREATE OR REPLACE STAGE AIRBNB_S3
 
 Full code to load and create tables on : [https://github.com/dlt-hub/dlt  ](https://github.com/nordquant/complete-dbt-bootcamp-zero-to-hero/blob/main/_course_resources/course-resources.md)  
 
+### Project structure :  
+The structure will be as follows :  
+
+![image](https://github.com/user-attachments/assets/8a95d859-81f7-408b-ae7d-34da9bc08b7d)  
+
+The models folder will contain subfolders per source (if we have multiple sources) and for each source we will have models files in sql extension.  
+We should also averride the default database and schema to adapt that for each model if we have seperate sources sources we work wich. We can do this using a **dbt_project.yml** file where we configure what materialization for each model and what **target** schema/database to be used and also **schema.yml** file where we specify all our **sources** that we will mention dynamically in our models logic using a function called source('schema','table') !  
+
+In our case we have one source and target database which is the airbnb database (meaning we read from tables in airbnb and create tables and views in the same database) :  
+
+![image](https://github.com/user-attachments/assets/24a26486-e268-4f89-abe5-c7bb4032a5b4)  
+
+So for the staging models we set the materialization to views (create views), the target database AIRBNB and the schema RAW. **Note that we can add another subfolder for another schema and add it the same way we dod for src_airbnb and change RAW by the one we want!**  
+This means that dbt will create a view using the SQL we will define in our model in the RAW schema of the AIRBNB database.  
+
 ### Creating Models in dbt : 
 
-Now comes the part transforming data ! the transformation we will create will be materialized as views before loading them later into the final tables : marts (facts and dimensions).  
+Now comes the part of transforming data ! the transformation we will create will be materialized as views before loading them later into the final tables : marts (facts and dimensions).  
 
 Let's start by doing some renaming to the columns of our 3 tables : listings, hosts and reviews :  
 
@@ -552,4 +567,36 @@ FROM
 
 ![image](https://github.com/user-attachments/assets/bd34a84c-fb12-4bde-a105-cfbe5eecd90d)  
 
-Once 
+Once we are sure of the query we can run : dbt run to deploy  
+
+![image](https://github.com/user-attachments/assets/9504d827-ee84-44a3-814f-2ff8b21520b0)  
+
+**Note that by default, if the schema in the profiles.yml file is different than the schema used in dbt_project.yml file, dbt does not override. It prefexes the second one with the first. Behind the scene it's a macro :**  
+
+```jinja
+{{ target.schema }}_{{ custom_schema_name }}
+```
+It will create a new schema :  
+
+![image](https://github.com/user-attachments/assets/4e30dac6-c7ef-4077-a2f7-f8dc9ea42d9c)  
+
+So we need to change this behaviour before running dbt by changing the built-in macor that dbt uses to generate schemas names:  
+
+```jinja
+{% macro generate_schema_name(custom_schema_name, node) %}
+    {{ custom_schema_name }}
+{% endmacro %}
+```
+
+**This macro is to stored as .sql file under macros folder !  **  
+Now we can see in the logs info that it created a view in the target schema RAW that replaces the default one in the profiles config file.  
+
+![image](https://github.com/user-attachments/assets/665dae68-59b3-4c46-b47c-2b255ed52b26)  
+
+In snowflake we can check the deployment :  
+
+![image](https://github.com/user-attachments/assets/147e653a-dd19-41f7-944b-b30da48850bd)  
+
+
+
+
