@@ -1,6 +1,16 @@
-# This document presents a use case on how to setup and configure DBT on Snowflake to handel data transformations
+![image](https://github.com/user-attachments/assets/3a241213-5570-4119-a9de-08e1d367ec95)# This document presents a use case on how to setup and configure DBT on Snowflake to handel data transformations
 
 We will go trough all the steps neede to configure dbt locally and connect it to snowflake then how to automate the deployment using Github Actions !
+
+## Well first of all what is dbt ?
+
+dbt is a solution that sets on the warehouse and handels **transformations** (Only transformations not loading or unloading !) in a flexible and especially dynamic way ! It gives the possibility to outpass limits of using SQL logics directly in the warehouse solution for instance using variables for dynamic sources, tests, documentation, CDC, **lineage** (super helpful) and so on !  
+
+![image](https://github.com/user-attachments/assets/0c1642ab-864c-472f-b4b1-6b5d84071080)  
+
+It fully supports version control and using the cloud version or combining the core one with a CI/CD tool makes great for automatically the deployments trough all the environnements.  
+
+We simply connect dbt to our data warehouse and write all the transformations there then it will compile the SQL and execute it in the warehouse compute layer !  
 
 ## dbt Setup : 
 
@@ -36,7 +46,9 @@ We can modify the profiles yaml as we like and then test the connection using : 
 
 ![image](https://github.com/user-attachments/assets/9c08455f-b913-4961-afc8-350f318159d6)  
 
-Note that we used the key-pair authentication method (details in the terraform part folder !)  
+**Note that we used the key-pair authentication method (details in the terraform part folder !)  **
+
+**Note also that the profiles yaml file database and schema are the default database we work on (read from it and create new items in it !). But we can override this in the models section to read from different sources and write to different targets !**  
 
 By default dbt gives a project structure with the following elements :  
 
@@ -463,3 +475,81 @@ sources:
 
 We can check the freshness using **dbt source freshness** or when we run dbt : dbt run. This will fail or warn us during run !  
 
+## Airbnb data example :
+
+Now that the full setup is done we can use a real example using data from the Airbnb site : https://insideairbnb.com/fr/get-the-data/
+
+![image](https://github.com/user-attachments/assets/ef2faa15-93e5-4c5e-9091-d7d9552e3d82)  
+
+### Loading data : 
+
+We can either use the compressed csv files and load them into an internal storage in snowflake or use the public S3 bucket available for berlin data : 
+
+Reviews table loading example :  
+
+```SQL
+COPY INTO raw_reviews (
+        listing_id,
+        date,
+        reviewer_name,
+        comments,
+        sentiment
+    )
+from
+    's3://dbtlearn/reviews.csv' FILE_FORMAT = (
+        type = 'CSV' skip_header = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+    );
+```
+
+Note that we can create an external stage that points directely to the files in the S3 bucket and explore data before lading it ! :  
+
+```SQL
+CREATE OR REPLACE FILE FORMAT airbnbs3_file_format
+    TYPE = 'csv'
+    skip_header = 1 
+    FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+; # This will make it easy to parse the files! no need to hard code each time the parsing method and options
+
+CREATE OR REPLACE STAGE AIRBNB_S3
+  URL = 's3://dbtlearn'  #No need to specify any integration since the S3 is public
+  FILE_FORMAT = airbnbs3_file_format; 
+```
+
+![image](https://github.com/user-attachments/assets/67b1d2fb-705f-4d95-b0e2-11e043f1194d)  
+
+Full code to load and create tables on : [https://github.com/dlt-hub/dlt  ](https://github.com/nordquant/complete-dbt-bootcamp-zero-to-hero/blob/main/_course_resources/course-resources.md)  
+
+### Creating Models in dbt : 
+
+Now comes the part transforming data ! the transformation we will create will be materialized as views before loading them later into the final tables : marts (facts and dimensions).  
+
+Let's start by doing some renaming to the columns of our 3 tables : listings, hosts and reviews :  
+
+#### Listings : 
+
+We test the transformations in snowflake (only selects) to check the result before running it in dbt or if we use dbt cloud we can use the preview section :  
+
+```SQL
+WITH raw_listings AS (
+    SELECT
+        *
+    FROM
+        AIRBNB.RAW.RAW_LISTINGS
+)
+SELECT
+    id AS listing_id,
+    name AS listing_name,
+    listing_url,
+    room_type,
+    minimum_nights,
+    host_id,
+    price AS price_str,
+    created_at,
+    updated_at
+FROM
+    raw_listings 
+```
+
+![image](https://github.com/user-attachments/assets/bd34a84c-fb12-4bde-a105-cfbe5eecd90d)  
+
+Once 
