@@ -534,6 +534,19 @@ In our case we have one source and target database which is the airbnb database 
 So for the staging models we set the materialization to views (create views), the target database AIRBNB and the schema RAW. **Note that we can add another subfolder for another schema and add it the same way we dod for src_airbnb and change RAW by the one we want!**  
 This means that dbt will create a view using the SQL we will define in our model in the RAW schema of the AIRBNB database.  
 
+**We can also use a more granular mode changing the config at the model's file level using :**  
+```SQL
+#At the top level of the file
+{{ config(materialized='table') }}
+```
+
+**Note that commenting jinja code is special and not like sql or other types:**  
+
+```SQL
+#{{ config(materialized='table') }} -- dbt still reads this !!
+{# {{ config(materialized='table') }} #} -- this is the right way to comment jinja code !
+```
+
 ### Creating Models in dbt : 
 
 Now comes the part of transforming data ! the transformation we will create will be materialized as views before loading them later into the final tables : marts (facts and dimensions).  
@@ -567,6 +580,10 @@ FROM
 
 ![image](https://github.com/user-attachments/assets/bd34a84c-fb12-4bde-a105-cfbe5eecd90d)  
 
+**We can also use dbt Power User that gives so much features including visualize the result of a query directly in VScode along with other features:**  
+
+![image](https://github.com/user-attachments/assets/02e8e273-3137-4264-b9ea-91d3f8c93f6e)  
+
 Once we are sure of the query we can run : dbt run to deploy  
 
 ![image](https://github.com/user-attachments/assets/9504d827-ee84-44a3-814f-2ff8b21520b0)  
@@ -597,6 +614,68 @@ In snowflake we can check the deployment :
 
 ![image](https://github.com/user-attachments/assets/147e653a-dd19-41f7-944b-b30da48850bd)  
 
+#### Reviews : 
+
+We so the same thing with the reviews raw data :  
+
+```SQL
+WITH raw_reviews AS (
+    SELECT
+        *
+    FROM
+        AIRBNB.RAW.RAW_REVIEWS
+)
+SELECT
+    listing_id,
+    date AS review_date,
+    reviewer_name,
+    comments AS review_text,
+    sentiment AS review_sentiment
+FROM
+    raw_reviews
+```
+
+![image](https://github.com/user-attachments/assets/1f3f0dec-d6a8-4758-acb1-936f46555f46)  
+
+We check in snowflake the deployment :  
+
+![image](https://github.com/user-attachments/assets/5ea6ad5d-24f1-4801-8918-cf1dc5462866)  
+
+We can see the also the DDL generated at snowflake warehouse ! dbt translate the code in the model file to CREATE OR REPLACE VIEW.  
+
+#### Reviews : 
+
+```SQL
+WITH raw_hosts AS (
+    SELECT
+        *
+    FROM
+       AIRBNB.RAW.RAW_HOSTS
+)
+SELECT
+    id AS host_id,
+    NAME AS host_name,
+    is_superhost,
+    created_at,
+    updated_at
+FROM
+    raw_hosts
+```
+When we run the dbt run it runs again all the models so it recreates everything !  
+
+![image](https://github.com/user-attachments/assets/8beec23b-102a-4d1f-b6a3-0e8f28908b50)  
+
+if we want to run only specific models we use :  
+
+```cmd
+dbt run --select "file_name.sql"
+```
+
+![image](https://github.com/user-attachments/assets/c4a66bbd-e025-44d8-9ad8-c417131fe0c7)  
+
+**dbt doc:**  
+https://docs.getdbt.com/reference/commands/run  
+https://docs.getdbt.com/reference/node-selection/syntax  
 
 
 
