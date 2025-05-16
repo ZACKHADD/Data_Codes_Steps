@@ -677,5 +677,41 @@ dbt run --select "file_name.sql"
 https://docs.getdbt.com/reference/commands/run  
 https://docs.getdbt.com/reference/node-selection/syntax  
 
+Now all our **SILVER** views are constructed from the RAW tables (BRONZ).  
 
+#### Listings dimension: 
 
+Here we will build the GOLD layer using dimension tables and the source of these models will be the silver layer.  
+To do so, we will create a new folder under **Marts** that we will call **aibnb_gold** (in case we want to build different gold layers in separate schemas) and we create the transformation for the the dimension (replacing some values and adding CASE operations):  
+
+![image](https://github.com/user-attachments/assets/a542e2f8-fa89-4751-b96c-fb971adc65cf)  
+
+Since this is a new folder, we need to update the dbt_project.yml file to point to this new folder and specify the materialization type.  
+
+![image](https://github.com/user-attachments/assets/8dc34634-1fc6-46d4-87bb-95d3e241e9e1)  
+
+Then we can check in snowflake :  
+
+![image](https://github.com/user-attachments/assets/f85f7495-459e-4cb5-a0ac-2fb998cb33dc)
+
+⚠️**Note that i updated the code to add the proper schema for the stging files that are normaly in this case SILVER objects!**  
+
+![image](https://github.com/user-attachments/assets/31e4881b-7dce-4fb5-a1d7-db454cb41c80)  
+
+![image](https://github.com/user-attachments/assets/67b50418-4b3a-430c-9590-18ab55e38736)  
+
+#### Hosts dimension: 
+
+We do the same thing for the host dimension:  
+
+![image](https://github.com/user-attachments/assets/2e7b1e20-9882-47b0-8d56-a7ea79435c1e)  
+
+#### Reviews fact: 
+
+For the facts, the materialization will be different. Normaly facts contains a huge number of rows compared to dimensions and recreating the table each time would exessive. That is why we need to do incremental load, meaning that we only append new data.  
+
+**Note that here we talk only about appending data since it's a fact table. Not like a dimension of type SCD2 where we need to UPSERT**  
+
+We can, for example; use the review_date and insert only the data in the source where the date of review is > Max(review_date) in the target.  
+
+We can also use a hash column that will compare all the rows and only insert the non existing one in the target table
