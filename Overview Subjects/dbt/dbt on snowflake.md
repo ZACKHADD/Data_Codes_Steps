@@ -978,6 +978,25 @@ The logic of incrementation can be as complexed as we want depending on our use 
 
 Also if we want to rebuild the whole table even if we are in incremental mode, we can use : **dbt run --full-refresh**.  
 
+#### Ephemeral materialization: 
 
+This type of materialization can be used for intermediate results that we want to reuse without creating real tables or views in our target data warehouse:  
+- A dbt model that is not materialized as a table or view in your database.
+- Instead, its SQL is inlined (embedded) into models that reference it via {{ ref() }}.
+- It is like a reusable SQL CTE (Common Table Expression).
+
+In the compiled SQL , dbt will inline the SQL of ephemeral_model, like this:  
+
+```
+ephemeral_model.sql   --> reusable filtering logic
+final_model.sql       --> selects from {{ ref('ephemeral_model') }}
+```
+
+```sql
+WITH ephemeral_model AS (
+    SELECT ...
+)
+SELECT * FROM ephemeral_model
+```
 
 
