@@ -706,6 +706,50 @@ We do the same thing for the host dimension:
 
 ![image](https://github.com/user-attachments/assets/2e7b1e20-9882-47b0-8d56-a7ea79435c1e)  
 
+#### Join the two dimensions to single dimension :  
+
+To be consistent with the star schema model, we need to join the two dimensions to a single one that will be used to filter the fact table later on. However, since this table will be queried frequently, we will materialize it as a table :  
+
+```sql
+{{
+  config(
+    materialized = 'table',
+    )
+}} -- file level configuration, as the one in dbt_project.yml is view materialization 
+
+WITH h AS (
+    SELECT * FROM 
+    {{ ref('dim_hosts') }}
+)
+, 
+
+l AS (
+    SELECT * FROM
+    {{ ref('dim_listings') }}
+)
+
+SELECT
+l.LISTING_ID	
+,l.LISTING_NAME	
+,l.ROOM_TYPE	
+,l.MINIMUM_NIGHTS	
+,l.HOST_ID	
+,l.PRICE	
+,l.CREATED_AT AS LISTING_UPDATED_AT
+,l.UPDATED_AT AS LISTING_CREATED_AT
+,h.HOST_NAME
+,IS_SUPERHOST
+,h.CREATED_AT AS HOST_CREATED_AT
+,h.UPDATED_AT AS HOST_UPDATED_AT
+FROM l 
+LEFT JOIN h ON l.HOST_ID = h.HOST_ID
+```
+
+![image](https://github.com/user-attachments/assets/fa6d2da4-1f8f-45d8-a53e-a84eb2288403)  
+
+![image](https://github.com/user-attachments/assets/ba91e7a4-c483-488a-b11f-cf328c20ec32)  
+
+
 #### Incremental materialization :
 
 We have seen that in dbt we have several materializations : view, table and ephemeral (CTEs) but also we have incremental materialization (a table).  
@@ -893,4 +937,47 @@ For the facts, the materialization will be different. Normaly facts contains a h
 
 We can, for example; use the review_date and insert only the data in the source where the date of review is > Max(review_date) in the target.  
 
-We can also use a hash column that will compare all the rows and only insert the non existing one in the target table
+We can also use a hash column that will compare all the rows and only insert the non existing ones in the target table.  
+
+```SQL
+WITH src_reviews AS (
+  SELECT * FROM {{ ref('stg_reviews') }}
+)
+SELECT * FROM src_reviews
+WHERE review_text is not null -- We load only the non null rows
+
+-- here we need to add the logic of incrementation
+-- we append data so we can for example use the review_date and insert only the data in the source where the date of review is > Max(review_date) in the target
+
+{% if is_incremental() %}
+  AND review_date > (select max(review_date) from {{ this }})
+{% endif %}
+```
+
+Here we used a custom incremental materialization.  
+
+Now if we insert a new row (test row with a date before the max date) in the the RAW_REVIEWS table which is the source table of our fact table and we rerun the fact_reviews model, the new row should be inserted only if the date is after the max date :  
+
+![image](https://github.com/user-attachments/assets/c742d909-29a1-4daf-b0a5-80edce7e068e)  
+
+The we run the model :  
+
+![image](https://github.com/user-attachments/assets/5664a247-56fc-42a6-9377-c9d6ce1124ad)  
+
+Now we check in snowflake :   
+
+![image](https://github.com/user-attachments/assets/41b03cce-9fb6-4112-b204-c5c21f8f5ec2)  
+
+We can see that the row was not inserted because the review_date is not after the max date review of the table before merge.  
+
+If we insert another row with today's date we can see that it will be inserted :  
+
+![image](https://github.com/user-attachments/assets/957a4ce2-0bc5-42d2-a955-c8365236d4b8)  
+
+The logic of incrementation can be as complexed as we want depending on our use case.  
+
+Also if we want to rebuild the whole table even if we are in incremental mode, we can use : **dbt run --full-refresh**.  
+
+
+
+
