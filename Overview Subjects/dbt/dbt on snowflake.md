@@ -706,6 +706,185 @@ We do the same thing for the host dimension:
 
 ![image](https://github.com/user-attachments/assets/2e7b1e20-9882-47b0-8d56-a7ea79435c1e)  
 
+#### Incremental materialization :
+
+We have seen that in dbt we have several materializations : view, table and ephemeral (CTEs) but also we have incremental materialization (a table).  
+
+In dbt, when using incremental models (materialized='incremental'), there are different incremental_strategy options that determine how dbt handles new data compared to what's already in the target table.  
+
+#### 1. insert_overwrite
+
+This strategy overwrites partitions of data rather than updating or inserting individual rows.  
+
+When to use :  
+- We use this strategy when working with partitioned tables (especially in BigQuery or Snowflake).
+- You want to fully replace partitions (e.g., a day, month) instead of appending or merging.
+
+``` sql
+{{ config(
+    materialized='incremental',
+    incremental_strategy='insert_overwrite',
+    partition_by={'field': 'event_date', 'data_type': 'date'}
+) }}
+
+SELECT *
+FROM {{ source('app', 'events') }}
+```
+
+#### 2. merge (Default in Snowflake, Databricks)
+
+with this strategy, dbt generates a MERGE statement that updates matching rows and inserts new ones based on a unique_key.  
+The equivalent sql command is : 
+
+``` sql
+MERGE INTO analytics.customers AS target
+USING (
+    SELECT
+        customer_id,
+        first_name,
+        last_name,
+        updated_at
+    FROM raw.app_customers
+) AS source
+ON target.customer_id = source.customer_id
+
+WHEN MATCHED THEN UPDATE SET
+    customer_id = source.customer_id,
+    first_name = source.first_name,
+    last_name = source.last_name,
+    updated_at = source.updated_at
+
+WHEN NOT MATCHED THEN INSERT (
+    customer_id,
+    first_name,
+    last_name,
+    updated_at
+) VALUES (
+    source.customer_id,
+    source.first_name,
+    source.last_name,
+    source.updated_at
+);
+```
+
+**Note that this is not the same thing as SCD2 where we need other columns to be updated in a costum way such as valid_from, valid_to and is_current or current_flag**  
+
+When to use : 
+- We want dbt to handle deduplication and updates.
+- The warehouse supports MERGE (e.g., Snowflake, BigQuery, Databricks).
+
+
+```sql
+
+{{ config(
+    materialized='incremental',
+    incremental_strategy='merge',
+    unique_key='id'
+) }}
+
+SELECT id, name, email
+FROM {{ source('crm', 'customers') }}
+
+```
+
+#### 3. delete+insert (Default in Postgres & Redshift)
+
+dbt here deletes existing rows based on unique_key, then inserts the new records.  
+
+When to use : 
+- When using Postgres or Redshift.
+- MERGE is not available.
+- We want a basic upsert behavior.
+
+
+```sql
+
+{{ config(
+    materialized='incremental',
+    incremental_strategy='delete+insert',
+    unique_key='user_id'
+) }}
+
+SELECT user_id, user_name
+FROM {{ source('app', 'users') }}
+
+```
+
+#### 4. microbatch Strategy
+The microbatch strategy is designed for efficiently processing large time-series datasets by dividing the workload into smaller, manageable batches based on a specified time column. This approach enhances performance and resilience, especially when dealing with substantial volumes of data.
+
+**Key Features**:
+- Time-Based Batching: Processes data in discrete time intervals (e.g., daily, hourly) defined by an event_time column.
+- Automatic Filtering: dbt automatically applies filters based on the event_time to process only the relevant data for each batch.
+- Parallel Execution: Supports parallel processing of batches, improving efficiency.
+- Resilience: If a batch fails, it can be retried independently without affecting other batches.
+
+To implement the microbatch strategy, we can configure our model as follows:
+
+```sql
+
+{{ config(
+    materialized='incremental',
+    incremental_strategy='microbatch',
+    event_time='event_timestamp',
+    batch_size='day',
+    lookback_period=3
+) }}
+
+SELECT
+    id,
+    event_type,
+    event_timestamp,
+    user_id
+FROM {{ ref('stg_events') }}
+```
+
+**Explanation**:
+
+- event_time: Specifies the timestamp column used for batching.
+- batch_size: Defines the granularity of each batch (e.g., 'day', 'hour').
+- lookback_period: Determines how many past batches to reprocess, useful for handling late-arriving data.
+
+We need to ensure that upstream models also have the event_time configured to enable automatic filtering and efficient processing. 
+
+**Considerations:**  
+
+- Adapter Support: The microbatch strategy is supported in dbt Core v1.9 and later. Ensure your data warehouse adapter supports this strategy.
+- Batch Granularity: Currently, the default granularity is daily. Adjust batch_size as needed, but be aware of potential limitations in granularity support.
+- Resource Management: Processing a large number of small batches can lead to increased overhead. Monitor and adjust batch_size and lookback_period to balance performance and resource utilization.
+
+#### 5. Custom Incremental Logic (Using is_incremental())
+
+in this approach we manually write the logic to filter data during incremental runs using is_incremental().
+
+When to use :
+- When having a time-based column (like created_at) to filter new rows.
+- We don't need to update existing rows.
+- We have SCD 2 dimensions
+- We want full control over incremental behavior.
+
+```sql
+{{ config(materialized='incremental') }}
+
+SELECT *
+FROM {{ source('raw', 'transactions') }}
+WHERE 1=1
+{% if is_incremental() %}
+  AND transaction_date > (SELECT max(transaction_date) FROM {{ this }})
+{% endif %}
+```
+**This approach does not require unique_key or any strategy setting.**  
+
+**Strategies overview**:  
+
+| Strategy           | Updates Existing Records     | Inserts New Records | Requires `unique_key` | Best For                                  |                                                                                        |
+| ------------------ | ---------------------------- | ------------------- | --------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------- |
+| `append`           | ❌ No                         | ✅ Yes               | ❌ No                  | Simple appends without updates            |                                                                             |
+| `merge`            | ✅ Yes                        | ✅ Yes               | ✅ Yes                 | Upserts where `MERGE` is supported        |                                                                                        |
+| `delete+insert`    | ✅ Yes                        | ✅ Yes               | ✅ Yes                 | Warehouses without `MERGE` support        |                                                                                        |
+| `insert_overwrite` | ❌ No (overwrites partitions) | ✅ Yes               | ❌ No                  | Partitioned tables in BigQuery, Snowflake |                                                                                        |
+| `microbatch`       | ✅ Yes                        | ✅ Yes               | ✅ Yes (recommended)   | Large time-series datasets
+
 #### Reviews fact: 
 
 For the facts, the materialization will be different. Normaly facts contains a huge number of rows compared to dimensions and recreating the table each time would exessive. That is why we need to do incremental load, meaning that we only append new data.  
