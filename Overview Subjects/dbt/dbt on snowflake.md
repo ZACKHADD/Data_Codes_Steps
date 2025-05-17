@@ -779,7 +779,7 @@ When to use :
 {{ config(
     materialized='incremental',
     incremental_strategy='merge',
-    unique_key='id'
+    unique_key='id' -- We can specify multiple keys if we want
 ) }}
 
 SELECT id, name, email
