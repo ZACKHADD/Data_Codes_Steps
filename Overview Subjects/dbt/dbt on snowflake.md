@@ -1001,4 +1001,44 @@ SELECT * FROM ephemeral_model
 
 #### Sources and seeds:
 
-Now that we tranformed data in the gold layer, we can make our project more dynamic using 
+In the data warehouse, data can be ingested using two different ways: Using what we call sources in dbt which are the applications and other databases or seeds. Seeds are just local files in dbt that we can use to populate our data warehouse.  
+
+To add seeds we can either use the url to the files we want and add them in the seeds file or drag it there manually:  
+
+![image](https://github.com/user-attachments/assets/70657041-6656-4f4c-b9a3-c3b8f0c529c6)  
+
+```cmd
+curl "https://dbtlearn.s3.us-east-2.amazonaws.com/seed_full_moon_dates.csv" -O seeds/seed_full_moon_dates.csv
+```
+
+Then if we want to load the files in snowflake we would just run : *dbt seed* 
+This will use the default configs in the **profiles.yml** file unless we specify other configs in the **dbt_project.yml** file :  
+
+```yaml
+seeds: -- we use the seeds category like we used models before
+  my_project_name:
+    customers.csv:
+      +schema: customer_data
+      +quote_columns: true
+```
+
+We can also add other options such as :  
+
+```yaml
+seeds:
+  my_project_name:
+    +column_types:
+      id: integer
+      signup_date: date
+    +quote_columns: false
+    +header: true
+```
+
+**Note that for now, dbt supports only csv files.**  
+
+![image](https://github.com/user-attachments/assets/94e9cef4-8cbd-4d64-bbfd-b2d78572c513)  
+
+![image](https://github.com/user-attachments/assets/4cd68473-06fb-4540-b9ed-7c099ad91849)  
+
+
+
