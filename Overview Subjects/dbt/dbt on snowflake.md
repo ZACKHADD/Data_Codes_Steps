@@ -1000,7 +1000,7 @@ SELECT * FROM ephemeral_model
 ```
 
 #### Sources and seeds:
-
+**Seeds :**  
 In the data warehouse, data can be ingested using two different ways: Using what we call sources in dbt which are the applications and other databases or seeds. Seeds are just local files in dbt that we can use to populate our data warehouse.  
 
 To add seeds we can either use the url to the files we want and add them in the seeds file or drag it there manually:  
@@ -1040,5 +1040,30 @@ seeds:
 
 ![image](https://github.com/user-attachments/assets/4cd68473-06fb-4540-b9ed-7c099ad91849)  
 
+**Note that we can later reference seeds csv files in the models just like we reference other models.**  
 
+**Sources :**  
+
+Sources are just an entity we create so that we can structure more the project and make more dynamic.  
+When we reference in our queries the *FROM database.schema.table* part, we hard code these elements. But what if we this source changes ? we would be obliged to do so in every model !  
+The best appraoch would be to define a sources object in yaml file that we will call by name in models and if it changes, we will only change it in one place !  
+
+we can define everything in the schema.yml file, or we can create another yaml file under the models folder.  
+
+```yaml
+version: 2
+
+sources:
+  - name: airbnb
+    schema: raw
+    tables:
+      - name: listings
+        identifier: stg_listings
+
+      - name: hosts
+        identifier: stg_hosts
+
+      - name: reviews
+        identifier: stg_reviews
+```
 
