@@ -999,4 +999,6 @@ WITH ephemeral_model AS (
 SELECT * FROM ephemeral_model
 ```
 
+#### Sources and seeds:
 
+Now that we tranformed data in the gold layer, we can make our project more dynamic using 
