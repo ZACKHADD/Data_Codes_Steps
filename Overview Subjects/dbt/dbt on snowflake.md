@@ -547,6 +547,8 @@ This means that dbt will create a view using the SQL we will define in our model
 {# {{ config(materialized='table') }} #} -- this is the right way to comment jinja code !
 ```
 
+**⚠️ Note that by default, all models, seeds, and snapshots are materialized as transient tables (cheeper) in Snowflake unless configured otherwise.**  
+
 ### Creating Models in dbt : 
 
 Now comes the part of transforming data ! the transformation we will create will be materialized as views before loading them later into the final tables : marts (facts and dimensions).  
@@ -1058,12 +1060,334 @@ sources:
     schema: raw
     tables:
       - name: listings
-        identifier: stg_listings
+        identifier: raw_listings
 
       - name: hosts
-        identifier: stg_hosts
+        identifier: raw_hosts
 
       - name: reviews
-        identifier: stg_reviews
+        identifier: raw_reviews
 ```
+
+![image](https://github.com/user-attachments/assets/db9c001f-d04a-479f-acc2-3c9d40df0e41)  
+
+Then we modify the models to point to the sources:  
+
+![image](https://github.com/user-attachments/assets/ad6e14c2-e958-4247-90a6-f8943c6fafbf)  
+
+This will structure more the project and make it more dynamic.  
+
+We can also implement a **freshness** feature to notify us during run if data in a source is not up to date !  
+
+
+```yaml
+version: 2
+
+sources:
+  - name: airbnb
+    schema: raw
+    tables:
+      - name: listings
+        identifier: raw_listings
+
+      - name: hosts
+        identifier: raw_hosts
+
+      - name: reviews
+        identifier: raw_reviews
+        loaded_at_field: date  #Which column that tells us about the freshness of data
+        freshness:
+          warn_after: {count: 1, period: hour} # warning after how much time
+          error_after: {count: 24, period: hour} # error after how much time
+     
+```
+
+Using **dbt source freshness** we can check the freshness of the sources:  
+
+![image](https://github.com/user-attachments/assets/7b21662f-a89a-4c48-9507-35aff26e3caa)  
+
+#### Snapshots (for automatique SCD2):  
+
+Snapdhots are an important feature in dbt that makes it easy to deal with SCD2 dimensions. It handels automatically the SCD2 tables by inserting only new or updated rows and adding the *valide_from* and *valid_to* comparing values of **unique_id** which can be a single or multiple columns. Same as we did with models, we can create sql files with the select statement of the table to create and dbt will handel the process behind the scene!  
+
+We define the structure of snapshot as follows:  
+
+```jinja
+
+{% snapshot my_snapshot %} # name of the snapshot
+
+# the config can be specified in the dbt_project.yml file (general ones like schema) or here (specific like columns)
+
+{{  
+  config(
+    target_schema='snapshots',
+    unique_key='id',
+    strategy='timestamp',
+    updated_at='last_updated_at'
+  )
+}}
+
+SELECT * FROM {{ source('my_source', 'my_table') }}
+
+{% endsnapshot %}
+
+```
+
+This will tell dbt to check each time the source and compare it with the SCD it creates and only insert new or updeted rows!  
+
+In our case we can try that by creating a SCD2 from the raw listings table:  
+
+```sql
+{% snapshot scd_raw_listings %}
+
+--the confings bellow can also be defined in the dbt_project.yml level
+
+{{ 
+   config(
+       database= 'AIRBNB', 
+       target_schema='GOLD',
+       unique_key='id',
+       strategy='timestamp', -- we can change this to check if we want
+       updated_at='updated_at',
+       invalidate_hard_deletes=True
+   )
+}}
+
+select * FROM {{ source('airbnb', 'listings') }}
+
+{% endsnapshot %}
+
+```
+
+![image](https://github.com/user-attachments/assets/c656a4d8-e8a7-434a-b98c-e1b18875466f)  
+
+In snowflake we can check the created table :  
+
+![image](https://github.com/user-attachments/assets/76fcb49d-d9ea-4411-b0e4-026d48058bce)  
+
+We can notice that by default, the table created is transient (default behaviour in snowflake). We can change that by adding in the confg : 
+
+**permanent=true** 
+
+Now we can check the behaviour of the snapshot by changing values in a row in the source table and re-run dbt snapshot:  
+
+```SQL
+UPDATE AIRBNB.RAW.RAW_LISTINGS SET MINIMUM_NIGHTS=30,
+    updated_at=CURRENT_TIMESTAMP() WHERE ID=3176;
+```
+
+![image](https://github.com/user-attachments/assets/4397a327-04f6-4b5c-988c-6e43cf46ee08)  
+
+After running dbt snapshot:  
+
+![image](https://github.com/user-attachments/assets/4179fc7f-91a8-487e-9d30-b0c5ea19fb58)  
+
+We can see that dbt added the changed row and updated the valid_to column!  
+
+**Again, this is the automatique behaviour handeled by dbt on snowflake, it may be different for other tools like databricks. If we want custom logic, we will need to implement custom materialization!**  
+
+Also, we can change the strategy if we don't have a date filed that indicates when the row was updated. We can use the **check** strategy rather than the **timstamp**. In this case, dbt will check values in the specified columns (hash them) and if they change it inserts data!  
+
+```jinja
+config(
+  strategy='check',
+  unique_key='id',
+  check_cols=['col1', 'col2'] -- Alternatively, we can use check_cols='all'
+)
+```
+We can add another option to handel deleted data : **invalidate_hard_deletes=True**. If the row no longer exists in source, dbt will mark it as invalid (sets dbt_valid_to).  
+
+#### Tests implementation:  
+
+In dbt, the most helpful part would be test implementation. This feature helps building tests to run againt all the objects to make sure the are compliant with the rules we set for our data warehouse.  
+
+If a test fails, dbt will show it clearly in the run output and optionally fail the pipeline.   
+
+There are two types of tests:  
+- 1. Generic Tests (Pre-built by dbt)
+These are reusable, built-in tests that check common conditions:
+
+We can define them in your schema.yml file like this:  
+
+```yaml
+models:
+  - name: dim_customers
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: email
+        tests:
+          - not_null
+```
+Built-in tests:  
+| Test                 | What it checks                          |
+| -------------------- | --------------------------------------- |
+| `not_null`           | No nulls in the column                  |
+| `unique`             | All values in the column are unique     |
+| `accepted_values`    | Values must be from a specific list     |
+| `relationships`      | Foreign key relationship between tables |
+| `expression_is_true` | Custom SQL boolean expression           |
+
+- 2. Custom Tests (You create them):  
+These are dbt models that return rows when the test fails.
+
+Example:  
+
+```sql
+-- to be created in the test folder : tests/no_future_dates.sql
+
+SELECT *
+FROM {{ ref('orders') }}
+WHERE order_date > current_date
+In schema.yml:
+```
+then in the schema.yml file we call it in the test  
+
+```yaml
+models:
+  - name: orders
+    tests:
+      - no_future_dates
+```
+
+We can also build a more dynamic test using macros and call it in the schema.yml test part :  
+
+```yaml
+models:
+  - name: orders
+    columns:
+      - name: order_date
+        tests:
+          - my_custom_test:
+              column_name: order_date
+```
+
+Or if not per column:  
+
+```yaml
+models:
+  - name: orders
+    tests:
+      - my_custom_test:
+          column_name: order_date
+```
+
+Then we create a marco in the macros folder:  
+
+```jijna
+-- macros/my_custom_test.sql
+
+{% test my_custom_test(model, column_name) %}
+SELECT *
+FROM {{ model }}
+WHERE {{ column_name }} > current_date
+{% endtest %}
+```
+
+The macro has two arguments: model (where we call the test), and the column (the one we want to test).  
+
+Then we can run **dbt test** to see the results of test and we can include it after dbt run inside the CICD workflow!  
+
+In our example we can set some built in tests on columns :  
+
+![image](https://github.com/user-attachments/assets/4c36bf48-5bf3-47b9-8bad-f55e45bb75b8)  
+
+We can also add other tests :  
+
+```yaml
+models:
+   - name: dim_listings
+     description: "A view that changes the names of the listings raw table columns"
+     columns:
+       - name: listing_id
+         description: "The primary key for this table"
+         tests:
+           - unique
+           - not_null
+
+       - name: host_id
+         tests:
+           - not_null
+           - relationships:
+              to: ref('dim_hosts')
+              field: HOST_ID
+
+       - name: room_type
+         tests:
+           - accepted_values:
+              values: ['Entire home/apt',
+                        'Private room',
+                        'Shared room',
+                        'Hotel room']
+```
+Let's change values in the test to break it and create an error so we can debug it :  
+
+![image](https://github.com/user-attachments/assets/816a2ba5-69a1-4918-ac49-0c0f14346767)  
+
+We can check the file generated to see what is exactly the error generated using *type link_generated_for_file*:  
+
+![image](https://github.com/user-attachments/assets/0686874f-062a-4522-84c1-32713bb2e41b)  
+
+This gives the compiled sql used against snowflake to run the tests.  
+
+We can also create a test file to check if the minimum nights for example is not less than 1:  
+
+![image](https://github.com/user-attachments/assets/54a226cd-f540-491a-8b31-8357ecde0001)  
+
+The query simply should not return any row for the test to pass.  
+
+If we inverse the logic, it will return rows for that specific query and give an error :  
+
+![image](https://github.com/user-attachments/assets/d4bf0ba7-514f-4664-89f8-23b409df2a67)  
+
+#### Macros :  
+
+Macros in dbt are reusable snippets of logic written in Jinja (a templating language). They let us parameterize and dynamically generate SQL code.  
+
+We have built in macros in dbt and we can create custom ones for our needs (for test puposes for example).  
+
+an example of a custom macro could be :  
+
+```sql
+{% macro no_nulls_in_columns(model) %}
+    SELECT * FROM {{ model }} WHERE
+    {% for col in adapter.get_columns_in_relation(model) -%}
+        {{ col.column }} IS NULL OR
+    {% endfor %}
+    FALSE
+{% endmacro %}
+```
+
+This macro is a loop that checks if once the columns of a model is null !  
+
+Now we can use this macro in a test file under the tests folder and run dbt test --select test_name.sql:  
+
+![image](https://github.com/user-attachments/assets/758ace33-9309-4f6b-9d46-692a5ba5a886)  
+
+We can do the same thing by using a macro as generic test. It will be like a function to call on a model and we will pass column argument to test the a certain condition :  
+
+```sql
+{% test positive_value(model, column_name) %}
+SELECT
+    *
+FROM
+    {{ model }}
+WHERE
+    {{ column_name}} < 1
+{% endtest %}
+```
+This is the same test we did before on minimum nights column !  
+
+![image](https://github.com/user-attachments/assets/eb9f8c02-b592-451e-8704-7474f060b367)  
+
+now we can set it in the schema.yml to be used as a test in a model for a specific column:  
+
+![image](https://github.com/user-attachments/assets/eb017425-37ce-47a4-bc37-b64e89c072dc)  
+
+Here it takes the model from the current model we are at and the column name from the column where we call the macro null_column_test which is minimum_nights.  
+
+
+
 
