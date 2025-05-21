@@ -1388,6 +1388,46 @@ now we can set it in the schema.yml to be used as a test in a model for a specif
 
 Here it takes the model from the current model we are at and the column name from the column where we call the macro null_column_test which is minimum_nights.  
 
+#### packages:
+
+We can also import third party packages if we like using : https://hub.getdbt.com/  
+
+![image](https://github.com/user-attachments/assets/4919ff67-59a9-4cbb-8efa-054809038c84)  
+
+For example if we need to use hash functions that will generate surrogate keys for us in dbt we can use the dbt_utils package:  
+
+![image](https://github.com/user-attachments/assets/cb2257d0-f154-4a50-a2c0-9e3d18175c56)  
+
+![image](https://github.com/user-attachments/assets/afe2458f-6aa9-454e-9a26-c53c5a2debb6)  
+
+![image](https://github.com/user-attachments/assets/7edbb57e-2722-406c-b2b1-6343673c495c)  
+
+Now to call some packages, we need just to create a root yaml file called packages.yml inside which we will specify all the packages we want to use and dbt will call them :  
+
+```yaml
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 1.3.0
+```
+Then we need to install these packages using : **dbt deps**  
+
+This tells dbt to install the packages we specified in our packages.yml file.  
+
+![image](https://github.com/user-attachments/assets/0462dec3-f130-44eb-87e4-2ee965b2f852)  
+
+Now we can use the functions that come with dbt utils for example to add a surrogate key to the reviews fact table :  
+
+![image](https://github.com/user-attachments/assets/d4086926-3900-4a6b-b82a-1e1a55f90356)  
+
+Once we do the modification by adding the surrogate key, and since the schema will change we need to regenarate the table using : *dbt run --select fact_reviews.sql --full-refresh*  
+
+Now we can see in snowflake that the surrogate key was added successfully :  
+
+![image](https://github.com/user-attachments/assets/c98991dc-791f-4366-949e-5488d3d4a115)  
+
+⚠️ since dbt install the packages in dbt_packages folder in our project by making an https request to the github of the dbt package such as : https://github.com/dbt-labs/dbt-utils/tree/1.3.0/#generate_surrogate_key-source ! sometimes if we are on production and depending on the company proxy and rules, it may change the certificate that handels the downloading of packages using the https call !  In this case we can just manually download them and put them in the dbt_packages folder !  
+
+
 
 
 
