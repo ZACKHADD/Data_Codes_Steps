@@ -1427,6 +1427,106 @@ Now we can see in snowflake that the surrogate key was added successfully :
 
 ⚠️ since dbt install the packages in dbt_packages folder in our project by making an https request to the github of the dbt package such as : https://github.com/dbt-labs/dbt-utils/tree/1.3.0/#generate_surrogate_key-source ! sometimes if we are on production and depending on the company proxy and rules, it may change the certificate that handels the downloading of packages using the https call !  In this case we can just manually download them and put them in the dbt_packages folder !  
 
+#### Documentation :  
+
+Documentation is at the heart of what dbt offers, and it makes it possible to describe every object in our data warehouse. We do that simply by adding the *decription* tag in the schema.yml in the models section (remember that we have sources and models there) :  
+
+![image](https://github.com/user-attachments/assets/1aeac0c8-f701-4aa2-9c67-1119f754eb5d)  
+
+Once we are done we can generate the documentation by running : *dbt docs generate*  
+This will compile all the documents and generate files (json and html index) that will serve to visualize the documentation.  
+
+Then we run :  *dbt docs serve*  
+
+![image](https://github.com/user-attachments/assets/68d36a99-5b60-4f92-948c-a433a62bc152)  
+
+This will create a local web app using localhost so we can check the docmentation properely :  
+
+![image](https://github.com/user-attachments/assets/850df81e-d4d3-4aa0-a02a-c5eee110ca8d)  
+
+The doc gives details about the databases, projects and groupes. It also gives the lineage of a table :  
+
+![image](https://github.com/user-attachments/assets/4376710a-4ad9-4e10-b083-cc353035fc4d)  
+
+And at the project level (without selecting any table) we can see the project global lineage:  
+
+![image](https://github.com/user-attachments/assets/4227a807-f525-47b8-9228-b2c71807bf9f)  
+
+It gives also the tests and all the objects that dbt supports and their lineage. It also specifies tags also which is so useful !  
+
+**Note that we can filter the DAG base on what we want to see in select and exclude: object+ will show only the object and all the other objects that depends on it and the opposite thing also true:**  
+
+![image](https://github.com/user-attachments/assets/e914cfa1-f155-438f-ac18-b2a84c75a989)  
+
+**The same logic can be applied when we run dbt commands on specific models.**  
+
+We can also add more sophisticated doc using markdowns and images. Rather than just specifiying a simple description in the description tag, we can call a more detailed one. To do that we create a file in models folder that we will call docs and in it we will add detailed docs for every table/column:  
+
+![image](https://github.com/user-attachments/assets/66a9b64d-e224-448c-843a-218814cc2812)  
+
+Here we created the following doc using markdown style :  
+
+```md
+{% docs desc_dim_listing_min_nights %}
+
+### This column gives the minimum nights required to rent the property
+
+:w note that for old listings this column might have a value of 0 so in the transformation process we change this to 1
+
+{% enddocs %}
+```
+
+We then call this doc in the description option of the corresponding column in the schema.yml file ! for example :  
+
+![image](https://github.com/user-attachments/assets/54e4b278-219f-41b9-8c96-c768efa3c65c)  
+
+Note how we call the description here : '{{ doc("desc_dim_listing_min_nights")}}'  
+
+Then we regenerate the doc and serve to access it in web app style :  
+
+![image](https://github.com/user-attachments/assets/e761e2e1-245b-4fad-8d7f-5eb41bd84f00)  
+
+We can see now that for that column we are having the full description in markdown style !  
+
+We can also add images  in the overview page of the project. To do so we need to create an asset folder that will hold our images and assets in general and we need to point to it using asset-paths in dbt_project.yml file:  
+
+![image](https://github.com/user-attachments/assets/be17a033-1eca-4284-bd09-af85bc8a7c89)  
+
+Now we create an overview.md file where we will put the new project overview content wit images:  
+
+```md
+
+{% docs __overview__ %}
+
+# Airbnb pipeline
+
+Hey, welcome to the Airbnb project documentation!
+
+Here is the schema of our input data:  
+
+![input schema](assets/input_schema.png) -- here we point to the image we want to use !
+
+{% enddocs %}
+
+```
+
+![image](https://github.com/user-attachments/assets/f659b59b-6212-4dfc-9a36-f745d0c26e57)  
+
+Then we regenerate the doc and serve and we can see that the project overview page has been replaced by our overview content:  
+
+![image](https://github.com/user-attachments/assets/0ca2f91d-4c5c-4b35-b25d-4d80e9b23eb9)  
+
+**Note also that the dbt power user extension gives also the possibility to seen lineage and also generate table and column documention**  
+
+
+#### Analysis and hooks :
+
+Analysis 
+
+
+
+
+
 
 
 
