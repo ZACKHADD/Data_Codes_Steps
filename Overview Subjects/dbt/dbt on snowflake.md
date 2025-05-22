@@ -1519,15 +1519,142 @@ Then we regenerate the doc and serve and we can see that the project overview pa
 **Note also that the dbt power user extension gives also the possibility to seen lineage and also generate table and column documention**  
 
 
-#### Analysis and hooks :
+#### Analysis :
 
-Analysis 
+Analysis is a way to run ad-hoc queries that aren’t part of your normal model pipeline but are still version-controlled and benefit from dbt’s structure. They're typically used for exploratory analysis, report generation, or any SQL queries you want to run consistently without materializing them into tables or views.  
+
+They live in the folder of analysis 
+
+``` bash
+
+project/
+│
+├── analyses/
+│   └── my_analysis.sql
+
+```
+
+And we can run them using :  
+
+``` bash
+dbt compile
+dbt run-operation run_analysis --args '{"analysis": "my_analysis"}'
+```
+
+These queries are compiled and we can use the compiled code later and run it in snowflake for example.  
+
+#### Hooks:  
+Hooks on the other hand Hooks are SQL commands that are automatically executed before or after a model, seed, snapshot, or test runs.  
+They enable automation of tasks like granting permissions, logging actions, or setting environment-specific configurations.  
+
+We have 4 types of hooks:  
+
+| Hook Type      | Location                     | Runs When                            | Common Uses                   |
+| -------------- | ---------------------------- | ------------------------------------ | ----------------------------- |
+| `+pre-hook`    | Model file or project config | Before each model/test/seed/snapshot | Setup, logging, temp cleanup  |
+| `+post-hook`   | Model file or project config | After each model/test/seed/snapshot  | Permissions, cleanup, logging |
+| `on-run-start` | `dbt_project.yml`            | Once at beginning of `dbt run`       | Audit logs, init configs      |
+| `on-run-end`   | `dbt_project.yml`            | Once at end of `dbt run`             | Audit logs, email triggers    |
+
+Several benefits we can have using hooks:  
+
+| Benefit                      | Explanation                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| **1. Automation**            | Hooks run automatically with `dbt run`, no manual intervention required.                          |
+| **2. Consistency**           | Ensures uniform actions (e.g., permissions, cleanup) across all models every time they are built. |
+| **3. Version Control**       | Defined in your codebase → tracked in Git → changes reviewed, audited, and deployed safely.       |
+| **4. Idempotency**           | Handles operations (like reapplying permissions) that would be lost on `CREATE OR REPLACE`.       |
+| **5. Environment Awareness** | With Jinja, you can make behavior dynamic by environment, model, or context.                      |
+| **6. Centralized Logic**     | Keeps everything (transforms, security, logging) in one place — your dbt project.                 |
+
+Hooks (pre/post) run automatically as part of your dbt run and ensures that every time a model is rebuilt, the same grants or configurations are applied.  
+
+It also prevents "it worked on dev but not in prod" scenarios !  
+
+We can use an example of hooks in our scenario by creating an analyst role in snowflake and handeling the permissions on tables (modules) in dbt !  
+
+![image](https://github.com/user-attachments/assets/b7869b2b-033d-4a5a-8f3a-380ccb101c33)  
+
+Here we created a new user we called PBI and a new ROLE called ANALYST.  
+
+We grant ANALYST preveleges to be able to use AIRBNB database and GOLD schema at snowflake level. The access to tables however can be specified as hooks dynamically in dbt.  
+
+```SQL
+CREATE ROLE IF NOT EXISTS ANALYST;
+
+GRANT ALL ON WAREHOUSE COMPUTE_WH TO ROLE ANALYST;
+
+GRANT USAGE ON DATABASE AIRBNB TO ROLE ANALYST;
+
+GRANT USAGE ON SCHEMA AIRBNB.GOLD TO ROLE ANALYST;
+
+CREATE USER IF NOT EXISTS PBI
+     PASSWORD = 'Pbi123@'
+     LOGIN_NAME = 'PBI'
+     MUST_CHANGE_PASSWORD=FALSE
+     DEFAULT_WAREHOUSE = 'COMPUTE_WH'
+     DEFAULT_ROLE='ANALYST'
+     DEFAULT_NAMESPACE='AIRBNB.GOLD';
 
 
 
+GRANT ROLE ANALYST TO USER PBI;
 
+GRANT ROLE ANALYST TO USER ZACKHADD;
 
+```
+In the dbt_project.yml file we can add the hook at the level of fact tables if we want that or at the level of the schema GOLD globally which will iterate on all the tables in the GOLD schema using {{this}} operator to grant the role ANALYST select previlege on all its tables !  
 
+![image](https://github.com/user-attachments/assets/27d4148a-83a4-443e-a362-89a8329e1672)  
+
+Now we can check in snowflake :  
+
+![image](https://github.com/user-attachments/assets/4e5c2616-dd6e-49a7-8853-4695e182c4c9)  
+
+Now the role ANALYST can see the tables in the GOLD schema.  
+
+We will use this role we asigned also to user PBI to connect to snowflake using POWER BI and create a visual that will be based on our GOLD tables.  
+
+Once we create the report we can publish it and use the link to create an exposure in dbt that will show us in the documentation : the report, its lineage and the link to follow if we want to see it !  
+
+#### Exposures:  
+
+Exposures are a way to document and track how downstream tools (like dashboards, reports, or applications) use your data models. They help answer the question:  *What BI dashboards or external tools depend on this dbt model?*  
+
+We can create exposures in the schema.yml file or in a seperate file in the models folder:  
+
+```yaml
+exposures:
+  - name: revenue_dashboard
+    label: Revenue Dashboard
+    type: dashboard
+    maturity: high
+    url: https://my.bi.tool/revenue_dashboard
+    description: |
+      Dashboard showing daily and monthly revenue KPIs.
+
+    depends_on:
+      - ref('fct_orders')
+      - ref('dim_customers')
+
+    owner:
+      name: Data Analyst Team
+      email: data-team@example.com
+
+```
+
+In our case we can create a new file called dashboards.yml that will contain all the dashboards or reports related to the project :  
+
+![image](https://github.com/user-attachments/assets/3d0be77a-f525-4eb5-9b3a-2bca2ca8d2e5)  
+
+We regenerate the docs again and we serve to check the documentation of the project :  
+![image](https://github.com/user-attachments/assets/e2fb9f57-2fe5-4164-84ad-65effd9e8d7c)  
+
+We can see now that a dashboard exposure was added with the description and all the details with it even the link to the report online using the button *view this exposure*. We can check the lineage of the dashboard since we already specified the depends on option :  
+
+![image](https://github.com/user-attachments/assets/24d3b0e8-9fdc-4a5b-9f01-80c15e39e54e)  
+
+**This can be so helpful for the impact analysis !**  
 
 
 
