@@ -1388,6 +1388,16 @@ now we can set it in the schema.yml to be used as a test in a model for a specif
 
 Here it takes the model from the current model we are at and the column name from the column where we call the macro null_column_test which is minimum_nights.  
 
+**Macros can be also used to create special logs messages using a built in function called log(). Then we can run macros if we like using : dbt run-operation macro_name.**  
+
+```jinja
+{% macro learn_logging() %}
+    {{ log("Call your mom!") }}
+    {{ log("Call your dad!", info=True) }} --> Logs to the screen, too
+--  {{ log("Call your dad!", info=True) }} --> This will be put to the screen
+    {# log("Call your dad!", info=True) #} --> This won't be executed
+{% endmacro %}
+```
 #### packages:
 
 We can also import third party packages if we like using : https://hub.getdbt.com/  
@@ -1655,6 +1665,191 @@ We can see now that a dashboard exposure was added with the description and all 
 ![image](https://github.com/user-attachments/assets/24d3b0e8-9fdc-4a5b-9f01-80c15e39e54e)  
 
 **This can be so helpful for the impact analysis !**  
+
+#### Great expectations
+
+We can implement more sophisticated packages for data quality testing using a library called : *Great expectations*  
+
+This an advanced data quality tool tha is open source that helps implementing all the tests needed to secure the quality of the data pipelines.  
+
+https://github.com/great-expectations/great_expectations  
+
+The equivalent of this python library in dbt is *dbt expectations*  
+
+https://github.com/metaplane/dbt-expectations  
+
+We can install the package just like we did above for dbt_utils package.  
+
+![image](https://github.com/user-attachments/assets/86d35368-8b33-45d3-bd86-09f82d600452)  
+
+Then we run dbt deps to install the package.  
+
+![image](https://github.com/user-attachments/assets/43affa5e-bb5e-481c-8a41-f55026af8608)  
+
+There are a lot of pre built functions (macros) that can test for example the table shape and schema, regex on tables an dso on :  
+
+![image](https://github.com/user-attachments/assets/3bc37129-4128-4745-b3fd-8437c2866cf8)  
+
+We can implement a test in our case to check if the count of a table is equal to another table's count for example :  
+
+![image](https://github.com/user-attachments/assets/8e01e668-205b-4766-9404-2d146ce51e69)  
+
+We will do that for our dim_listings_with_hosts model to compare it with the source listings:  
+
+```yaml
+- name: dim_listings_with_hosts
+  tests:
+   - dbt_expectations.expect_table_row_count_to_equal_other_table:
+       compare_model: source('airbnb','listings')
+```
+
+![image](https://github.com/user-attachments/assets/21999cbc-5d21-4d34-abcd-c83ef2177053)  
+
+Now we run dbt test:  
+
+![image](https://github.com/user-attachments/assets/07842712-e764-4a2d-a587-5b0f88e1188f)  
+
+We can check also for outliers data for example and a lot of other tests scenarios !  
+**We can also combine several tests for the same column or table !**  
+
+Other options we can add to enhance our test are configs. There are several configs we can use to disable a test for example, change the error to warning and so on :  
+
+```yaml
+version: 2
+
+models:
+  - name: customers
+    description: "Customer dimension table"
+    columns:
+      - name: customer_id
+        description: "Primary key for customers"
+        tests:
+          # Built-in unique test with full config
+          - unique:
+              severity: error                  # Can be 'warn' or 'error'
+              config:
+                enabled: true                  # Set to false to disable the test
+                tags: ["primary-key", "critical"]
+                timeout: 120                   # Timeout in seconds for this test
+
+          # Built-in not_null test with warning severity
+          - not_null:
+              severity: warn
+              config:
+                tags: ["data-quality"]
+
+      - name: email
+        description: "Customer email address"
+        tests:
+          # Custom SQL test with custom parameters
+          - valid_email_format:
+              regex_pattern: '^[^@]+@[^@]+\.[^@]+$'   # Custom arg passed to SQL
+              allow_nulls: false                      # Another custom argument
+              severity: error
+              config:
+                tags: ["email-validation", "medium"]
+                enabled: true
+                timeout: 60
+
+  - name: orders
+    description: "Fact table for customer orders"
+    columns:
+      - name: customer_id
+        tests:
+          # Relationship test with config
+          - relationships:
+              to: ref('customers')
+              field: customer_id
+              severity: error
+              config:
+                tags: ["foreign-key"]
+                timeout: 180
+
+          # Custom test with threshold parameter
+          - foreign_key_cardinality:
+              threshold: 0.95
+              config:
+                tags: ["data-integrity", "custom"]
+                enabled: true
+
+```
+
+With this we need also custom test in tests/valid_email_format.sql :  
+
+```SQL
+SELECT *
+FROM {{ model }}
+WHERE NOT REGEXP_CONTAINS({{ column_name }}, '{{ regex_pattern }}')
+{% if not allow_nulls %}
+  AND {{ column_name }} IS NOT NULL
+{% endif %}
+```
+
+#### Using variables in dbt :  
+
+We have two kinds of variables to be used in dbt :  
+- dbt specific variables : used by dbt such environnement variables, project file config variables
+- jinja variables : used in jinja syntax
+
+The following example shows how to use both variable types :  
+
+```jinja
+{% macro learn_variables() %}
+
+    {% set your_name_jinja = "Zoltan" %}
+    {{ log("Hello " ~ your_name_jinja, info=True) }}
+
+    {{ log("Hello dbt user " ~ var("user_name", "NO USERNAME IS SET!!") ~ "!", info=True) }}
+
+    {% if var("in_test", False) %}
+       {{ log("In test", info=True) }}
+    {% else %}
+       {{ log("NOT in test", info=True) }}
+    {% endif %}
+
+{% endmacro %}
+```
+
+then we can either pass the variables at runtime using : --vars  "{user_name: zack, in_test: yes}" **Note that the value should have a space after the (:)**. Or we can create a variable section in the dbt_project.yml file:  
+
+![image](https://github.com/user-attachments/assets/1dfc0b70-5c45-4c80-a062-4d995fc23751)  
+
+The order of execution of variables is first the vars section then the vars passed in the command line. This latter takes precedence !  
+
+**⚠️ we can use variables to also enhance the incremental loading for example ! Earlier we were incrementing data for all the new data arriving, but what if we want to reload already loaded data between two dates if it is wrong data or someting ?**:  
+
+```sql
+WITH src_reviews AS (
+  SELECT * FROM {{ ref('stg_reviews') }}
+)
+SELECT 
+
+{{ dbt_utils.generate_surrogate_key(['listing_id', 'review_date', 'reviewer_name', 'review_text']) }} AS review_id, * 
+
+FROM src_reviews
+
+WHERE review_text is not null -- We load only the non null rows
+
+-- here we need to add the logic of incrementation
+-- we append data so we can for example use the review_date and insert only the data in the source where the date of review is > Max(review_date) in the target
+
+{% if is_incremental() %}
+
+    {% if var("start_date",False) and var("end_date",False) %}
+        {{ log('loading ' ~ this ~ 'incrementally (start_date: ' ~ var("start_date") ~ '(end_date: ' ~ var("end_date") ~ ')', info=True) }}
+        AND review_date >= '{{ var("start_date") }}'
+        AND review_date < '{{ var("end_date") }}'
+    {% else %}    
+
+      AND review_date > (select max(review_date) from {{ this }})
+      {{ log('loading ' ~ this ~ 'incrementally (all missing dates)', info=True)}}
+   {% endif %}
+{% endif %}
+```
+
+We run then the dbt run --select fact_reviews.sql!:  
+
+![image](https://github.com/user-attachments/assets/68ece887-b53d-408c-b5e3-e8c3ec884967)  
 
 
 
