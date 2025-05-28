@@ -1851,5 +1851,18 @@ We run then the dbt run --select fact_reviews.sql!:
 
 ![image](https://github.com/user-attachments/assets/68ece887-b53d-408c-b5e3-e8c3ec884967)  
 
+### Orchestration :
 
+Now that we created all the dbt transformations and tests we need, we should run these trasformations based on a schedule or an event and we need a tool to schedule the order of execution and also give logs regarding the job runs !  
+
+That is the role of **orchestrators**. There are a lot of orchestrators such as : ADF, AIRFLOW and DAGSTER !  
+
+We will use in this demo **DAGSTER** !  
+
+#### Installation :  
+
+We need to go a folder up from the dbt project to create our dagster project !  
+
+First in the virtual environnement we install **dagster-dbt** which is simply installed cd  
+dagster-dbt project scaffold --project-name snow_dbt_dagster_project --dbt-project-dir=dbt_snowflake_project
 
