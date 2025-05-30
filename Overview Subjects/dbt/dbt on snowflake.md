@@ -1863,6 +1863,189 @@ We will use in this demo **DAGSTER** !
 
 We need to go a folder up from the dbt project to create our dagster project !  
 
-First in the virtual environnement we install **dagster-dbt** which is simply installed cd  
+⚠️Note that dagster, dbt and python version need to be compatible or we will face dependency problems! as of May 2025 the best package is python 3.11.9 for the virtual environnement and the following requirements :  
+
+```
+dbt-snowflake==1.7.1 # This is kept at 1.7.1 in order to let dagsater work
+dagster-dbt==0.22.0
+dagster-webserver==1.6.0
+```
+
+Once all the requirements are installed we can create a dagster project (One folder up from the dbt project) that will use the use our dbt project folder to communicate with dbt :  
+
+```
 dagster-dbt project scaffold --project-name snow_dbt_dagster_project --dbt-project-dir=dbt_snowflake_project
+```
+
+We simply tell dagster to initiate a project (using the scaffold) with the name snow_dbt_dagster_project and we specify the dbt project to use with --dbt-project-dir=dbt_snowflake_project !  
+
+Note that the name of the dagster project should not conflict with a package name :  
+
+![image](https://github.com/user-attachments/assets/dd02676a-3562-48be-b124-64acef5ea99a)  
+
+Once the that is done we get the following message :  
+
+![image](https://github.com/user-attachments/assets/2be21561-49c1-43e7-8fdf-7240419eecf1)  
+
+This is telling us that if we are working in a dev environnement (locally) we would want to set the variable DAGSTER_DBT_PARSE_PROJECT_ON_LOAD=1  to debug errors as early as possible !  
+
+```cmd
+setx DAGSTER_DBT_PARSE_PROJECT_ON_LOAD 1
+```
+It is commonly used. The goal is fast feedback and developer convenience.  
+We want to:
+- See our dbt assets in Dagster right away.
+- Catch dbt parsing errors as early as possible.
+- Reload code and iterate quickly.
+
+For example, When we change the dbt_project.yml or add a new model, it’s helpful to immediately see the update reflected in Dagster.  
+
+In production, we don't need that! actually it is counter productive, instead, we allow Dagster to lazy-load or load only when needed to:  
+- Avoid unnecessary parsing at startup (which can be expensive for large dbt projects).
+- Improve service startup time and stability.
+- Control when and how errors surface.
+
+The **dagster dev** however, starts a local Dagster development UI (at http://localhost:3000 by default), allowing us to:
+- View assets and jobs
+- Run and monitor pipelines
+- Interact with our dbt-dagster integration
+
+![image](https://github.com/user-attachments/assets/bfec28fa-b7d9-4f02-ab55-380df349fa0c)  
+
+Now we can see the whole dbt project in dagster and we can start creating jobs and schedules :  
+
+![image](https://github.com/user-attachments/assets/4bb38ff9-5fb0-4aba-91a7-8de801320079)  
+
+Dagster also gives the lineage of the project!  
+
+#### Project structure:  
+
+A typical structure of a large scale DAGSTER project would be :  
+
+```text
+dagster_project/
+├── __init__.py
+├── assets/
+│   ├── __init__.py
+│   └── dbt_assets.py
+├── jobs/
+│   ├── __init__.py
+│   └── dbt_job.py
+├── schedules/
+│   ├── __init__.py
+│   └── dbt_schedule.py
+├── sensors/
+│   ├── __init__.py
+│   └── dbt_sensor.py
+├── resources/
+│   ├── __init__.py
+│   └── dbt_resource.py
+└── definitions.py
+```
+
+This organisation is a best practice, we could group all the py files in the same folder but this way things are more organised !  
+
+Let's explain each component and see how it connects with the others:  
+
+| Concept         | What It Is                                               | Real-World Example                                  |
+| --------------- | -------------------------------------------------------- | --------------------------------------------------- |
+| **Asset**       | A piece of data you manage and materialize with Dagster. | A dbt model, a table in Snowflake, a CSV file.      |
+| **Job**         | A sequence of ops or assets to run as a unit.            | “Run all dbt models” or “Ingest data + process it.” |
+| **Resource**    | External service or tool your code uses.                 | A database, dbt CLI, S3 client, Snowflake creds.    |
+| **Schedule**    | Time-based trigger for a job.                            | “Run job every day at 1 AM.”                        |
+| **Sensor**      | Event-based trigger for a job.                           | “Run when new file lands in S3.”                    |
+| **Definitions** | The registry of all the above, loaded by Dagster.        | The “main entry point” that connects the whole app. | 
+
+
+The __init__.py is either : 
+
+- An empty file, just to mark the folder as a Python module.
+- Or it might import objects to make them accessible at a higher level.
+
+Example – Minimal:
+
+```python
+
+# __init__.py
+# Marks this folder as a Python package
+
+```
+
+Example – Optional aggregation:
+
+```python
+
+# assets/__init__.py
+from .dbt_assets import dbt_assets
+```
+
+This pattern is useful if you want to do:
+
+```python
+from dagster_project.assets import dbt_assets
+```
+
+**1.Assets:**  
+in assets/dbt_assets.py. It represents data artifacts that are managed by Dagster, it can be materialized (built), tracked, and versioned.  
+
+In this file:
+We define assets coming from dbt models:  
+
+```python
+from dagster_dbt import load_assets_from_dbt_project
+
+dbt_assets = load_assets_from_dbt_project(
+    project_dir="../dbt_project",
+    profiles_dir="../dbt_project",
+)
+```
+
+**2.Ressources:**
+
+A helper or external service that the assets or jobs need like APIs, dbt CLI, or database connections.  
+
+In our case we define the dbt cli ressource to run dbt from dagster :  
+
+```python
+from dagster_dbt import DbtCliResource
+
+dbt_resource = DbtCliResource(
+    project_dir="../dbt_project",
+    profiles_dir="../dbt_project"
+)
+```
+We are telling dagster here : When you needs to run dbt (for assets or jobs), use this CLI with these config paths.  
+
+Dagster will:  
+- Initialize the dbt CLI tool with your paths
+- Use it behind the scenes when running dbt assets (like dagster_dbt.load_assets_from_dbt_project)
+
+We could define also other ressources such as snowflake :  
+
+```python
+from dagster import EnvVar
+
+snowflake_resource = {
+    "account": EnvVar("SNOWFLAKE_ACCOUNT"),
+    "user": EnvVar("SNOWFLAKE_USER"),
+    ...
+}
+```
+
+Resources provide things like: credentials, connections, CLIs, clients, wrappers, etc. They're not automatically initialized just because you installed a Dagster integration.  
+
+**3.Jobs:**  
+
+A job is a unit of execution in Dagster. it runs a series of assets or ops together.  
+
+In the following file, for example, we define a job that materializes all dbt assets:  
+
+```python
+from dagster import define_asset_job
+
+job1 = define_asset_job(name="job1", selection="*")
+
+```
+
+**4.Jobs:**  
 
