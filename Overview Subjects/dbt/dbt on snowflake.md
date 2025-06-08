@@ -2014,10 +2014,10 @@ dbt_resource = DbtCliResource(
     profiles_dir="../dbt_project"
 )
 ```
-We are telling dagster here : When you needs to run dbt (for assets or jobs), use this CLI with these config paths.  
+We are telling dagster here : When you need to run dbt (for assets or jobs), use this CLI with these config paths.  
 
 Dagster will:  
-- Initialize the dbt CLI tool with your paths
+- Initialize the dbt CLI tool with our paths
 - Use it behind the scenes when running dbt assets (like dagster_dbt.load_assets_from_dbt_project)
 
 We could define also other ressources such as snowflake :  
@@ -2047,5 +2047,54 @@ job1 = define_asset_job(name="job1", selection="*")
 
 ```
 
-**4.Jobs:**  
+**4.Schedules:**  
 
+It is a time-based trigger that automatically runs a job on a defined interval.  
+
+In this py file we define when a certain job should run :  
+
+```python
+from dagster import ScheduleDefinition
+from ..jobs.dbt_job import dbt_job
+
+dbt_schedule = ScheduleDefinition(
+    job=dbt_job,
+    cron_schedule="0 2 * * *",  # 2 AM UTC daily
+)
+```
+
+**5.Sensors:** 
+
+Another type of triggers; an event-based trigger that runs a job when something changes (like a new file or failed run).  
+
+We may for example define a sensor to react to dbt model runs :  
+
+```python
+from dagster import SensorDefinition
+# This is typically connected to external conditions or file watchers
+```
+
+**6.Definitions:** (Main Registry) 
+
+This is the central place where we declare everything for Dagster to discover.  
+
+```python
+from dagster import Definitions
+from .assets.dbt_assets import dbt_assets
+from .resources.dbt_resource import dbt_resource
+from .jobs.dbt_job import dbt_job
+from .schedules.dbt_schedule import dbt_schedule
+
+defs = Definitions(
+    assets=[dbt_assets],
+    resources={"dbt": dbt_resource},
+    jobs=[dbt_job],
+    schedules=[dbt_schedule],
+)
+```
+
+ Dagster loads this file at startup to understand the whole data platform.  
+
+ This defs object must be named **defs** or passed explicitly in a __init__.py if we're doing something more advanced.  
+
+ 
