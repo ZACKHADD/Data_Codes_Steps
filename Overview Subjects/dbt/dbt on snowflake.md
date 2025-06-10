@@ -2097,9 +2097,9 @@ defs = Definitions(
 
  This defs object must be named **defs** or passed explicitly in a __init__.py if we're doing something more advanced.  
 
- #### Dagster paradigm :
+ #### Dagster paradigm in our scenario:
 
- Dagster uses in its core assets. We call it asset-centric in oposition to task-centric (such as Airflow) ! we define an asset that dagster will run later manually, using a schedule or using a sensor. When we define an asset, we define inside it also the logic that produces this asset (as a python function), for example :  
+Dagster uses in its core assets. We call it asset-centric in oposition to task-centric (such as Airflow) ! we define an asset that dagster will run later manually, using a schedule or using a sensor. When we define an asset, we define inside it also the logic that produces this asset (as a python function), for example :  
 
 ```python
 
@@ -2139,5 +2139,46 @@ def dbt_snowflake_project_dbt_assets(context: AssetExecutionContext, dbt: DbtCli
 
 dbt_assets is a decorator that will tell dagster to read the assets from the dbt project using the manifest.json file (that generates the dbt UI doc) and also retrieve the logs, using AssetExecutionContext, when running dbt commands to be shown in the dagster UI.  
 
-The yield from will stream the logs of the build command (the equivalent of run + test + snapshot ...) in dbt and show them in dagster logs. The DbtCliResource is the connector that dagster will use to run the dbt command.  
+The yield from will stream the logs of the build command (the equivalent of run + test + snapshot ...) in dbt and show them in dagster logs. The DbtCliResource is the connector that dagster will use to run the dbt commands.  
+
+Now Dagster will use the dbt project to retrieve all the models and use them as assets and when we materialize an asset, it will run all the dependencies of that asset meaning tests, snapshots and seeds if there are any !  
+
+| Element                            | Meaning                                                  |
+| ---------------------------------- | -------------------------------------------------------- |
+| `@dbt_assets(manifest=...)`        | Tells Dagster to register all dbt models as assets       |
+| `DbtCliResource`                   | Lets Dagster call `dbt build`, `dbt run`, etc.           |
+| `yield from dbt.cli(...).stream()` | Actually runs the dbt models and streams logs to Dagster |
+| `AssetExecutionContext`            | Lets you access runtime info, logging, metadata          |
+
+
+Variables such as files paths (and more importantly the manifest.json one) are handeled seperately in a constants file :  
+
+```python
+
+import os
+from pathlib import Path
+
+from dagster_dbt import DbtCliResource
+
+dbt_project_dir = Path(__file__).joinpath("..", "..", "..","..", "dbt_snowflake_project").resolve()
+dbt = DbtCliResource(project_dir=os.fspath(dbt_project_dir))
+
+# If DAGSTER_DBT_PARSE_PROJECT_ON_LOAD is set, a manifest will be created at run time.
+# Otherwise, we expect a manifest to be present in the project's target directory.
+if os.getenv("DAGSTER_DBT_PARSE_PROJECT_ON_LOAD"):
+    dbt_manifest_path = (
+        dbt.cli(
+            ["--quiet", "parse"],
+            target_path=Path("target"),
+        )
+        .wait()
+        .target_path.joinpath("manifest.json")
+    )
+else:
+    dbt_manifest_path = dbt_project_dir.joinpath("target", "manifest.json")
+```
+
+This part will retrieve all the directories needed to be used in the assets, definitions and other files. We can define here also other constants !  
+
+we define here the path to the manifest.json file, depending on the environnement dev or prod ! if the DAGSTER_DBT_PARSE_PROJECT_ON_LOAD is set to 1 or True that means we are in dev mode (the manifest.json file will change frequently) and we need to parse the dbt project to regenerate the manifest.json file to capture the new changes ! Then we retrieve the json file path ! otherwise if we are in prod the environment variable is not set and this assumes that manifest.json already exists in dbt_project_dir/target/ in the most recent state !  **This is Static Manifest and it is  better performance and avoids redundant parsing.**  
 
