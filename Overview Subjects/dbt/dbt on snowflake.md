@@ -2097,4 +2097,47 @@ defs = Definitions(
 
  This defs object must be named **defs** or passed explicitly in a __init__.py if we're doing something more advanced.  
 
- 
+ #### Dagster paradigm :
+
+ Dagster uses in its core assets. We call it asset-centric in oposition to task-centric (such as Airflow) ! we define an asset that dagster will run later manually, using a schedule or using a sensor. When we define an asset, we define inside it also the logic that produces this asset (as a python function), for example :  
+
+```python
+
+import requests
+import dagster as dg
+
+@dg.asset
+def taxi_trips_file() -> None:
+    """The raw parquet files for the taxi trips dataset. Sourced from the NYC Open Data portal."""
+    month_to_fetch = "2023-03"
+    raw_trips = requests.get(
+        f"https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{month_to_fetch}.parquet"
+    )
+
+    with open(
+        constants.TAXI_TRIPS_TEMPLATE_FILE_PATH.format(month_to_fetch), "wb"
+    ) as output_file:
+        output_file.write(raw_trips.content)
+```
+
+This will create an asset using the python function specified to create a file using an https request !  Dagster knows that this is an asset using the @dg.asset decorator. This will make it possible for dagster to materialize the asset using the logic of the function !  
+
+In our case since the assets should be inherited from dbt, we need to tell that to dagster using a special library called dbt_assets :  
+
+```python
+
+from dagster import AssetExecutionContext
+from dagster_dbt import DbtCliResource, dbt_assets
+
+from ..constants.constants import dbt_manifest_path
+
+
+@dbt_assets(manifest=dbt_manifest_path)
+def dbt_snowflake_project_dbt_assets(context: AssetExecutionContext, dbt: DbtCliResource):
+    yield from dbt.cli(["build"], context=context).stream()
+```
+
+dbt_assets is a decorator that will tell dagster to read the assets from the dbt project using the manifest.json file (that generates the dbt UI doc) and also retrieve the logs, using AssetExecutionContext, when running dbt commands to be shown in the dagster UI.  
+
+The yield from will stream the logs of the build command (the equivalent of run + test + snapshot ...) in dbt and show them in dagster logs. The DbtCliResource is the connector that dagster will use to run the dbt command.  
+
