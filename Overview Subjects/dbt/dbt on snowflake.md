@@ -2182,3 +2182,20 @@ This part will retrieve all the directories needed to be used in the assets, def
 
 we define here the path to the manifest.json file, depending on the environnement dev or prod ! if the DAGSTER_DBT_PARSE_PROJECT_ON_LOAD is set to 1 or True that means we are in dev mode (the manifest.json file will change frequently) and we need to parse the dbt project to regenerate the manifest.json file to capture the new changes ! Then we retrieve the json file path ! otherwise if we are in prod the environment variable is not set and this assumes that manifest.json already exists in dbt_project_dir/target/ in the most recent state !  **This is Static Manifest and it is  better performance and avoids redundant parsing.**  
 
+Now in the definitions.py file we specify all our assets and resources :  
+
+```python
+from dagster import Definitions
+
+from .assets.assets import dbt_snowflake_project_dbt_assets
+from .schedules.schedules import schedules
+from .resources.resources import dbt_resource
+
+defs = Definitions(
+    assets=[dbt_snowflake_project_dbt_assets],
+    schedules=schedules,
+    resources={
+        "dbt": dbt_resource,
+    },
+)
+```
