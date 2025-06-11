@@ -2098,8 +2098,18 @@ defs = Definitions(
  This defs object must be named **defs** or passed explicitly in a __init__.py if we're doing something more advanced.  
 
  #### Dagster paradigm in our scenario:
+Dagster has the following architecture :  
 
-Dagster uses in its core assets. We call it asset-centric in oposition to task-centric (such as Airflow) ! we define an asset that dagster will run later manually, using a schedule or using a sensor. When we define an asset, we define inside it also the logic that produces this asset (as a python function), for example :  
+```mermaid
+flowchart LR
+  A[Dagit UI] -->|API Requests| B[Dagster Webserver]
+  B -->|Reads/Writes| C[(Dagster Database)]
+  D[SensorDaemon] -->|Triggers Runs| B
+  E[SchedulerDaemon] -->|Triggers Scheduled Jobs| B
+  B -->|Executes| F[Jobs/Assets]
+```
+
+It uses in its core assets. We call it asset-centric in oposition to task-centric (such as Airflow) ! we define an asset that dagster will run later manually, using a schedule or using a sensor. When we define an asset, we define inside it also the logic that produces this asset (as a python function), for example :  
 
 ```python
 
@@ -2182,6 +2192,20 @@ This part will retrieve all the directories needed to be used in the assets, def
 
 we define here the path to the manifest.json file, depending on the environnement dev or prod ! if the DAGSTER_DBT_PARSE_PROJECT_ON_LOAD is set to 1 or True that means we are in dev mode (the manifest.json file will change frequently) and we need to parse the dbt project to regenerate the manifest.json file to capture the new changes ! Then we retrieve the json file path ! otherwise if we are in prod the environment variable is not set and this assumes that manifest.json already exists in dbt_project_dir/target/ in the most recent state !  **This is Static Manifest and it is  better performance and avoids redundant parsing.**  
 
+To avoid circular calls between modules, we can set another py file where we will put the constants in common such as **dbt_project_dir** in our case.  
+We need also to define resources that we will use also such as the dbt CLI :  
+
+```python
+
+import os
+from dagster_dbt import DbtCliResource
+from ..config import dbt_project_dir
+
+# Initialize DbtCliResource (reusable)
+dbt_resource = DbtCliResource(project_dir=os.fspath(dbt_project_dir))
+```
+Then we can call this resource where ever we want !  
+
 Now in the definitions.py file we specify all our assets and resources :  
 
 ```python
@@ -2199,3 +2223,72 @@ defs = Definitions(
     },
 )
 ```
+If we run dagster now using **dagster dev** we can reach the web ui:  
+
+![image](https://github.com/user-attachments/assets/84b03004-f9d7-49ad-8623-0e31f64333d4)  
+
+This UI gives us a view on everything in our project including the lineage, history of runs, logs when running materializations and a lot of other features to orchestrate our pipelines !  
+
+**Note that we can organise the project for more readability in different files per category! meaning that we can have assets separated in several py files by type !**  
+
+##### Code locations: 
+
+Now what if we want to separate dagster projects per team (each project with its own packages and libraries versions) but **we don't want to create silos by creating separate deployments ?**  
+Dagster has for this what we call code locations! These code locations are all maintained in one single Dagster deployment, and changes made to one code location won’t lead to downtime in another one. This allows us to silo packages and versions, but still create connections between data assets as needed. For example, an asset in one code location can depend on an asset in another code location.  
+
+This simply means that we will have 2 or more projects (same structure as we have seen before) with there own configuration files (toml and setup files):  
+
+```cmd
+data_platform/
+├── project_A/                  # Your existing project
+│   ├── pyproject.toml          # point to the deps in setup file and give name to the code location
+│   ├── setup.py                # Project-specific deps
+│   ├── project_A/              # Python package
+│   │   ├── __init__.py
+│   │   ├── assets.py
+│   │   └── resources.py
+│
+├── project_B/                  # New project
+│   ├── pyproject.toml          # Separate dependencies
+│   ├── setup.py                # Separate dependencies
+│   ├── project_B/
+│   │   ├── __init__.py
+│   │   ├── assets.py           # Can depend on project_A
+│
+└── workspace.yaml              # Glue everything together
+```
+
+In each setup.py or directly in the toml file we can have specific libraries, packages and also python versions ! **We can also use separate virtual environnements !**  
+
+The workspace.yaml file is the one that will link projects together :  
+
+```yaml
+# workspace.yaml
+load_from:
+  - python_package: dag_snow_dbt_poc
+    working_directory: project_A
+  - python_package: new_project
+    working_directory: project_B
+```
+
+We can have several workspaces to handel environnements for example (dev, stg and prod) !   
+
+** ⚠️ To run dagster with several code locations we need to do that at the root directory containing the workspace.yaml file**  
+
+To call project A assets, ressources .. in project B we can do as follows:  
+
+```python
+#calling assets example
+
+from dagster import asset
+from project_A.assets import shared_dataset  # Import from Project A
+
+@asset(deps=[shared_dataset])  # Explicit dependency
+def derived_data_in_B():
+    return process(shared_dataset)
+```
+
+#### Jobs:  
+
+We will create some jobs that will follow the logic of our models in dbt. Our jobs will be simply sequences of assets to run together !  
+
