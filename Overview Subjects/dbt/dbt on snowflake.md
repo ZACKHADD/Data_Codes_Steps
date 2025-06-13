@@ -2482,10 +2482,88 @@ We can test and build this at :  https://crontab.guru
 We define a schedule as follows:  
 
 ```Python
+from dagster import schedule
 
+@schedule(job=my_job, cron_schedule="* * * * *")  # Every day at noon
 def run_etl_every_minute(context):
     context.log.info("Logging from a dg.schedule!")
     return {}
 ```
+
+If the jop needs some configurations to run such as inputs or parameters we need to use RunRequest:  
+
+```Python
+from dagster import schedule, RunRequest
+
+@schedule(job=my_job, cron_schedule="0 12 * * *")  # Every day at noon
+def scheduled_run_with_config():
+    return RunRequest(
+        run_key="daily-noon",
+        run_config={"ops": {"my_op": {"config": {"param": "value"}}}},
+        tags={"env": "daily"}
+    )
+```
+
+Our schedule file will become :  
+
+```Python
+from dagster_dbt import build_schedule_from_dbt_selection
+
+from dagster import schedule
+
+from ..jobs.jobs import etl_job
+
+from ..assets.assets import dbt_snowflake_project_dbt_assets
+
+schedules = [
+     build_schedule_from_dbt_selection(
+         [dbt_snowflake_project_dbt_assets],
+         job_name="materialize_dbt_models",
+         cron_schedule="0 0 * * *",
+         dbt_select="fqn:*",
+     ),
+]
+
+@schedule(job=etl_job, cron_schedule="* * * * *")  # Every minute
+def run_etl_every_minute(context):
+    context.log.info("Logging from a dg.schedule!")
+    return {}
+```
+
+```Python
+We have two schedules, one generated automatically when we create the dagster project from dbt and it runs (if we activate it) every day at midniht for all assets ! and the other one is the for the etl_job we created !  
+
+Now we need to define the new schedule if the definitions file :  
+
+from dagster import Definitions
+
+from .assets.assets import dbt_snowflake_project_dbt_assets
+from .schedules.schedules import schedules, run_etl_every_minute
+from .resources.resources import dbt_resource
+from .jobs.jobs import reviews, etl_job
+
+defs = Definitions(
+    assets=[dbt_snowflake_project_dbt_assets],
+    schedules=[*schedules, run_etl_every_minute], # We use the * before schedules to unpack it as it is a list ! otherwise we get an error
+    jobs=[reviews, etl_job],
+    resources={
+        "dbt": dbt_resource,
+    },
+)
+```
+
+Now we check the UI :  
+
+![image](https://github.com/user-attachments/assets/3e53630d-23a5-46cd-8a12-1896f46a431d)  
+
+Now we can see that the schedule was added and it is linked to the etl_job. We can also check the history of runs :  
+
+![image](https://github.com/user-attachments/assets/9ce80330-8f5b-4055-bc26-707e5e07b7b5)  
+
+**⚠️ Note that the timezone is UTC by default, we can change it if we like by adding execution_timezone="another_timezone" parameter in the @schedule()  decorator !**  
+
+We can also activate and deactivate the schedule under running column!  
+
+![image](https://github.com/user-attachments/assets/8b225253-ee39-43ae-b6ba-e6693f01eb9c)
 
 
