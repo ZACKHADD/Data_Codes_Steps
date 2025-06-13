@@ -2290,5 +2290,202 @@ def derived_data_in_B():
 
 #### Jobs:  
 
-We will create some jobs that will follow the logic of our models in dbt. Our jobs will be simply sequences of assets to run together !  
+We will create some jobs that will follow the logic of our models in dbt. Our jobs will be simply sequences of assets to run together but it can be also some operations to performe!  
+Let's say that we want to create a job that will materialize the fact_reviews table. Since this one needs the silver one to be materialized !  
+
+```python
+import dagster as dg
+
+reviews = dg.define_asset_job(
+    name = "Reviews_tables_materialization",
+    selection = dg.AssetSelection.keys("SILVER/stg_reviews","GOLD/fact_reviews")
+)
+```
+
+Here we defined a job that will run the materialization of the two dbt modeles stg_reviews and fact_reviews ! the define_asset_job creates the job and the selection filters the assets to use in the job !  
+
+Note that here we used AssetSelection.keys to call the modeles from dbt by there keys. These keys are retrieved by Dagster and we can find them in the UI :  
+
+![image](https://github.com/user-attachments/assets/54d6345f-54a1-4553-8080-13390e02f6c4)  
+
+Then we click on **View in asset catalog** then we click on copy the asset key :  
+
+![image](https://github.com/user-attachments/assets/a5f7e9e9-4c41-4b4a-b3ca-2401b4a5ed43)  
+
+We can get the keys programatically also :  
+
+```Python
+for asset in dbt_snowflake_project_dbt_assets.keys:
+    print(asset)
+```
+
+We can also call dbt assets by name directly if we explicitly define them (not retrieved automatically by ) tags if we use them or by groups also :  
+
+```Python
+
+#call by name
+
+import dagster as dg
+
+trips_by_week = dg.AssetSelection.assets(["trips_by_week"])
+
+weekly_update_job = dg.define_asset_job(
+    name="weekly_update_job",
+    selection=trips_by_week,
+)
+
+# Call by tag
+
+job = define_asset_job(
+    name="tagged_dbt_models",
+    selection=AssetSelection.tags("daily")  # Uses dbt model tags
+)
+
+# Call by group
+job = define_asset_job(
+    name="staging_models",
+    selection=AssetSelection.groups("staging")  # Matches dbt subdirectory
+)
+```
+**We can also use wildcards to call assets using patterns !**   
+
+We can now check the UI to see if the job appears :  
+
+![image](https://github.com/user-attachments/assets/fb7950e0-e077-41fe-bf5f-225eedf3d2ac)  
+
+We can see the history of runs or if there is a schedule or sensor liked to the job. We can also see the details of the jobs or run it manually :   
+
+![image](https://github.com/user-attachments/assets/9e714d54-39f9-46a6-952c-dc492a0e7ad2)  
+
+![image](https://github.com/user-attachments/assets/261a8f8a-89c8-4774-a46d-3de84e63cf50)  
+
+
+Let's run the job and see the metadata and logs we can have in dagster :  
+
+![image](https://github.com/user-attachments/assets/c75c78d4-0272-4eaf-89c7-6f409b8d173f)  
+
+The job failed and we can see the reason why in the logs as Dagster streams logs from dbt :  
+
+![image](https://github.com/user-attachments/assets/f767cd5c-4baf-4c7e-a11b-a3238e68acd6)  
+
+We can view the logs :  
+
+![image](https://github.com/user-attachments/assets/a1f86d8f-633c-4af6-9dcb-be3de9917ed7)  
+
+These logs are details and retrieved from dbt logs. Now let's make the correction (we need to create an ANALYST role as in the fact_reviews model we have an post-hook that grant SELECT to ROLE ANALYST). We can either re execute all the job or only from the failed step:  
+
+![image](https://github.com/user-attachments/assets/c7dda05f-f18e-49a1-bd97-4ad266723d50)  
+
+Now we can see that the job was succesful !  
+
+Till now we created what we call assets jobs! but we can also create operations and graph jobs !  
+
+- Assets: Represent declarative, idempotent data transformations (@asset).
+
+- Ops: Represent imperative steps (@op), useful for tasks like API calls, email notifications, raw SQL, or non-dataflow logic.
+
+They are orchestrated differently under the hood — which is why Dagster separates them.  
+
+Let's create a simple graph (DAG) of ops:  
+
+``` Python
+import dagster as dg
+from dagster import op, graph
+
+reviews = dg.define_asset_job(
+    name = "Reviews_tables_materialization",
+    selection = dg.AssetSelection.keys("SILVER/stg_reviews","GOLD/fact_reviews")
+)
+
+
+@op
+def extract():
+    return "zakaria"
+
+
+@op
+def transform(data):
+    return data.upper()
+
+@op
+def load(result):
+    print(f"Loading: {result}")
+
+@graph
+def etl():
+    load(transform(extract()))
+
+
+etl_job = etl.to_job(name="etl_job")
+
+```
+
+This is a serie of operations as DAG (graph) that we turn into a job ! Now we add this in the definitions :  
+
+```Pyhton
+from dagster import Definitions
+
+from .assets.assets import dbt_snowflake_project_dbt_assets
+from .schedules.schedules import schedules
+from .resources.resources import dbt_resource
+from .jobs.jobs import reviews, etl_job
+
+defs = Definitions(
+    assets=[dbt_snowflake_project_dbt_assets],
+    schedules=schedules,
+    jobs=[reviews, etl_job],
+    resources={
+        "dbt": dbt_resource,
+    },
+)
+```
+
+Now we can see the new job added :  
+
+![image](https://github.com/user-attachments/assets/cf28030e-899e-4e34-b37f-fff0159be11d)  
+
+The graph would appeare like this :  
+
+![image](https://github.com/user-attachments/assets/ce5166d6-3626-49d1-a3cd-8e2130eb8781)  
+
+We can see that the job was succesful :  
+
+![image](https://github.com/user-attachments/assets/44024ef5-c0bf-4169-937b-58bb02316d6d)  
+
+and we can also see the output in the terminal, or add it in logs using context.log.info rather than print() !  
+
+![image](https://github.com/user-attachments/assets/d4cd0f11-7afc-4aa9-a537-3165bfbf0272)  
+
+
+**As we mentioned above we can use ops and graphs to construct our own custom ETLs !**  
+
+#### Schedules:  
+
+Now that we created some jobs, we need to run them either manually, using schedules (everyday at 10 am for example) or using sensors (objects that catchs an event to trigger the job) !  
+
+Lest's create a schedule to run the etl job each 5 minutes for example !  
+
+This schedule needs to use what we call Cron that tracks time to run the job. Cron has a specific syntax to set time such as :  
+
+| Cron Expression | Meaning                  |
+| --------------- | ------------------------ |
+| `0 9 * * *`     | Every day at 9:00 AM     |
+| `*/5 * * * *`   | Every 5 minutes          |
+| `0 0 * * MON`   | Every Monday at midnight |
+| `30 18 * * 1-5` | Weekdays at 6:30 PM      |
+
+
+We can test and build this at :  https://crontab.guru  
+
+![image](https://github.com/user-attachments/assets/de29acca-d831-4170-9f87-2eb44b4b3882)  
+
+We define a schedule as follows:  
+
+```Python
+
+def run_etl_every_minute(context):
+    context.log.info("Logging from a dg.schedule!")
+    return {}
+```
+
 
