@@ -2564,6 +2564,99 @@ Now we can see that the schedule was added and it is linked to the etl_job. We c
 
 We can also activate and deactivate the schedule under running column!  
 
-![image](https://github.com/user-attachments/assets/8b225253-ee39-43ae-b6ba-e6693f01eb9c)
+![image](https://github.com/user-attachments/assets/8b225253-ee39-43ae-b6ba-e6693f01eb9c)  
+
+#### Partitions and backfills:
+
+Now let's imagine we create a job that would run the reviews fact table, wich is incremental, but we want to add the possibility to rerun the job for a specific range of time (days, months or year) !  
+
+We need to add in the dbt model this functionnlity (Partitions) using variables we can specify for start and end dates then make dagster aware of these variables so it can run the asset materialization for a specified partition !  
+
+We can implement this by first creating some partitions based on dates (or even other data such us region) and then call these partitions in the asset definition !  
+
+**Following the best practices of Dagster, we need to create partitions in a separate folder for partitions like we did for other dagster objects!**  
+
+In general in partitions.py file we create our partitions :  
+
+```Python 
+import dagster as dg
+from ..assets import constants
+
+start_date = constants.START_DATE
+end_date = constants.END_DATE
+
+monthly_partition = dg.MonthlyPartitionsDefinition(
+    start_date=start_date,
+    end_date=end_date
+)
+```
+**Note that the end date is optional !**  
+
+Dagster has prebuilt hourly, daily, weekly, and monthly partitions for date-partitioned data.  
+
+Now we call the partitions in the assets :  
+
+Example of taxi trips data :  
+
+```Python 
+@dg.asset(
+    partitions_def=monthly_partition
+)
+def taxi_trips_file(context: dg.AssetExecutionContext) -> None:
+  """
+      The raw parquet files for the taxi trips dataset. Sourced from the NYC Open Data portal.
+  """
+
+  partition_date_str = context.partition_key
+  month_to_fetch = partition_date_str[:-3]  #here we take only the first two parts of the date format YYYY-MM-DD since data in the files are in YYYY-MM format
+
+  raw_trips = requests.get(
+      f"https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{month_to_fetch}.parquet"
+  )
+
+  with open(constants.TAXI_TRIPS_TEMPLATE_FILE_PATH.format(month_to_fetch), "wb") as output_file:
+      output_file.write(raw_trips.content)
+```
+This is how we can use the partitions in general, but in the context of dbt we can pass them as variables to be used in the models :  
+
+```Python
+# in the dbt model .sql file
+
+{{ config(materialized='incremental', unique_key='order_id') }}
+
+SELECT *
+FROM raw.orders
+WHERE order_date = '{{ var("run_date") }}'
+
+{% if is_incremental() %}
+  AND updated_at > (SELECT MAX(updated_at) FROM {{ this }})
+{% endif %}
+```
+
+Par la suite dans le fichier assets.py we can create a separate asset for the model to pass the vars to it:  
+
+```Python
+from dagster import AssetExecutionContext
+from dagster_dbt import DbtCliResource, dbt_assets
+from ..partitions import monthly_partition
+from ..constants.constants import dbt_manifest_path
 
 
+@dbt_assets(manifest=dbt_manifest_path, partitions_def=monthly_partition,
+    select="orders",
+    runtime_metadata_fn=lambda context: {
+        "vars": {
+            "run_date": context.partition_key
+        }
+    }
+)
+def dbt_snowflake_project_dbt_assets(context: AssetExecutionContext, dbt: DbtCliResource):
+    yield from dbt.cli(["build"], context=context).stream()
+)
+```
+
+Now by default dagster passes the variables to dbt model !
+
+In our case things a bit more complex. We need start date and end date, so for eah partition we need these two variables. the **context** object gives us these two values for each partition (starting from the start date we specified when creating the partitions !  
+
+Now 
