@@ -2490,7 +2490,7 @@ def run_etl_every_minute(context):
     return {}
 ```
 
-If the jop needs some configurations to run such as inputs or parameters we need to use RunRequest:  
+If the job needs some configurations to run such as inputs or parameters we need to use RunRequest:  
 
 ```Python
 from dagster import schedule, RunRequest
@@ -2530,10 +2530,11 @@ def run_etl_every_minute(context):
     return {}
 ```
 
-```Python
 We have two schedules, one generated automatically when we create the dagster project from dbt and it runs (if we activate it) every day at midniht for all assets ! and the other one is the for the etl_job we created !  
 
 Now we need to define the new schedule if the definitions file :  
+
+```Python
 
 from dagster import Definitions
 
@@ -2633,7 +2634,7 @@ WHERE order_date = '{{ var("run_date") }}'
 {% endif %}
 ```
 
-Par la suite dans le fichier assets.py we can create a separate asset for the model to pass the vars to it:  
+Then in the assets.py file we can create a separate asset for the model to pass the vars to it:  
 
 ```Python
 from dagster import AssetExecutionContext
@@ -2657,6 +2658,6 @@ def dbt_snowflake_project_dbt_assets(context: AssetExecutionContext, dbt: DbtCli
 
 Now by default dagster passes the variables to dbt model !
 
-In our case things a bit more complex. We need start date and end date, so for eah partition we need these two variables. the **context** object gives us these two values for each partition (starting from the start date we specified when creating the partitions !  
+In our case things are a bit more complex. We need start date and end date, so for eah partition we need these two variables. the **context** object gives us these two values for each partition (starting from the start date we specified when creating the partitions !  
 
 Now 
