@@ -2660,4 +2660,147 @@ Now by default dagster passes the variables to dbt model !
 
 In our case things are a bit more complex. We need start date and end date, so for eah partition we need these two variables. the **context** object gives us these two values for each partition (starting from the start date we specified when creating the partitions !  
 
-Now 
+This is our partitions file :  
+
+![image](https://github.com/user-attachments/assets/1a575f86-d6ef-4e2e-96e5-1ab123c0e5d5)  
+
+```Python
+import dagster as dg
+
+start_date = "2010-01-01"
+
+daily_partition = dg.DailyPartitionsDefinition(
+    start_date=start_date,
+)
+```
+
+Now in the assets file we exclude fact_reviews from the first assets where we retrieve all dbt models in order to add partitions only to the fact resviews model :  
+
+```Python
+from dagster import AssetExecutionContext
+from dagster_dbt import DbtCliResource, dbt_assets
+
+from ..constants.constants import dbt_manifest_path
+from ..partitions.partitions import daily_partition
+
+
+@dbt_assets(manifest=dbt_manifest_path, exclude="fact_reviews")
+def dbt_snowflake_project_dbt_assets(context: AssetExecutionContext, dbt: DbtCliResource):
+    yield from dbt.cli(["build"], context=context).stream()
+
+```
+We can see in the UI that fact_reviews asset has disapeared !  
+**But first of all we pay attention to remove fact_reviews from the jobs where it is referenced, otherwise we get an error**  
+
+![image](https://github.com/user-attachments/assets/62a6ecd3-07f8-4d40-a543-7eee5bf37324)  
+
+Now we can create the fact_reviews asset with partitions :  
+
+
+```Python
+from dagster import AssetExecutionContext
+from dagster_dbt import DbtCliResource, dbt_assets
+
+from ..constants.constants import dbt_manifest_path
+from ..partitions.partitions import daily_partition
+
+
+@dbt_assets(manifest=dbt_manifest_path, exclude="fact_reviews")
+def dbt_snowflake_project_dbt_assets(context: AssetExecutionContext, dbt: DbtCliResource):
+    yield from dbt.cli(["build"], context=context).stream()
+
+
+@dbt_assets(manifest=dbt_manifest_path, select="fact_reviews", partitions_def=daily_partition)
+def fact_asset_reviews(context: AssetExecutionContext, dbt: DbtCliResource):
+    yield from dbt.cli(["build"], context=context).stream()
+```
+![image](https://github.com/user-attachments/assets/d92c250c-673b-4f23-b39f-8e57eed793a5)  
+
+We need also to include it in the definitions file !  
+ In the UI we can see that the reviews asset shows up again but with a new elements such as : materializes partitions, missing ones and failed ones :  
+ 
+![image](https://github.com/user-attachments/assets/5c654fbd-5dae-44c4-84a3-363258c70128)  
+
+We can also click on the total number of partitions to select which one to materialize:  
+
+![image](https://github.com/user-attachments/assets/8c3e650a-d114-4c14-8853-3aeed96d6beb)  
+
+Now our asset is partitions aware, we only need to pass down the partitions variables to the underneath dbt model !  
+
+To do so, we will use the context object to retrieve the start and end date of each partition, if selected, to pass it down to the models variables :  
+
+```Python
+from dagster import AssetExecutionContext
+from dagster_dbt import DbtCliResource, dbt_assets
+import json
+
+from ..constants.constants import dbt_manifest_path
+from ..partitions.partitions import daily_partition
+
+
+@dbt_assets(manifest=dbt_manifest_path, exclude="fact_reviews")
+def dbt_snowflake_project_dbt_assets(context: AssetExecutionContext, dbt: DbtCliResource):
+    yield from dbt.cli(["build"], context=context).stream()
+
+
+@dbt_assets(manifest=dbt_manifest_path, select="fact_reviews", partitions_def=daily_partition)
+def fact_asset_reviews(context: AssetExecutionContext, dbt: DbtCliResource):
+    first_partition, last_partition = context.asset_partitions_time_window_for_output(
+        list(context.selected_output_names)[0]
+    )
+    dbt_reviews_vars = {
+        "start_date" : str(first_partition),
+        "end_date" : str(last_partition)
+    }
+    yield from dbt.cli(["build","--vars",json.dumps(dbt_reviews_vars)], context=context).stream()
+```
+
+Here in the reviews asset, we add partitions_def to the decorator function and this is how the asset becomes partitions aware. Then we simply define two variables first_partition and last partition that get their values from the context object depending on the partition selected. 
+**Note that the objects returned are of type datetime.date and dagster expect string values to be passed to the context so we need to convert them using str()**  
+If no partition is selected values are returned empty !  
+The *context.asset_partitions_time_window_for_output()* retrieves values of partitions time window for a specific asset or multiple assets. We can either hard code the asset value or retirieve it automatically using the *context.selected_output_names* that returns a set of strings (models names). So to retirieve the values we need to convert the set into a list then call the first value since we cannot do that on sets (not itterable) and we have only one asset so the [0] index will retirieve the model nbame.  
+
+Then we need to map the variables we created to the reviews model varibales already defined in the dbt reviews model script :  
+
+```Python
+WITH src_reviews AS (
+  SELECT * FROM {{ ref('stg_reviews') }}
+)
+SELECT 
+
+{{ dbt_utils.generate_surrogate_key(['listing_id', 'review_date', 'reviewer_name', 'review_text']) }} AS review_id, * 
+
+FROM src_reviews
+
+WHERE review_text is not null -- We load only the non null rows
+
+-- here we need to add the logic of incrementation
+-- we append data so we can for example use the review_date and insert only the data in the source where the date of review is > Max(review_date) in the target
+
+{% if is_incremental() %}
+
+    {% if var("start_date",False) and var("end_date",False) %}
+        {{ log('loading ' ~ this ~ 'incrementally (start_date: ' ~ var("start_date") ~ '(end_date: ' ~ var("end_date") ~ ')', info=True) }}
+        AND review_date >= '{{ var("start_date") }}'
+        AND review_date < '{{ var("end_date") }}'
+    {% else %}    
+
+      AND review_date > (select max(review_date) from {{ this }})
+      {{ log('loading ' ~ this ~ 'incrementally (all missing dates)', info=True)}}
+   {% endif %}
+{% endif %}
+```
+And then we pass the variables in the dbt build command that dagster will run using the dbt.cli. We do this using json.dumps() since dbt expects a YAML/JSON-compatible string and not just a dictionary :  
+
+```Python
+yield from dbt.cli(["build","--vars",json.dumps(dbt_reviews_vars)], context=context).stream()
+```
+```Python
+what we define :
+dbt_reviews_vars = {"start_date": "2023-06-01", "end_date": "2023-06-02"}
+
+what dbt expects: 
+json.dumps(dbt_reviews_vars)
+# → '{"start_date": "2023-06-01", "end_date": "2023-06-02"}' this is a json string that dbt can read !  
+```
+
