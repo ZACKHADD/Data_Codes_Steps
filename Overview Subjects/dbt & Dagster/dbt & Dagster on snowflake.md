@@ -2790,6 +2790,9 @@ WHERE review_text is not null -- We load only the non null rows
    {% endif %}
 {% endif %}
 ```
+
+Here in the dbt model we just check if some partitions variables were given or not to apply the incremental load only to the partitions otherwise it will do it for the period not yet loaded !  
+
 And then we pass the variables in the dbt build command that dagster will run using the dbt.cli. We do this using json.dumps() since dbt expects a YAML/JSON-compatible string and not just a dictionary :  
 
 ```Python
@@ -2803,4 +2806,6 @@ what dbt expects:
 json.dumps(dbt_reviews_vars)
 # → '{"start_date": "2023-06-01", "end_date": "2023-06-02"}' this is a json string that dbt can read !  
 ```
+Now once we select in dagster UI the partitions it will materialize the incremental loading only for those partitions.  
+
 
