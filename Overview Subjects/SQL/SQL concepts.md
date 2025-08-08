@@ -19,5 +19,60 @@ DISTINCT function treats NULLS as same NOT by comparing but by using hash functi
 ![image](https://github.com/user-attachments/assets/81eab8e8-6e77-4163-8140-fc689f9df6ac)  
 
 
+### Hierarchal organisation :  
+
+This scenario is so common when we deal with data that has a hierarchy and we want to know the full path to the top value !  
+For example, we can have the manager of each employee in a table and we would want to know the full path to top management for each current emplyee !  
+
+```SQL
+
+ -- Create the table example !
+
+CREATE OR REPLACE TABLE Employees
+(
+EmployeeID  INTEGER PRIMARY KEY,
+NAME VARCHAR (50), 
+ManagerID   INTEGER NULL,
+JobTitle    VARCHAR(100) NOT NULL
+);
+
+INSERT INTO Employees (EmployeeID, NAME, ManagerID, JobTitle) VALUES
+    (1, 'Alice', NULL , 'CEO'),
+    (2, 'Bob', 1, 'VP Engineering'),
+    (3, 'Carol', 1, 'VP Sales'),
+    (4, 'Dave', 2, 'Engineer'),
+    (5, 'Eve', 2, 'Engineer'),
+    (6, 'Frank', 3, 'Sales Associate');
+
+
+```
+
+Now we can do a recursive CTE to recursevly build the path :  
+
+```SQL
+
+WITH RECURSIVE_CTE AS 
+(
+    SELECT EMPLOYEEID, NAME, MANAGERID, JOBTITLE, NAME AS PATH FROM EMPLOYEES
+    WHERE MANAGERID IS NULL       ## This part initializes the loop starting from the highest level where we don't have a manager ID
+    
+    UNION ALL   ## We do the union all to append the remaining values of each emplyee with the corresponding path
+    
+    SELECT e.EMPLOYEEID, e.NAME, e.MANAGERID, e.JOBTITLE, cte.PATH || '>' || e.NAME AS PATH FROM EMPLOYEES e 
+    JOIN RECURSIVE_CTE cte ON e.MANAGERID = cte.EMPLOYEEID
+
+            ## in the last part we do a select with a join between the original table and the result of the CTE !
+            ## the first call (iteration) will have only the top level manager that will be joined with the rest of employees
+            ## the join will give only the second level of manager whos the manager is the top level one and retrieve the                   its path and add theire name to it separated wwith ">"
+            ## then the operation is repeated for all the the folowing levels till the join has no values to match then it stops
+)
+
+SELECT * FROM RECURSIVE_CTE;
+
+
+```
+
+This is very useful when we deal with RLS so that a manager can see his data and the data of all the employees in his team !  
+
 
 
