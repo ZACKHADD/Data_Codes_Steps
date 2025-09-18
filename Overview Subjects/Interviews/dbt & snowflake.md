@@ -54,8 +54,11 @@ default:
       database: "{{ env_var('SNOWFLAKE_CI_DATABASE', 'CI_DATABASE') }}"
       warehouse: "{{ env_var('SNOWFLAKE_CI_WAREHOUSE', 'DBT_CI_WH') }}"
       schema: "{{ var('ci_schema', 'DBT_CI_DEFAULT') }}"
+      # threads are used for concurency
       threads: 2
+      # Client_session argument is used to auto_suspend the waerehouse once the job done
       client_session_keep_alive: false
+      # Query tags are so important for monitoring and see the queries executed by dbt in snowflake UI and query history
       query_tag: dbt_ci
       
     # Production environment
@@ -288,6 +291,115 @@ To install these packages we run `dbt deps` ! These packages are just macros ! w
         search_order: ['my_dbt_project', 'dbt_utils']
 ```
 
+6- Models, Sources and schemas.yaml :
+
+This is the heart of dbt, as models are the definition of the query that will create the tables, views and so on !  
+
+  - Module Example :
+
+    ```
+    WITH raw_hosts AS (
+    SELECT
+        *
+    FROM
+       {{ source('airbnb', 'hosts') }}
+    )
+    SELECT
+        id AS host_id,
+        NAME AS host_name,
+        is_superhost,
+        created_at,
+        updated_at
+    FROM
+        raw_hosts
+    ```
+
+    This behind the scene will create an object in snowflake (table, view depending on the materialization strategy !)
+
+  - Sources :
+    Sources in dbt are basically a way of telling dbt: “these upstream tables/views already exist in my warehouse, dbt didn’t build them, but I want to use them in my models.”  
+    we can create sources either in a separate sources.yaml file that groups all the sources used in the project or we can create a source file per staging model !
+    dbt will after all combine all the yaml files, but it is recommanded for organization puposes to separate files !
+
+    Why use sources (vs hardcoding schema.table)?
+
+      - Portability → you don’t have to hardcode warehouse-specific schema names.
+      - Documentation → dbt Docs will show your sources in the DAG.
+      - Testing → you can add freshness tests and column tests on sources.
+      - Consistency → {{ source() }} resolves correctly across environments (dev, prod, CI).
+
+    Source example :
+
+    ```
+    version: 2 # Mendatory in every yaml file since it tells dbt what format of yaml files are we using (legacy version 1 or moderne version 2)
+
+    sources:
+      - name: airbnb
+        database : AIRBNB
+        schema: RAW
+        tables:
+          - name: listings
+            identifier: raw_listings
+    
+          - name: hosts
+            identifier: raw_hosts
+    
+          - name: reviews
+            identifier: raw_reviews
+            loaded_at_field: date  #Which column that tells us about the freshness of data
+            freshness:
+              warn_after: {count: 1, period: hour} # warning after how much time
+              error_after: {count: 24, period: hour} # error after how much time
+    ```
+  - Schema.yaml or model_name.yaml :
+    
+    This is a file that is useful to add descriptions, docs and tests to models !
+    Two ways of doing that just like sources : One single file for all models or a file per model !
+    These arguments can also be used in the dbt_project.yaml file but it is not recommanded as for big projects it affects readability !
+
+    Example :
+
+    ```
+    version: 2
+
+    models:
+       - name: dim_listings
+         description: "A view that changes the names of the listings raw table columns"
+         columns:
+           - name: listing_id
+             description: "The primary key for this table"
+             tests:
+               - unique
+               - not_null
+    
+           - name: host_id
+             tests:
+               - not_null
+               - relationships:
+                  to: ref('dim_hosts')
+                  field: HOST_ID
+    
+           - name: room_type
+             tests:
+               - accepted_values:
+                  values: ['Entire home/apt',
+                            'Private room',
+                            'Shared room',
+                            'Hotel room']
+    
+           - name: minimum_nights
+             description: '{{ doc("desc_dim_listing_min_nights")}}'
+             test:
+               - null_column_test *
+    
+       - name: dim_listings_with_hosts
+         tests:
+          - dbt_expectations.expect_table_row_count_to_equal_other_table:
+              compare_model: source('airbnb','listings')
+
+    ```
+
+    
 - Hooks:
 A hook is a piece of code that runs automatically at a certain point in a process. In dbt, hooks let you run arbitrary SQL before or after certain operations (like building a model, snapshot, or test).
 
