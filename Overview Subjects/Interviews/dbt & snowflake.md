@@ -287,3 +287,60 @@ To install these packages we run `dbt deps` ! These packages are just macros ! w
       - macro_namespace: dbt_utils
         search_order: ['my_dbt_project', 'dbt_utils']
 ```
+
+- Hooks:
+A hook is a piece of code that runs automatically at a certain point in a process. In dbt, hooks let you run arbitrary SQL before or after certain operations (like building a model, snapshot, or test).
+
+| Hook type     | When it runs                      | Syntax example                                                         |
+| ------------- | --------------------------------- | ---------------------------------------------------------------------- |
+| **pre-hook**  | Right **before a model is built** | Runs SQL just before `select ...` is executed or table is materialized |
+| **post-hook** | Right **after a model is built**  | Runs SQL after the model is finished building                          |
+
+Hooks are used for :  
+
+  - Audit logging: insert a row into an audit table every time a model runs
+  - Permissions: grant access to a table after it’s created
+  - Data prep / cleanup: truncate a staging table before loading new data
+  - Also after or before dbt run process ! we can call some macros !
+
+| Hook type        | Runs when                                   | Scope              | Example use case                                    |
+| ---------------- | ------------------------------------------- | ------------------ | --------------------------------------------------- |
+| **pre-hook**     | Before a specific model is built            | Only that model    | Insert audit row before a table is created          |
+| **post-hook**    | After a specific model is built             | Only that model    | Grant permissions after model creation              |
+| **on-run-start** | Once, **before the entire dbt run starts**  | Global for the run | Create schemas, log run start, initialize variables |
+| **on-run-end**   | Once, **after the entire dbt run finishes** | Global for the run | Log run status, cleanup temporary tables            |
+
+
+Example of inline config :
+```
+{{ config(
+    materialized='table',
+    pre_hook="insert into audit_log(table_name, run_time) values ('users', current_timestamp)",
+    post_hook="grant select on {{ this }} to analyst_role"
+) }}
+
+select * from raw.users
+```
+
+Example of dbt_project.yaml config :  
+
+```
+models:
+  my_project:
+    +post-hook:
+      - "grant select on {{ this }} to analyst_role"
+      - "insert into audit_log(table_name, run_time) values ('{{ this.name }}', current_timestamp)"
+```
+
+Example of on-run-start and on-rub-end :  
+
+```
+    # Hooks for environment-specific setup
+    on-run-start:
+      - "{{ create_schema_if_not_exists() }}"
+      - "{{ log_run_start_info() }}"
+    
+    on-run-end:
+      - "{{ log_run_end_info() }}"
+      - "{{ cleanup_temp_tables() if target.name == 'ci' else '' }}"
+```
