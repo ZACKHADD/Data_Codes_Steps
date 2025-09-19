@@ -399,8 +399,124 @@ This is the heart of dbt, as models are the definition of the query that will cr
 
     ```
 
+7- Analysis: Reusable queries 
+
+An analysis is just a .sql file stored under the /analyses directory in our dbt project. Unlike models, dbt does not build them into tables or views in our warehouse. Instead, they are compiled SQL queries that we can run manually (ad hoc analysis, investigations, debugging).  
+Analysis need to run manualy and they are not automaticaly run when we use `dbt run` !  
+
+Example :  
+
+```
+    -- analyses/user_activity.sql
+    select
+        user_id,
+        count(*) as order_count
+    from {{ ref('orders') }}
+    group by 1
+    having count(*) > 100
+
+```
+
+We compile the analysis like this :  
+
+```
+dbt compile --select analyses/
+```
+**Then this will generate compiled sql queries that we can copy past to run in snowflake for example !**  
+
+8- Tests : 
+Tests are operations that will check if a hypothesis is true and will true error if not !  
+We have several types of tests (generic or macros, data tests and built-in tests)  
+Tests (generic and built-in) can be run at the column level or table level to apply it to all columns at once !  
+
+dbt has a few different ways to define tests:  
+  - In the model yaml file. By default dbt provides some standard tests such as : unique, not_null, accepted_values, relationships.
+    ```
+    models:
+      - name: orders
+        columns:
+          - name: order_id
+            tests:
+              - not_null
+              - unique
+    ```
+  - test macros (generic tests): it is simply a macro that perfomrs a test on columns for example !
     
-- Hooks:
+    ```
+    {% macro test_null_column_test(model) %}
+      SELECT *
+      FROM {{ model }}
+      WHERE some_complex_logic_across_multiple_columns
+    {% endmacro %}
+    
+    ```
+    Then we can call the test macro in the model yaml :
+
+    ```
+      models:
+        - name: users
+          tests:
+            - null_column_test  # This runs against the entire table # note that we didn't call the whole name with test_ as dbt generates it by default !
+          columns:
+            - name: email
+              tests:
+                - unique  # This runs against just the email column
+    ```
+    
+  - In the test folder (single data test) : here we define more sofisticated tests that are more complexed and dbt runs them as part of the dbt test command or dbt run command !
+    
+    ```
+    select o.*
+      from {{ ref('orders') }} o
+      left join {{ ref('users') }} u
+        on o.user_id = u.id
+      where u.id is null
+    ```
+    **We cannot directly call singular tests from model YAML the same way we call generic tests**
+    
+9 - dbt contract (*similar to tests but before materialization, and if violated, materialization fails !*):
+  
+  Contracts are a feature that allows you to define and enforce explicit agreements about our data models' structure and behavior.
+  - Model contracts - These define the expected schema (columns, data types) for your models. When you enable a contract on a model, dbt will enforce that the model's output matches exactly what you've specified in the contract.
+  - Column-level specifications : we can define data types, constraints, and documentation for each column in our model. If the actual output doesn't match these specifications, dbt will fail the run.
+  - Enforcement mechanism : When a model has a contract enabled, dbt validates the model's output against the contract during compilation and execution.
+    
+  How it works :
+    - dbt runs your model SQL (SELECT statement)
+    - dbt examines the result set in memory/staging
+    - dbt checks if the result violates the contract
+    - If contract passes: dbt materializes to the final table
+    - If contract fails: dbt aborts and doesn't write to the final table
+      
+  So dbt essentially does a "dry run" validation before committing the results
+  
+  Example :
+
+  ```
+  models:
+  - name: my_model
+    config:
+      contract:
+        enforced: true # All what we specify after contract will be enforced and will fail the materialization if there is a violation
+    columns:
+      - name: user_id
+        data_type: integer
+        constraints:
+          - type: not_null
+      - name: email
+        data_type: varchar(255)
+        constraints:
+          - type: not_null
+          - type: unique
+  ```
+  **Keep in mind that dbt contracts are more expensive in terms of performance as they scan all data before materializing then it materialize it !**
+
+   Many teams use a hybrid strategy:
+    - Contracts for small, critical tables (dimentions) where integrity > performance
+    - Tests for large tables where speed > immediate validation
+    - Sampling strategies for tests on huge datasets
+    
+10 - Hooks:
 A hook is a piece of code that runs automatically at a certain point in a process. In dbt, hooks let you run arbitrary SQL before or after certain operations (like building a model, snapshot, or test).
 
 | Hook type     | When it runs                      | Syntax example                                                         |
