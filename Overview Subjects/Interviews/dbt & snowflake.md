@@ -327,6 +327,7 @@ This is the heart of dbt, as models are the definition of the query that will cr
       - Documentation → dbt Docs will show your sources in the DAG.
       - Testing → you can add freshness tests and column tests on sources.
       - Consistency → {{ source() }} resolves correctly across environments (dev, prod, CI).
+        
 
     Source example :
 
@@ -398,6 +399,57 @@ This is the heart of dbt, as models are the definition of the query that will cr
               compare_model: source('airbnb','listings')
 
     ```
+7- Snapshots : 
+  Snapshots are an object that use CDC to ingest data into a target table which is a SCD2 dim table ! Snapshots capture and preserve historical versions of records by tracking changes over time.  
+  
+  How it works:
+  - Initial snapshot: Captures current state of source data
+  - Subsequent runs: Compares new data with existing snapshot
+  - Change detection: Identifies what changed using a strategy
+  - Version creation: Creates new records for changes while preserving old ones
+  
+  Snpashots are stored as tables in your data warehouse (Snowflake, BigQuery, etc.):  
+  - Data never vanishes - that's the whole point!
+  - Each record gets additional metadata columns: 
+      - dbt_valid_from: When this version became active
+      - dbt_valid_to: When this version became inactive (NULL for current)
+      - dbt_updated_at: When dbt processed this change
+      - dbt_scd_id: Unique identifier for each version
+  Snapshots have several strategies to insure the SCD2 process (how to check for new data ?):
+    - Timestamp Strategy
+      ```
+          strategy='timestamp',
+          updated_at='last_modified_date'
+      ```
+    - Check Strategy :
+      ```
+          strategy='check',
+          check_cols=['status', 'email', 'phone']
+      ```
+    - Check All Columns :
+      ```
+          strategy='check',
+          check_cols='all'
+      ```      
+    
+Example :  
+
+  ```
+    {% snapshot customers_snapshot %}
+        {{
+            config(
+              target_database='analytics',        # Where to store
+              target_schema='snapshots',          # Schema location
+              target_table='dim_customers_hist',  # Custom table name
+              unique_key='customer_id',
+              strategy='timestamp',
+              updated_at='last_modified',
+              invalidate_hard_deletes=true,       # Handle deleted records
+            )
+        }}
+        SELECT * FROM {{ source('raw', 'customers') }}
+    {% endsnapshot %}
+  ```
 
 7- Analysis: Reusable queries 
 
