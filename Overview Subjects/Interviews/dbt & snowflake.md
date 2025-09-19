@@ -503,7 +503,11 @@ Each of these strategies can have some configs ! for example the merge one has :
                 {'account_role': 'MARKETING_TEAM'}
             ],
             
-            
+            -- database_role - Database-Level Roles (Newer Feature). This is a newer Snowflake feature that allows roles to be scoped to specific databases:
+            -- Create a database role (scoped to a specific database)
+                  CREATE DATABASE ROLE ANALYTICS_DB.READER;
+                  CREATE DATABASE ROLE ANALYTICS_DB.WRITER;
+
             -- ========================================================================
             -- DOCUMENTATION & METADATA CONFIGS
             -- ========================================================================
@@ -600,16 +604,202 @@ Each of these strategies can have some configs ! for example the merge one has :
         ) }}
         */
         
-        SELECT 
-            -- Your model logic here
-            id,
-            customer_name,
-            created_at
-        FROM {{ source('raw', 'customers') }}
-        
-        {% if is_incremental() %}
-            WHERE created_at > (SELECT MAX(created_at) FROM {{ this }})
-        {% endif %}
+          -- ============================================================================
+          -- ADDITIONAL IMPORTANT DBT CONFIGS
+          -- ============================================================================
+          
+          -- ========================================================================
+          -- PROJECT-LEVEL CONFIGS (dbt_project.yml)
+          -- ========================================================================
+          
+          -- Global model configurations that apply to all models unless overridden
+          -- Example dbt_project.yml structure:
+          /*
+          name: 'my_project'
+          version: '1.0.0'
+          config-version: 2
+          
+          model-paths: ["models"]
+          analysis-paths: ["analyses"] 
+          test-paths: ["tests"]
+          seed-paths: ["seeds"]
+          macro-paths: ["macros"]
+          snapshot-paths: ["snapshots"]
+          
+          target-path: "target"
+          clean-targets: ["target", "dbt_packages"]
+          
+          models:
+            my_project:
+              +materialized: view              # Default materialization for all models
+              staging:
+                +materialized: view            # All staging models as views
+              marts:
+                +materialized: table           # All mart models as tables
+                +transient: true               # All mart tables as transient
+          */
+          
+          -- ========================================================================
+          -- SOURCE CONFIGURATIONS
+          -- ========================================================================
+          
+          -- Source Freshness - Monitor data freshness
+          /*
+          sources:
+            - name: raw_data
+              description: "Raw source data"
+              freshness:
+                warn_after: {count: 12, period: hour}    # Warn if data older than 12 hours
+                error_after: {count: 24, period: hour}   # Error if data older than 24 hours
+              loaded_at_field: _loaded_at                # Column that tracks load time
+              
+              tables:
+                - name: customers
+                  description: "Customer data from CRM"
+                  freshness:
+                    warn_after: {count: 6, period: hour}  # Override for this table
+                  columns:
+                    - name: id
+                      description: "Primary key"
+                      tests:
+                        - unique
+                        - not_null
+          */
+          
+          -- ========================================================================
+          -- SEED CONFIGURATIONS
+          -- ========================================================================
+          
+          -- Seed files (CSV) configurations
+          /*
+          seeds:
+            my_project:
+              +column_types:                    # Define column types for CSV files
+                id: varchar(50)
+                name: varchar(100)
+                is_active: boolean
+              +quote_columns: false             # Don't quote column names
+              +delimiter: ','                   # CSV delimiter
+          */
+          
+          -- ========================================================================
+          -- MACRO CONFIGURATIONS
+          -- ========================================================================
+          
+          -- Custom macro with configuration
+          /*
+          {% macro generate_schema_name(custom_schema_name, node) -%}
+              {%- set default_schema = target.schema -%}
+              {%- if custom_schema_name is none -%}
+                  {{ default_schema }}
+              {%- else -%}
+                  {{ default_schema }}_{{ custom_schema_name | trim }}
+              {%- endif -%}
+          {%- endmacro %}
+          */
+          
+          -- ========================================================================
+          -- EXPOSURE CONFIGURATIONS
+          -- ========================================================================
+          
+          -- Define downstream dependencies (dashboards, reports, etc.)
+          /*
+          exposures:
+            - name: customer_dashboard
+              type: dashboard
+              maturity: high
+              url: https://tableau.company.com/customer_dashboard
+              description: Executive customer metrics dashboard
+              depends_on:
+                - ref('dim_customers')
+                - ref('fct_orders')
+              owner:
+                name: Marketing Team
+                email: marketing@company.com
+          */
+          
+          -- ========================================================================
+          -- METRIC CONFIGURATIONS (dbt v1.6+)
+          -- ========================================================================
+          
+          -- Define business metrics
+          /*
+          metrics:
+            - name: total_revenue
+              label: Total Revenue
+              model: ref('fct_orders')
+              description: "Sum of all order values"
+              calculation_method: sum
+              expression: order_amount
+              timestamp: order_date
+              time_grains: [day, week, month, quarter, year]
+              dimensions:
+                - customer_id
+                - product_category
+              filters:
+                - field: status
+                  operator: '='
+                  value: "'completed'"
+          */
+          
+          -- ========================================================================
+          -- TESTING CONFIGURATIONS
+          -- ========================================================================
+          
+          -- Advanced test configurations
+          /*
+          tests:
+            - name: assert_positive_order_amounts
+              description: "Ensure all order amounts are positive"
+              config:
+                severity: error              # Options: warn, error
+                error_if: ">= 1"            # Fail if >= 1 records returned
+                warn_if: ">= 1"             # Warn if >= 1 records returned
+                limit: 100                  # Only show first 100 failing records
+                store_failures: true       # Store failing records in table
+          */
+          
+          -- ========================================================================
+          -- ENVIRONMENT & TARGET CONFIGURATIONS
+          -- ========================================================================
+          
+          -- Conditional configurations based on environment
+          {{ config(
+              materialized='incremental' if target.name == 'prod' else 'view',
+              transient=true if target.name == 'prod' else false,
+              tags=['finance'] if target.name == 'prod' else ['dev'],
+          ) }}
+          
+          -- ========================================================================
+          -- ADVANCED MODEL CONFIGURATIONS
+          -- ========================================================================
+          
+          {{ config(
+              -- File Format Options (Snowflake)
+              file_format='parquet',                    -- For external table materialization
+              
+              -- Tagging for organization
+              tags=['pii', 'customer_data', 'daily'],  -- Organize models by tags
+              
+              -- Model alias (different name in warehouse)
+              alias='customer_dimension',               -- Table name different from file name
+              
+              -- Custom schema (override default schema)
+              schema='customer_mart',                   -- Override default schema
+              
+              -- Full refresh control
+              full_refresh=false,                       -- Prevent accidental full refresh
+              
+              -- SQL Header (run before model SQL)
+              sql_header="SET QUERY_TAG = 'dbt_customer_processing';",
+              
+              -- Bind variables for parameterized queries  
+              bind=false,                               -- Disable parameter binding
+              
+              -- Hours to live (for transient tables)
+              hours_to_expiration=24,                   -- Auto-drop after 24 hours
+              
+          ) }}
 ```
 
 8- Snapshots : 
@@ -891,3 +1081,85 @@ Example of on-run-start and on-rub-end :
       - "{{ log_run_end_info() }}"
       - "{{ cleanup_temp_tables() if target.name == 'ci' else '' }}"
 ```
+
+13- Seeds:  
+
+Seeds are csv files that contains **reference data** that is essentially "lookup" or "master" data that provides context, categorization, or mapping information for your business processes. It's typically small, changes infrequently, and is used to enrich or categorize your main transactional data.  
+
+Common examples of reference data: 
+- Geographic mappings:
+    - Country codes (US = United States, CA = Canada, etc.)
+    - State/province abbreviations
+    - Currency codes (USD, EUR, GBP)
+    - Time zone mappings
+
+- Business categorizations:
+    - Product categories or hierarchies
+    - Department codes and names
+    - Customer segments or tiers
+    - Sales territories and regions
+
+Configuration example :  
+
+```
+    seeds:
+      my_project:
+        +column_types:                    # Define column types for CSV files
+          id: varchar(50)
+          name: varchar(100)
+          is_active: boolean
+        +quote_columns: false             # Don't quote column names
+        +delimiter: ','                   # CSV delimiter
+```
+
+14- Groups : 
+
+An advanced feature that turns implicit relationships into an explicit grouping ! a group is simply a bunch of objects such as models, tests, macors and so on that belong to a domain for example and once we define a group we need to define responsibilities of teams and so assign a team to the group !  
+
+It allows :  
+
+  - Team Ownership & Accountability
+  - Data Governance & Access Control: When a resource is grouped, dbt will allow it to reference private models within the same group.
+  - Clear Boundaries
+
+When we define groups we get to set also Access Levels:  
+
+  - access: private - Only models within the same group can reference this model
+  - access: public - Any model can reference this, regardless of group
+  - access: protected - Can be referenced by models in the same project/package
+
+Examples :  
+    
+  ```
+      # dbt_project.yml
+      groups:
+        - name: finance
+          owner:
+            name: Finance Team
+            email: finance@company.com
+        - name: marketing
+          owner:
+            name: Marketing Team
+            email: marketing@company.com
+        - name: product
+          owner:
+            name: Product Team
+            email: product@company.com
+  ```
+  ```
+    -- models/finance/staging/stg_transactions.sql
+      {{ config(
+          group='finance',
+          access='private'
+      ) }}
+      
+      -- This is a staging model that only finance team should use
+      -- Other groups can't reference this model
+      SELECT * FROM {{ source('raw', 'transactions') }}
+  ```
+
+15- Exposures : 
+
+16- Metrics : 
+
+17- dbt commands and Slim CI: 
