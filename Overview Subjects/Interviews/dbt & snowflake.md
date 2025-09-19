@@ -4,12 +4,12 @@
 
 ### dbt :
 
-1- Purpose : 
+#### 1- Purpose : 
 
 - Why dbt ? a transformation tool that works with nearly any data platform and the nature of its synthax makes it highly portable from a plateform another easily !
 - Facilitate the transformation process and provides a lot of functionalitites such as documentation, lineage, macros, tests and so on !
 
-2- Installation
+#### 2- Installation
 
 - dbt works on python, so we need python installed, a virtual environment (localy) and pip install dbt-core and also the connector to the data platform for example dbt-snowflake in this case !
 - We create a dbt project by executing in the virtual environment : dbt init project_name !
@@ -76,7 +76,7 @@ default:
       query_tag: dbt_prod
 ```
 
-3- Structure of the project 
+#### 3- Structure of the project 
 
 - The project generate several subfolders :
   ```
@@ -266,7 +266,7 @@ Two places where we can set configs :
 **The schema.yaml file or model_name.yaml specifies only description, documention and tests for a specific model !**  
 
 
-5- Dependencies :
+#### 5- Dependencies :
 In dbt we can use some packages that are prebuilt to perform some operations like tests, functions and so on !  
   - dbt_utils → utility macros
   - dbt_expectations → test macros
@@ -291,7 +291,7 @@ To install these packages we run `dbt deps` ! These packages are just macros ! w
         search_order: ['my_dbt_project', 'dbt_utils']
 ```
 
-6- Models, Sources and schemas.yaml :
+#### 6- Models, Sources and schemas.yaml :
 
 This is the heart of dbt, as models are the definition of the query that will create the tables, views and so on !  
 
@@ -399,7 +399,7 @@ This is the heart of dbt, as models are the definition of the query that will cr
               compare_model: source('airbnb','listings')
 
     ```
-7- Materialization and strategies :  
+#### 7- Materialization and strategies :  
 
   Materialization is the heart of models since it defines what schema objects will be created in snowflake from the model !  
   
@@ -802,7 +802,7 @@ Each of these strategies can have some configs ! for example the merge one has :
           ) }}
 ```
 
-8- Snapshots : 
+#### 8- Snapshots : 
   Snapshots are an object that use CDC to ingest data into a target table which is a SCD2 dim table ! Snapshots capture and preserve historical versions of records by tracking changes over time.  
   
   How it works:
@@ -905,9 +905,7 @@ Each of these strategies can have some configs ! for example the merge one has :
           check_cols='all'
       ```      
     
-
-
-9- Analysis: Reusable queries 
+#### 9- Analysis: Reusable queries 
 
 An analysis is just a .sql file stored under the /analyses directory in our dbt project. Unlike models, dbt does not build them into tables or views in our warehouse. Instead, they are compiled SQL queries that we can run manually (ad hoc analysis, investigations, debugging).  
 Analysis need to run manualy and they are not automaticaly run when we use `dbt run` !  
@@ -932,7 +930,7 @@ dbt compile --select analyses/
 ```
 **Then this will generate compiled sql queries that we can copy past to run in snowflake for example !**  
 
-10- Tests :  
+#### 10- Tests :  
 
 Tests are operations that will check if a hypothesis is true and will true error if not !  
 We have several types of tests (generic or macros, data tests and built-in tests)  
@@ -983,7 +981,7 @@ dbt has a few different ways to define tests:
     ```
     **We cannot directly call singular tests from model YAML the same way we call generic tests**
     
-11- dbt contract (*similar to tests but before materialization, and if violated, materialization fails !*):
+#### 11- dbt contract (*similar to tests but before materialization, and if violated, materialization fails !*):
   
   Contracts are a feature that allows you to define and enforce explicit agreements about our data models' structure and behavior.
   - Model contracts - These define the expected schema (columns, data types) for your models. When you enable a contract on a model, dbt will enforce that the model's output matches exactly what you've specified in the contract.
@@ -1025,7 +1023,7 @@ dbt has a few different ways to define tests:
     - Tests for large tables where speed > immediate validation
     - Sampling strategies for tests on huge datasets
     
-12 - Hooks:
+#### 12 - Hooks:
 A hook is a piece of code that runs automatically at a certain point in a process. In dbt, hooks let you run arbitrary SQL before or after certain operations (like building a model, snapshot, or test).
 
 | Hook type     | When it runs                      | Syntax example                                                         |
@@ -1082,7 +1080,7 @@ Example of on-run-start and on-rub-end :
       - "{{ cleanup_temp_tables() if target.name == 'ci' else '' }}"
 ```
 
-13- Seeds:  
+#### 13- Seeds:  
 
 Seeds are csv files that contains **reference data** that is essentially "lookup" or "master" data that provides context, categorization, or mapping information for your business processes. It's typically small, changes infrequently, and is used to enrich or categorize your main transactional data.  
 
@@ -1112,7 +1110,7 @@ Configuration example :
         +delimiter: ','                   # CSV delimiter
 ```
 
-14- Groups : 
+#### 14- Groups : 
 
 An advanced feature that turns implicit relationships into an explicit grouping ! a group is simply a bunch of objects such as models, tests, macors and so on that belong to a domain for example and once we define a group we need to define responsibilities of teams and so assign a team to the group !  
 
@@ -1158,8 +1156,8 @@ Examples :
       SELECT * FROM {{ source('raw', 'transactions') }}
   ```
 
-15- Exposures : 
+#### 15- Exposures : 
 
-16- Metrics : 
+#### 16- Metrics : 
 
-17- dbt commands and Slim CI: 
+#### 17- dbt commands and Slim CI: 
