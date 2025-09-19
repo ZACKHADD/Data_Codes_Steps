@@ -399,7 +399,220 @@ This is the heart of dbt, as models are the definition of the query that will cr
               compare_model: source('airbnb','listings')
 
     ```
-7- Snapshots : 
+7- Materialization and strategies :  
+
+  Materialization is the heart of models since it defines what schema objects will be created in snowflake from the model !  
+  
+  - table - Full refresh every run
+  - view - Creates a view, no data stored
+  - incremental - Uses strategies above
+  - ephemeral - CTE, not materialized -- Used for several models for example since it can be referenced just like normal models and it appears in the lineage !
+
+  Ephemeral materializations should be used only for simple logics not complexed ones, since the complexe logic is expensive to compute (e.g., large joins, aggregations),   and repeating it as an inline CTE in multiple downstream models can hurt performance.  
+
+  for the incremental materializations, there are several strategies :  
+  
+| Strategy           | Updates Existing Records     | Inserts New Records | Requires `unique_key` | Best For                                  |
+| ------------------ | ---------------------------- | ------------------- | --------------------- | ------------------------------------------| 
+| `append`           | No                           | Yes                 |  No                   | Simple appends without updates            |
+| `merge`            | Yes                          | Yes                 |  Yes                  | Upserts where `MERGE` is supported        |
+| `delete+insert`    | Yes                          | Yes                 |  Yes                  | Warehouses without `MERGE` support        |
+| `insert_overwrite` | No (overwrites partitions)   | Yes                 |  No                   | Partitioned tables in BigQuery, Snowflake |
+| `microbatch`       | Yes                          | Yes                 |  Yes (recommended)    | Large time-series datasets                |  
+
+Each of these strategies can have some configs ! for example the merge one has : merge_update_columns=['valid_to', 'is_current'] to specify that we want only to updat these two columns ! Otherwise the default behaviour is to update all columns !  
+
+#### DBT CONFIGURATION REFERENCE : 
+
+```
+        -- ============================================================================
+        -- COMPLETE DBT CONFIGURATION REFERENCE
+        -- ============================================================================
+        
+        {{ config(
+            -- ========================================================================
+            -- MATERIALIZATION STRATEGIES
+            -- ========================================================================
+            materialized='incremental',           -- Options: table, view, incremental, ephemeral, snapshot
+            
+            
+            -- ========================================================================
+            -- INCREMENTAL-SPECIFIC CONFIGS
+            -- ========================================================================
+            
+            -- Incremental Strategy - HOW to process incremental data
+            incremental_strategy='merge',          -- Options: merge (default), append, delete+insert, microbatch
+            
+            -- Unique Key - Critical for merge/delete+insert strategies
+            unique_key='id',                       -- Single column
+            -- unique_key=['customer_id', 'date'], -- Composite key (uncomment if needed)
+            
+            -- Merge Update Columns - WHICH columns to update (only works with merge strategy)
+            merge_update_columns=['valid_to', 'is_current'],  -- Only update specified columns during merge
+            
+            -- Merge Exclude Columns - Exclude columns from merge updates
+            merge_exclude_columns=['created_at', 'id'],       -- These columns won't be updated during merge
+            
+            -- Schema Change Handling - Handle schema evolution
+            on_schema_change='append_new_columns', -- Options: fail (default), ignore, append_new_columns, sync_all_columns
+            
+            -- Incremental Predicates - Add custom WHERE conditions to incremental logic
+            incremental_predicates=["dbt_valid_to is null", "status = 'active'"],
+            
+            
+            -- ========================================================================
+            -- SNOWFLAKE-SPECIFIC CONFIGS
+            -- ========================================================================
+            
+            -- Table Clustering - For table clustering performance
+            cluster_by=['date_column', 'category'],
+            
+            -- Automatic Clustering - Enable auto-clustering
+            automatic_clustering=true,
+            
+            -- Secure Views - Create secure views (hides definition)
+            secure=true,                           -- Only works with materialized='view'
+            
+            -- Copy Grants - Preserve grants during refreshes
+            copy_grants=true,
+            
+            -- Query Tag - Add query tags for monitoring and cost tracking
+            query_tag='dbt_marts_layer',
+            
+            -- Transient Tables - Use transient tables (no Fail-safe, lower cost)
+            transient=true,
+            
+            -- Warehouse - Specify warehouse for model execution
+            snowflake_warehouse='TRANSFORM_WH',
+            
+            
+            -- ========================================================================
+            -- PERFORMANCE & RESOURCE CONFIGS
+            -- ========================================================================
+            
+            -- Pre/Post Hooks - Run SQL before/after model execution
+            pre_hook="ALTER WAREHOUSE {{ target.warehouse }} SET WAREHOUSE_SIZE = 'LARGE'",
+            post_hook=[
+                "ALTER WAREHOUSE {{ target.warehouse }} SET WAREHOUSE_SIZE = 'MEDIUM'",
+                "GRANT SELECT ON {{ this }} TO ROLE ANALYST_ROLE"
+            ],
+            
+            -- Grant Access - Grant permissions to roles
+            grant_access_to=[
+                {'database_role': 'ANALYST_ROLE'},
+                {'account_role': 'MARKETING_TEAM'}
+            ],
+            
+            
+            -- ========================================================================
+            -- DOCUMENTATION & METADATA CONFIGS
+            -- ========================================================================
+            
+            -- Persist Docs like descripotionns - Include documentation in warehouse metadata as comnents tabel level and column level
+            persist_docs={"relation": true, "columns": true}, 
+
+            -- "relation": true → Persist description for the database object (table/view/etc.)
+
+            -- Example :
+            # models/marts/dim_customers.yml
+                version: 2
+                
+                models:
+                  - name: dim_customers
+                    description: "Customer dimension with SCD Type 2 history"
+                    config:
+                      persist_docs: {"relation": true, "columns": true}
+                    columns:
+                      - name: customer_id
+                        description: "Unique customer identifier"
+            -- ========================================================================
+            -- DATA QUALITY CONFIGS (CONTRACTS)
+            -- ========================================================================
+            
+            -- Contract Enforcement - Define and enforce explicit data contracts
+            contract={
+                'enforced': true                   -- Validates schema and constraints before materialization
+            }
+            
+            
+            -- ========================================================================
+            -- SNAPSHOT-SPECIFIC CONFIGS (use in snapshot files only)
+            -- ========================================================================
+            
+            -- Note: These configs are only used in {% snapshot %} blocks, not regular models
+            
+            -- target_database='analytics',       -- Where to store snapshot
+            -- target_schema='snapshots',         -- Schema location for snapshot
+            -- target_table='dim_customers_hist', -- Custom table name for snapshot
+            -- unique_key='customer_id',          -- Primary key for change detection
+            -- strategy='timestamp',              -- Options: timestamp, check
+            -- updated_at='last_modified',        -- Column for timestamp strategy
+            -- check_cols=['status', 'email'],    -- Columns to check for changes (check strategy)
+            -- check_cols='all',                  -- Check all columns for changes
+            -- invalidate_hard_deletes=true,      -- Handle deleted source records
+            
+        ) }}
+        
+        -- ============================================================================
+        -- EXAMPLE USAGE PATTERNS
+        -- ============================================================================
+        
+        -- PATTERN 1: High-performance incremental model with clustering
+        /*
+        {{ config(
+            materialized='incremental',
+            incremental_strategy='merge',
+            unique_key='id',
+            cluster_by=['date_created'],
+            transient=true,
+            copy_grants=true
+        ) }}
+        */
+        
+        -- PATTERN 2: SCD Type 2 dimension from snapshot
+        /*
+        {{ config(
+            materialized='incremental',
+            incremental_strategy='merge',
+            unique_key=['customer_id', 'valid_from'],
+            merge_update_columns=['valid_to', 'is_current'],
+            on_schema_change='append_new_columns'
+        ) }}
+        */
+        
+        -- PATTERN 3: Append-only fact table
+        /*
+        {{ config(
+            materialized='incremental',
+            incremental_strategy='append',
+            cluster_by=['transaction_date'],
+            query_tag='fact_table_load'
+        ) }}
+        */
+        
+        -- PATTERN 4: Secure view with documentation
+        /*
+        {{ config(
+            materialized='view',
+            secure=true,
+            persist_docs={"relation": true, "columns": true},
+            copy_grants=true
+        ) }}
+        */
+        
+        SELECT 
+            -- Your model logic here
+            id,
+            customer_name,
+            created_at
+        FROM {{ source('raw', 'customers') }}
+        
+        {% if is_incremental() %}
+            WHERE created_at > (SELECT MAX(created_at) FROM {{ this }})
+        {% endif %}
+```
+
+8- Snapshots : 
   Snapshots are an object that use CDC to ingest data into a target table which is a SCD2 dim table ! Snapshots capture and preserve historical versions of records by tracking changes over time.  
   
   How it works:
@@ -408,15 +621,85 @@ This is the heart of dbt, as models are the definition of the query that will cr
   - Change detection: Identifies what changed using a strategy
   - Version creation: Creates new records for changes while preserving old ones
   
-  Snpashots are stored as tables in your data warehouse (Snowflake, BigQuery, etc.):  
+  Snpashots are stored as tables in data warehouse (Snowflake, BigQuery, etc.):  
   - Data never vanishes - that's the whole point!
   - Each record gets additional metadata columns: 
       - dbt_valid_from: When this version became active
       - dbt_valid_to: When this version became inactive (NULL for current)
       - dbt_updated_at: When dbt processed this change
       - dbt_scd_id: Unique identifier for each version
+
+  Example :  
+
+  ```
+    {% snapshot customers_snapshot %}
+        {{
+            config(
+              target_database='analytics',        # Where to store
+              target_schema='snapshots',          # Schema location
+              target_table='dim_customers_hist',  # Custom table name otherwise it uses the snapshot name
+              unique_key='customer_id',
+              strategy='timestamp',
+              updated_at='last_modified',
+              invalidate_hard_deletes=true,       # Handle deleted records
+            )
+        }}
+        SELECT * FROM {{ source('raw', 'customers') }}
+    {% endsnapshot %}
+  ```
+
+  Once the snpashot is populated, we use it to populate the SCD2 dimension :  
+  
+    ```
+          -- models/marts/dim_customers.sql
+          {{ config(
+              materialized='incremental', # we can also do a full refresh if the dimension is not do big !
+              unique_key='customer_id || valid_from',  -- Composite key for SCD Type 2
+              merge_update_columns=['valid_to', 'is_current']  # in the case of incremental it updates the old records columns
+              on_schema_change='fail'
+          ) }}
+          
+          SELECT 
+              customer_id,
+              customer_name,
+              email,
+              status,
+              -- Add business logic
+              CASE 
+                  WHEN status = 'premium' THEN 'High Value'
+                  ELSE 'Standard'
+              END as customer_tier,
+              
+              -- SCD fields from snapshot
+              dbt_valid_from as valid_from,
+              dbt_valid_to as valid_to,
+              
+              -- Current record indicator
+              CASE WHEN dbt_valid_to IS NULL THEN TRUE ELSE FALSE END as is_current
+              
+          FROM {{ ref('customers_snapshot') }}
+          
+          {% if is_incremental() %}
+            -- Only process records that changed since last run
+            WHERE dbt_updated_at > (SELECT MAX(dbt_updated_at) FROM {{ this }})
+          {% endif %}
+    ```
+  Why This Separation Makes Sense:  
+  Snapshots = Raw Historical Capture
+  - Pure data capture with minimal transformation
+  - Handles the complex SCD Type 2 logic
+  - Reusable across multiple downstream models
+
+  Dimension Models = Business Logic + Presentation
+  - Add calculated fields, business rules
+  - Apply data quality checks
+  - Format for specific use cases
+  - Can combine multiple snapshots
+    
   Snapshots have several strategies to insure the SCD2 process (how to check for new data ?):
-    - Timestamp Strategy
+  
+    - Timestamp Strategy:
+    
       ```
           strategy='timestamp',
           updated_at='last_modified_date'
@@ -432,26 +715,9 @@ This is the heart of dbt, as models are the definition of the query that will cr
           check_cols='all'
       ```      
     
-Example :  
 
-  ```
-    {% snapshot customers_snapshot %}
-        {{
-            config(
-              target_database='analytics',        # Where to store
-              target_schema='snapshots',          # Schema location
-              target_table='dim_customers_hist',  # Custom table name
-              unique_key='customer_id',
-              strategy='timestamp',
-              updated_at='last_modified',
-              invalidate_hard_deletes=true,       # Handle deleted records
-            )
-        }}
-        SELECT * FROM {{ source('raw', 'customers') }}
-    {% endsnapshot %}
-  ```
 
-7- Analysis: Reusable queries 
+9- Analysis: Reusable queries 
 
 An analysis is just a .sql file stored under the /analyses directory in our dbt project. Unlike models, dbt does not build them into tables or views in our warehouse. Instead, they are compiled SQL queries that we can run manually (ad hoc analysis, investigations, debugging).  
 Analysis need to run manualy and they are not automaticaly run when we use `dbt run` !  
@@ -476,7 +742,8 @@ dbt compile --select analyses/
 ```
 **Then this will generate compiled sql queries that we can copy past to run in snowflake for example !**  
 
-8- Tests : 
+10- Tests :  
+
 Tests are operations that will check if a hypothesis is true and will true error if not !  
 We have several types of tests (generic or macros, data tests and built-in tests)  
 Tests (generic and built-in) can be run at the column level or table level to apply it to all columns at once !  
@@ -526,7 +793,7 @@ dbt has a few different ways to define tests:
     ```
     **We cannot directly call singular tests from model YAML the same way we call generic tests**
     
-9 - dbt contract (*similar to tests but before materialization, and if violated, materialization fails !*):
+11- dbt contract (*similar to tests but before materialization, and if violated, materialization fails !*):
   
   Contracts are a feature that allows you to define and enforce explicit agreements about our data models' structure and behavior.
   - Model contracts - These define the expected schema (columns, data types) for your models. When you enable a contract on a model, dbt will enforce that the model's output matches exactly what you've specified in the contract.
@@ -568,7 +835,7 @@ dbt has a few different ways to define tests:
     - Tests for large tables where speed > immediate validation
     - Sampling strategies for tests on huge datasets
     
-10 - Hooks:
+12 - Hooks:
 A hook is a piece of code that runs automatically at a certain point in a process. In dbt, hooks let you run arbitrary SQL before or after certain operations (like building a model, snapshot, or test).
 
 | Hook type     | When it runs                      | Syntax example                                                         |
