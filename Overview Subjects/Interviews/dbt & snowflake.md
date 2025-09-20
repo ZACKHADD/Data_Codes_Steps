@@ -980,6 +980,32 @@ dbt has a few different ways to define tests:
       where u.id is null
     ```
     **We cannot directly call singular tests from model YAML the same way we call generic tests**
+
+  ##### Popular Testing Libraries:
+  
+  1. dbt-expectations (most popular)
+  
+  Extends dbt's testing capabilities
+  Provides statistical and data quality tests
+  Examples: expect_column_values_to_be_between, expect_table_row_count_to_be_between
+  
+  2. elementary-data/dbt-data-reliability
+  
+  Anomaly detection and data monitoring
+  Automated data quality monitoring
+  Schema change detection
+  
+  3. dbt-audit-helper
+  
+  Comparing datasets between environments
+  Useful for migration validation
+  Model comparison utilities
+  
+  4. re_data
+  
+  Data reliability testing
+  Time-series monitoring
+  Automated alerting
     
 #### 11- dbt contract (*similar to tests but before materialization, and if violated, materialization fails !*):
   
@@ -2056,5 +2082,504 @@ Full possible configurations:
             - conversion_rate
             - average_order_value
 ```
-#### 17- dbt commands and Slim CI: 
+#### 17- dbt commands : 
+
+##### Core Development Commands
+
+#### `dbt run`
+Executes SQL models in your dbt project.
+```bash
+# Run all models
+dbt run
+
+# Run specific models
+dbt run --models my_model
+dbt run --models +my_model  # Include upstream dependencies
+dbt run --models my_model+  # Include downstream dependencies
+dbt run --models +my_model+ # Include both upstream and downstream
+
+# Run models by tag
+dbt run --models tag:daily
+dbt run --models tag:finance,tag:marketing
+
+# Run models in specific directory
+dbt run --models models/staging
+dbt run --models staging.salesforce
+
+# Exclude specific models
+dbt run --exclude my_model
+dbt run --exclude tag:deprecated
+
+# Run with threads (parallel execution)
+dbt run --threads 4
+```
+
+#### `dbt test`
+Runs tests defined in your project.
+```bash
+# Run all tests
+dbt test
+
+# Run tests for specific models
+dbt test --models my_model
+dbt test --models staging.users
+
+# Run specific test types
+dbt test --select test_type:generic
+dbt test --select test_type:singular
+
+# Run tests with store_failures (save failed test results)
+dbt test --store-failures
+```
+
+#### `dbt build`
+Runs models, tests, snapshots, and seeds in dependency order.
+```bash
+# Build everything
+dbt build
+
+# Build specific selection
+dbt build --models +my_model+
+dbt build --select tag:daily
+```
+
+##### Model Selection and Graph Operations
+
+###### Advanced Selection Syntax
+```bash
+# Multiple model selection
+dbt run --models model_a model_b model_c
+
+# Graph operators
+dbt run --models @my_model      # @ operator (shorthand for +model+)
+dbt run --models 1+my_model     # 1 degree upstream
+dbt run --models my_model+2     # 2 degrees downstream
+dbt run --models 2+my_model+1   # 2 upstream, 1 downstream
+
+# Resource type selection
+dbt build --select resource_type:model
+dbt build --select resource_type:test
+dbt build --select resource_type:snapshot
+dbt build --select resource_type:seed
+
+# Package selection
+dbt run --models package:my_package
+```
+
+##### Development & Debugging Commands
+
+#### `dbt compile`
+Compiles dbt models to raw SQL without executing.
+```bash
+dbt compile
+dbt compile --models my_model
+```
+
+#### `dbt parse`
+Parses dbt project and updates manifest.json.
+```bash
+dbt parse
+```
+
+#### `dbt ls` (list)
+Lists resources in your dbt project.
+```bash
+# List all models
+dbt ls --resource-type model
+
+# List models with selection
+dbt ls --models staging.*
+dbt ls --select tag:daily
+
+# Output formats
+dbt ls --output json
+dbt ls --output name
+dbt ls --output path
+```
+
+#### `dbt show`
+Preview SQL results without materializing.
+```bash
+# Show compiled SQL and sample results
+dbt show --models my_model
+
+# Limit number of rows
+dbt show --models my_model --limit 10
+```
+
+#### Data Management Commands
+
+#### `dbt seed`
+Loads CSV files from data/ directory into your warehouse.
+```bash
+# Load all seeds
+dbt seed
+
+# Load specific seed
+dbt seed --select my_seed_file
+
+# Full refresh (drop and recreate)
+dbt seed --full-refresh
+```
+
+#### `dbt snapshot`
+Executes snapshot models for slowly changing dimensions.
+```bash
+# Run all snapshots
+dbt snapshot
+
+# Run specific snapshot
+dbt snapshot --select my_snapshot
+```
+
+#### `dbt run-operation`
+Executes macros directly.
+```bash
+# Run a macro
+dbt run-operation my_macro
+
+# Run macro with arguments
+dbt run-operation grant_select --args '{table: "my_table", role: "reporting"}'
+```
+
+#### Documentation & Lineage
+
+#### `dbt docs`
+```bash
+# Generate documentation
+dbt docs generate
+
+# Serve documentation locally
+dbt docs serve --port 8080
+
+# Generate and serve
+dbt docs generate && dbt docs serve
+```
+
+#### Environment & Configuration
+
+#### `dbt debug`
+Validates your dbt installation and project configuration.
+```bash
+dbt debug
+```
+
+#### `dbt deps`
+Downloads dependencies specified in packages.yml.
+```bash
+dbt deps
+```
+
+#### `dbt clean`
+Removes dbt artifacts (target/, logs/, dbt_packages/).
+```bash
+dbt clean
+```
+
+##### State-based Commands (Slim CI)
+
+#### `dbt run --state`
+```bash
+# Run modified models only
+dbt run --models state:modified --state path/to/manifest
+
+# Run new models
+dbt run --models state:new --state ./prod-manifest
+
+# Run modified and downstream
+dbt run --models state:modified+ --state ./target-prod
+```
+
+#### 17- Slim CI :  
+
+Slim CI is a dbt feature that enables running only the modified models and their dependencies, dramatically reducing CI/CD execution time and cost. It compares the current state of project against a previous state (usually production) to determine what has changed.  
+
+#### Prerequisites for Slim CI
+
+1. **State artifacts**: You need manifest.json from your production environment
+2. **dbt version**: 0.18.0 or higher
+3. **Git workflow**: Changes detected through file modifications
+
+#### State Selection Operators :  
+
+```bash
+# Modified models only
+dbt run --select state:modified --state ./prod-artifacts
+
+# New models only  
+dbt run --select state:new --state ./prod-artifacts
+
+# Modified + downstream dependencies
+dbt run --select state:modified+ --state ./prod-artifacts
+
+# Modified + upstream dependencies
+dbt run --select +state:modified --state ./prod-artifacts
+
+# Modified + upstream and downstream
+dbt run --select +state:modified+ --state ./prod-artifacts
+
+# Combine with other selectors
+dbt run --select state:modified,tag:daily --state ./prod-artifacts
+```
+
+#### Defer Configuration
+
+This is so important especially in CI part where schemas created are ephemeral for test purposes : 
+
+The `--defer` flag tells dbt to use production relations for unchanged models. Normaly we would tell dbt to run only modified objects and the downstreams that depend on them.  
+
+**But there’s a problem !**  If our branch doesn’t include all models (for example, we only changed one staging model), dbt doesn’t know how to resolve references to the rest of the DAG unless it builds everything, which defeats the purpose of Slim CI.  
+
+Enter The --defer flag that tells dbt:  
+
+“If a model isn’t present (or selected) in this run, assume it already exists in another environment (the one you pointed --state at).”  
+
+dbt will defer building unchanged models and instead resolve references to them against the manifest/state from our environment.  
+
+:
+
+```bash
+# Use production relations for unselected models
+dbt run --select state:modified+ --defer --state ./prod-artifacts
+```
+
+
+#### GitLab CI Slim CI Configuration Example :  
+
+```yaml
+# .gitlab-ci.yml
+stages:
+  - test
+  - deploy
+
+variables:
+  DBT_PROFILES_DIR: "./"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - dbt_packages/
+
+before_script:
+  - python --version
+  - pip install dbt-postgres>=1.0.0
+  - dbt deps
+
+dbt_test:
+  stage: test
+  image: python:3.9
+  script:
+    - dbt debug
+    # Download production state
+    - aws s3 cp s3://my-dbt-artifacts/prod/manifest.json ./prod-manifest.json || echo "No prod manifest found"
+    # Run slim CI
+    - |
+      if [ -f "prod-manifest.json" ]; then
+        dbt build --select state:modified+ --defer --state ./prod-manifest.json --target ci
+      else
+        echo "No production manifest found, running full build"
+        dbt build --target ci
+      fi
+  only:
+    - merge_requests
+  environment:
+    name: ci
+
+dbt_deploy:
+  stage: deploy
+  image: python:3.9
+  script:
+    - dbt debug
+    - dbt build --target prod
+    # Upload new artifacts
+    - aws s3 cp ./target/manifest.json s3://my-dbt-artifacts/prod/manifest.json
+  only:
+    - main
+  environment:
+    name: production
+```
+
+#### 18- Gitlab CICD : 
+
+The CICD logic Gitlab for dbt is cruacial to design ! Normaly we need to create stages that will point to the enivronments desired and deploy the changes !  
+
+A typical workflow would be :
+
+1. Featue branch with changes made
+2. PR request that triggers the CICD pipeline
+3. lint stage verifies the quality of the code using sqlfluff lint models/ command. **Note that we need to add a sqlfluff configuration file .sqlfluff so that the library will know what we are using as tools !**
+4. compile stage using dbt compile which validates all the artifacts aznd references (just like dbt parse) and also generates the sql for check
+5. CI stage where we will create ephemeral schemas that will contain only the objects changes in dbt (dbt run --select state:modified+ --defer --state ./dev-manifest) ! **Note that defer here is so important especially if the modified models have relations with other models that were not modified (hense not selected) ! without defer, some tests referencing other models not changed will not work !!**. defer tells dbt “If a model isn’t being built in this run, resolve its ref() to an already-built version in another environment.” The CI Stage contains a final script that removes all the ephemeral generated objects.
+6. Dev stage : after CI sucess it deploys to dev
+7. Test stage : after dev success it deploys to test so that business can test
+8. Prod : after manual approaval (Continuous delivery), deployment happens in PROD
+
+sqlfluff :  
+
+The sqlfluff-templater-dbt plugin is critical — without it, sqlfluff won’t understand Jinja, ref(), source(), macros, etc.  
+```
+  pip install sqlfluff sqlfluff-templater-dbt
+
+```
+
+We add the .sqlfluff config file to your repo, Example:  
+
+```
+  [sqlfluff]
+  dialect = snowflake
+  templater = dbt
+  
+  [sqlfluff:rules]
+  # Example rules — tune to your org's standards
+  L010 = warn   # Keywords should be upper case
+  L013 = ignore # Column references should be consistent
+  L014 = error  # Unquoted identifiers should be consistent
+  
+  [sqlfluff:templater:dbt]
+  project_dir = .
+  profiles_dir = .dbt
+```
+
+This tells sqlfluff:
+
+  - Use Snowflake SQL dialect.
+  - Parse SQL with dbt (so Jinja + macros are handled).
+  - Which rules to enforce (warn/error/ignore).
+  
+CICD Workflow Example :  
+
+```
+      stages:
+        - lint
+        - parse
+        - ci-test
+        - deploy-dev
+        - deploy-test
+        - deploy-prod
+      
+      default:
+        image: python:3.10
+        before_script:
+          - pip install --upgrade pip
+          - pip install sqlfluff sqlfluff-templater-dbt dbt-snowflake
+          # Define dbt profiles dynamically (no hardcoded creds)
+          - mkdir -p ~/.dbt
+          - |
+            cat > ~/.dbt/profiles.yml <<EOL
+            my_project:
+              target: $DBT_TARGET
+              outputs:
+                ci:
+                  type: snowflake
+                  account: $SNOWFLAKE_ACCOUNT
+                  user: $SNOWFLAKE_USER
+                  password: $SNOWFLAKE_PASSWORD
+                  role: $SNOWFLAKE_ROLE
+                  warehouse: $SNOWFLAKE_WAREHOUSE
+                  database: $SNOWFLAKE_DATABASE
+                  schema: "CI_${CI_COMMIT_REF_SLUG}_${CI_PIPELINE_ID}"
+                dev:
+                  type: snowflake
+                  account: $SNOWFLAKE_ACCOUNT
+                  user: $SNOWFLAKE_USER
+                  password: $SNOWFLAKE_PASSWORD
+                  role: $SNOWFLAKE_ROLE
+                  warehouse: $SNOWFLAKE_WAREHOUSE
+                  database: $SNOWFLAKE_DATABASE
+                  schema: DEV
+                test:
+                  type: snowflake
+                  account: $SNOWFLAKE_ACCOUNT
+                  user: $SNOWFLAKE_USER
+                  password: $SNOWFLAKE_PASSWORD
+                  role: $SNOWFLAKE_ROLE
+                  warehouse: $SNOWFLAKE_WAREHOUSE
+                  database: $SNOWFLAKE_DATABASE
+                  schema: TEST
+                prod:
+                  type: snowflake
+                  account: $SNOWFLAKE_ACCOUNT
+                  user: $SNOWFLAKE_USER
+                  password: $SNOWFLAKE_PASSWORD
+                  role: $SNOWFLAKE_ROLE
+                  warehouse: $SNOWFLAKE_WAREHOUSE
+                  database: $SNOWFLAKE_DATABASE
+                  schema: PROD
+            EOL
+      
+      variables:
+        DBT_TARGET: "ci"
+      
+      # -------------------
+      # Stage 1: Lint
+      # -------------------
+      lint:
+        stage: lint
+        script:
+          - sqlfluff lint models/
+      
+      # -------------------
+      # Stage 2: Parse
+      # -------------------
+      parse:
+        stage: parse
+        script:
+          - dbt parse
+          - mkdir -p artifacts
+          - cp target/manifest.json artifacts/
+        artifacts:
+          paths:
+            - artifacts/manifest.json
+          expire_in: 1 week
+      
+      # -------------------
+      # Stage 3: CI Tests (Ephemeral Schema + Defer)
+      # -------------------
+      ci-test:
+        stage: ci-test
+        script:
+          - dbt run --target ci --select state:modified --defer --state artifacts
+          - dbt test --target ci --select state:modified --defer --state artifacts
+        after_script:
+          - |
+            echo "Cleaning up ephemeral schema..."
+            snowsql -a $SNOWFLAKE_ACCOUNT -u $SNOWFLAKE_USER -r $SNOWFLAKE_ROLE \
+              -q "drop schema if exists CI_${CI_COMMIT_REF_SLUG}_${CI_PIPELINE_ID} cascade;" || true
+      
+      # -------------------
+      # Stage 4: Deploy to DEV
+      # -------------------
+      deploy-dev:
+        stage: deploy-dev
+        script:
+          - dbt run --target dev
+          - dbt test --target dev
+        rules:
+          - if: $CI_COMMIT_BRANCH == "develop"
+      
+      # -------------------
+      # Stage 5: Deploy to TEST (manual approval)
+      # -------------------
+      deploy-test:
+        stage: deploy-test
+        when: manual
+        script:
+          - dbt run --target test
+          - dbt test --target test
+        rules:
+          - if: $CI_COMMIT_BRANCH == "main"
+      
+      # -------------------
+      # Stage 6: Deploy to PROD (manual approval)
+      # -------------------
+      deploy-prod:
+        stage: deploy-prod
+        when: manual
+        script:
+          - dbt run --target prod
+          - dbt test --target prod
+        rules:
+          - if: $CI_COMMIT_BRANCH == "main"
+```
 
