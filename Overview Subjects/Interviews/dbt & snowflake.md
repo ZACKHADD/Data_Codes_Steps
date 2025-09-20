@@ -422,6 +422,48 @@ This is the heart of dbt, as models are the definition of the query that will cr
 
 Each of these strategies can have some configs ! for example the merge one has : merge_update_columns=['valid_to', 'is_current'] to specify that we want only to updat these two columns ! Otherwise the default behaviour is to update all columns !  
 
+**Backfills**:
+
+This is an important concept in incremental models that gives the possibility to rerun some chuncks of data (partitions) if we judge is necessery ! for example rerun some corrupted data (delete and reinsert or update completely). Example:  
+
+```
+    {{ config(
+        materialized='incremental',
+        unique_key='review_id'  -- This is the to identify the rows to reload! Without this we will have dupplicates in the table since it will append data simply !
+    ) }}
+    
+    WITH src_reviews AS (
+      SELECT * FROM {{ ref('stg_reviews') }}
+    )
+    SELECT 
+    {{ dbt_utils.generate_surrogate_key(['listing_id', 'review_date', 'reviewer_name', 'review_text']) }} AS review_id, 
+    * 
+    FROM src_reviews
+    WHERE review_text is not null
+    
+    {% if is_incremental() %}
+        {% if var("start_date", False) and var("end_date", False) %}
+            {{ log('loading ' ~ this ~ ' incrementally (start_date: ' ~ var("start_date") ~ ', end_date: ' ~ var("end_date") ~ ')', info=True) }}
+            AND review_date >= '{{ var("start_date") }}'
+            AND review_date < '{{ var("end_date") }}'
+        {% else %}    
+            AND review_date > (select max(review_date) from {{ this }})
+            {{ log('loading ' ~ this ~ ' incrementally (all missing dates)', info=True)}}
+        {% endif %}
+    {% endif %}
+```
+Now when we run :  
+
+```
+dbt run --models your_model --vars '{"start_date": "2024-01-01", "end_date": "2024-01-02"}'
+```
+Snowflake will: 
+
+- Select records from the date range
+- MERGE them into the target table using review_id as the key
+- UPDATE existing records or INSERT new ones (no duplicates!)
+
+
 #### DBT CONFIGURATION REFERENCE : 
 
 ```
