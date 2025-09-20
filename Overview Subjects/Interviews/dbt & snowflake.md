@@ -3048,7 +3048,7 @@ select
 {% endmacro %}
 ```
 
-## Best Practices
+### Best Practices
 
 1. **Use meaningful variable names** in your macros
 2. **Add documentation** to complex macros using comments
@@ -3058,3 +3058,510 @@ select
 6. **Use proper indentation** for readability
 7. **Leverage dbt-utils** for cross-database compatibility
 8. **Version control your macros** and document changes
+
+
+--------------------------------------------------------------------
+### dbt Snowflake Warehouse Sizing Strategy & Configuration Guide
+--------------------------------------------------------------------
+
+## Warehouse Sizing Strategy Overview
+
+### Warehouse Size Reference
+```yaml
+# Snowflake Warehouse Sizes (Credits per hour)
+# X-SMALL: 1 credit/hour  - 1 cluster
+# SMALL:   2 credits/hour - 1 cluster  
+# MEDIUM:  4 credits/hour - 1 cluster
+# LARGE:   8 credits/hour - 1 cluster
+# X-LARGE: 16 credits/hour - 1 cluster
+# 2X-LARGE: 32 credits/hour - 1 cluster
+# 3X-LARGE: 64 credits/hour - 1 cluster
+# 4X-LARGE: 128 credits/hour - 1 cluster
+```
+
+## Complete dbt_project.yml Configuration
+
+```yaml
+# dbt_project.yml
+name: 'my_analytics_project'
+version: '1.0.0'
+config-version: 2
+
+# Global Variables for Warehouse Strategy
+vars:
+  # Environment-based warehouse configurations
+  warehouse_config:
+    dev:
+      default_warehouse: 'COMPUTE_WH_XS'
+      heavy_compute_warehouse: 'COMPUTE_WH_S'
+      ml_warehouse: 'COMPUTE_WH_M'
+    test:
+      default_warehouse: 'COMPUTE_WH_S'
+      heavy_compute_warehouse: 'COMPUTE_WH_M'
+      ml_warehouse: 'COMPUTE_WH_L'
+    prod:
+      default_warehouse: 'COMPUTE_WH_M'
+      heavy_compute_warehouse: 'COMPUTE_WH_L'
+      ml_warehouse: 'COMPUTE_WH_XL'
+  
+  # Workload-based warehouse mapping
+  workload_warehouses:
+    # Light transformations (< 1M rows, simple joins)
+    light: 
+      dev: 'COMPUTE_WH_XS'
+      test: 'COMPUTE_WH_XS' 
+      prod: 'COMPUTE_WH_S'
+    
+    # Standard transformations (1-10M rows, moderate complexity)
+    standard:
+      dev: 'COMPUTE_WH_XS'
+      test: 'COMPUTE_WH_S'
+      prod: 'COMPUTE_WH_M'
+    
+    # Heavy transformations (10M+ rows, complex joins, window functions)
+    heavy:
+      dev: 'COMPUTE_WH_S'
+      test: 'COMPUTE_WH_M' 
+      prod: 'COMPUTE_WH_L'
+    
+    # ML/Analytics workloads (complex calculations, large aggregations)
+    ml_analytics:
+      dev: 'COMPUTE_WH_M'
+      test: 'COMPUTE_WH_L'
+      prod: 'COMPUTE_WH_XL'
+    
+    # Reporting/BI (optimized for concurrent queries)
+    reporting:
+      dev: 'COMPUTE_WH_XS'
+      test: 'COMPUTE_WH_S'
+      prod: 'COMPUTE_WH_M_MULTI_CLUSTER'
+
+# Model-specific configurations
+models:
+  my_analytics_project:
+    # Staging models - Light workload
+    staging:
+      +snowflake_warehouse: "{{ get_warehouse('light') }}"
+      +materialized: view
+      +pre_hook: "{{ log_warehouse_usage() }}"
+      
+    # Intermediate models - Standard workload  
+    intermediate:
+      +snowflake_warehouse: "{{ get_warehouse('standard') }}"
+      +materialized: "{{ 'table' if target.name == 'prod' else 'view' }}"
+      +pre_hook: "{{ optimize_warehouse_for_model() }}"
+      
+    # Fact tables - Heavy workload
+    marts:
+      fact:
+        +snowflake_warehouse: "{{ get_warehouse('heavy') }}"
+        +materialized: table
+        +cluster_by: ['created_date']
+        +pre_hook: 
+          - "{{ set_warehouse_size_for_model() }}"
+          - "alter warehouse {{ target.warehouse }} set warehouse_size = '{{ get_dynamic_warehouse_size() }}'"
+        +post_hook:
+          - "{{ log_model_performance() }}"
+          - "alter warehouse {{ target.warehouse }} set warehouse_size = 'XSMALL'"
+      
+      # Dimension tables - Standard workload
+      dim:
+        +snowflake_warehouse: "{{ get_warehouse('standard') }}"
+        +materialized: table
+        +cluster_by: ['id']
+        
+    # ML/Analytics models - ML workload
+    ml:
+      +snowflake_warehouse: "{{ get_warehouse('ml_analytics') }}"
+      +materialized: table
+      +cluster_by: ['model_run_date']
+      +pre_hook: "alter warehouse {{ target.warehouse }} set auto_suspend = 60"
+      +post_hook: "alter warehouse {{ target.warehouse }} set auto_suspend = 300"
+      
+    # Reporting models - Reporting workload  
+    reports:
+      +snowflake_warehouse: "{{ get_warehouse('reporting') }}"
+      +materialized: table
+      +cluster_by: ['report_date']
+
+# Snapshot configurations
+snapshots:
+  my_analytics_project:
+    +snowflake_warehouse: "{{ get_warehouse('standard') }}"
+    +cluster_by: ['dbt_valid_from']
+
+# Seed configurations  
+seeds:
+  my_analytics_project:
+    +snowflake_warehouse: "{{ get_warehouse('light') }}"
+
+# Test configurations
+tests:
+  +snowflake_warehouse: "{{ get_warehouse('light') }}"
+```
+
+## Warehouse Selection Macros
+
+```sql
+-- macros/warehouse_management.sql
+
+-- Main warehouse selection macro
+{% macro get_warehouse(workload_type='standard') %}
+  {% set warehouse_config = var('workload_warehouses')[workload_type] %}
+  {% set environment = target.name %}
+  {{ return(warehouse_config[environment]) }}
+{% endmacro %}
+
+-- Dynamic warehouse sizing based on model characteristics
+{% macro get_dynamic_warehouse_size() %}
+  {% set model_name = this.name %}
+  
+  -- Check if model processes large datasets
+  {% if model_name | regex_search('fact_|fct_') %}
+    {% if target.name == 'prod' %}
+      {{ return('LARGE') }}
+    {% else %}
+      {{ return('MEDIUM') }}
+    {% endif %}
+  
+  -- ML models need more compute
+  {% elif model_name | regex_search('ml_|model_|predict_') %}
+    {% if target.name == 'prod' %}
+      {{ return('XLARGE') }}
+    {% else %}
+      {{ return('LARGE') }}
+    {% endif %}
+  
+  -- Aggregation models
+  {% elif model_name | regex_search('agg_|summary_|rollup_') %}
+    {% if target.name == 'prod' %}
+      {{ return('MEDIUM') }}
+    {% else %}
+      {{ return('SMALL') }}
+    {% endif %}
+  
+  -- Default sizing
+  {% else %}
+    {% if target.name == 'prod' %}
+      {{ return('SMALL') }}
+    {% else %}
+      {{ return('XSMALL') }}
+    {% endif %}
+  {% endif %}
+{% endmacro %}
+
+-- Optimize warehouse settings for specific model types
+{% macro optimize_warehouse_for_model() %}
+  {% set model_name = this.name %}
+  
+  -- For heavy compute models, increase timeout and suspend time
+  {% if model_name | regex_search('fact_|ml_|agg_') %}
+    alter warehouse {{ target.warehouse }} set 
+      statement_timeout_in_seconds = 7200,
+      auto_suspend = 300;
+  {% else %}
+    alter warehouse {{ target.warehouse }} set 
+      statement_timeout_in_seconds = 3600,
+      auto_suspend = 60;
+  {% endif %}
+{% endmacro %}
+
+-- Time-based warehouse scaling
+{% macro get_time_based_warehouse() %}
+  {% set current_hour = run_started_at.strftime("%H") | int %}
+  
+  -- Scale up during business hours (8 AM - 6 PM)
+  {% if current_hour >= 8 and current_hour <= 18 %}
+    {% if target.name == 'prod' %}
+      {{ return('LARGE') }}
+    {% else %}
+      {{ return('MEDIUM') }}
+    {% endif %}
+  {% else %}
+    -- Scale down during off hours
+    {% if target.name == 'prod' %}
+      {{ return('MEDIUM') }}
+    {% else %}
+      {{ return('SMALL') }}
+    {% endif %}
+  {% endif %}
+{% endmacro %}
+
+-- Row count based warehouse selection
+{% macro get_warehouse_by_row_count(source_table) %}
+  {% set row_count_query %}
+    select count(*) as row_count from {{ source_table }}
+  {% endset %}
+  
+  {% if execute %}
+    {% set results = run_query(row_count_query) %}
+    {% set row_count = results.columns[0].values()[0] %}
+    
+    {% if row_count > 50000000 %}  -- 50M+ rows
+      {{ return('XLARGE') }}
+    {% elif row_count > 10000000 %} -- 10-50M rows  
+      {{ return('LARGE') }}
+    {% elif row_count > 1000000 %}  -- 1-10M rows
+      {{ return('MEDIUM') }}
+    {% else %}                      -- < 1M rows
+      {{ return('SMALL') }}
+    {% endif %}
+  {% else %}
+    {{ return('MEDIUM') }}  -- Default for parsing
+  {% endif %}
+{% endmacro %}
+```
+
+## Performance Monitoring Macros
+
+```sql
+-- macros/performance_monitoring.sql
+
+-- Log warehouse usage for cost tracking
+{% macro log_warehouse_usage() %}
+  {% if target.name == 'prod' %}
+    insert into {{ ref('warehouse_usage_log') }} (
+      model_name,
+      warehouse_name,
+      warehouse_size,
+      execution_time,
+      credits_used_estimate,
+      run_timestamp
+    ) 
+    select 
+      '{{ this.name }}' as model_name,
+      '{{ target.warehouse }}' as warehouse_name,
+      current_warehouse() as warehouse_size,
+      null as execution_time, -- Will be updated in post_hook
+      null as credits_used_estimate,
+      current_timestamp as run_timestamp;
+  {% endif %}
+{% endmacro %}
+
+-- Log model performance metrics
+{% macro log_model_performance() %}
+  {% if target.name == 'prod' %}
+    -- Get execution stats from query history
+    {% set perf_query %}
+      select 
+        execution_time / 1000 as execution_seconds,
+        credits_used,
+        bytes_scanned,
+        rows_produced
+      from information_schema.query_history 
+      where query_text like '%{{ this.name }}%'
+      and start_time >= dateadd(minute, -10, current_timestamp())
+      order by start_time desc
+      limit 1
+    {% endset %}
+    
+    {% set results = run_query(perf_query) %}
+    {% if results.columns[0].values() %}
+      {% set execution_time = results.columns[0].values()[0] %}
+      {% set credits_used = results.columns[1].values()[0] %}
+      
+      -- Update the log entry created in pre_hook
+      update {{ ref('warehouse_usage_log') }}
+      set 
+        execution_time = {{ execution_time }},
+        credits_used_estimate = {{ credits_used }}
+      where model_name = '{{ this.name }}'
+      and run_timestamp >= dateadd(minute, -10, current_timestamp());
+    {% endif %}
+  {% endif %}
+{% endmacro %}
+
+-- Warehouse recommendation based on historical performance
+{% macro recommend_warehouse_size(model_name, lookback_days=30) %}
+  {% set recommendation_query %}
+    with model_performance as (
+      select 
+        avg(execution_time) as avg_execution_time,
+        avg(credits_used_estimate) as avg_credits_used,
+        count(*) as run_count
+      from {{ ref('warehouse_usage_log') }}
+      where model_name = '{{ model_name }}'
+      and run_timestamp >= dateadd(day, -{{ lookback_days }}, current_timestamp())
+    )
+    select 
+      case 
+        when avg_execution_time > 1800 then 'INCREASE_SIZE'  -- > 30 minutes
+        when avg_execution_time < 300 then 'DECREASE_SIZE'   -- < 5 minutes
+        else 'OPTIMAL'
+      end as recommendation,
+      avg_execution_time,
+      avg_credits_used
+    from model_performance
+  {% endset %}
+  
+  {{ return(recommendation_query) }}
+{% endmacro %}
+```
+
+## Model-Specific Configuration Examples
+
+```sql
+-- models/marts/fact/fact_orders.sql
+{{ config(
+    materialized='incremental',
+    unique_key='order_id',
+    snowflake_warehouse=get_warehouse('heavy'),
+    cluster_by=['order_date', 'customer_id'],
+    pre_hook=[
+        "alter warehouse {{ target.warehouse }} set warehouse_size = '{{ get_dynamic_warehouse_size() }}'",
+        "{{ log_warehouse_usage() }}"
+    ],
+    post_hook=[
+        "{{ log_model_performance() }}",
+        "alter warehouse {{ target.warehouse }} set warehouse_size = 'XSMALL'"
+    ]
+) }}
+
+-- Heavy computation model
+select 
+  order_id,
+  customer_id,
+  order_date,
+  -- Complex window functions requiring larger warehouse
+  sum(order_amount) over (
+    partition by customer_id 
+    order by order_date 
+    rows between unbounded preceding and current row
+  ) as running_total,
+  -- More heavy computations...
+from {{ ref('stg_orders') }}
+```
+
+```sql
+-- models/staging/stg_customers.sql
+{{ config(
+    materialized='view',
+    snowflake_warehouse=get_warehouse('light')
+) }}
+
+-- Simple staging transformation
+select 
+  customer_id,
+  customer_name,
+  email,
+  created_at
+from {{ source('raw_data', 'customers') }}
+where deleted_at is null
+```
+
+## Warehouse Strategy Decision Matrix
+
+```yaml
+# Decision matrix for warehouse selection
+warehouse_decision_matrix:
+  
+  # Data Volume Thresholds
+  row_count_thresholds:
+    small: 0 - 1M rows          # XSMALL/SMALL
+    medium: 1M - 10M rows       # SMALL/MEDIUM  
+    large: 10M - 100M rows      # MEDIUM/LARGE
+    xlarge: 100M+ rows          # LARGE/XLARGE
+  
+  # Complexity Indicators
+  complexity_indicators:
+    simple:                     # XSMALL/SMALL
+      - "Basic SELECT, WHERE, GROUP BY"
+      - "Simple joins (< 3 tables)"
+      - "No window functions"
+    
+    moderate:                   # SMALL/MEDIUM
+      - "Multiple joins (3-10 tables)"
+      - "Basic window functions"
+      - "Simple aggregations"
+    
+    complex:                    # MEDIUM/LARGE
+      - "Complex joins (10+ tables)"
+      - "Advanced window functions"
+      - "Multiple CTEs"
+      - "PIVOT/UNPIVOT operations"
+    
+    very_complex:              # LARGE/XLARGE
+      - "Recursive CTEs"
+      - "Complex analytical functions"
+      - "ML feature engineering"
+      - "Cross-database joins"
+  
+  # Runtime Requirements
+  runtime_sla:
+    interactive: "< 30 seconds"     # Larger warehouse
+    batch_short: "< 5 minutes"      # Medium warehouse  
+    batch_medium: "< 30 minutes"    # Standard warehouse
+    batch_long: "> 30 minutes"      # Can use smaller warehouse
+  
+  # Cost Optimization Rules
+  cost_optimization:
+    - "Use XSMALL for development and testing"
+    - "Scale up only when necessary for production"
+    - "Use time-based scaling for predictable workloads"
+    - "Monitor and adjust based on actual performance"
+    - "Implement auto-suspend for cost control"
+```
+
+## Best Practices Implementation
+
+```yaml
+# profiles.yml - Environment-specific warehouse configuration
+my_analytics_project:
+  outputs:
+    dev:
+      type: snowflake
+      warehouse: COMPUTE_WH_XS  # Small for development
+      # ... other connection details
+      
+    test:
+      type: snowflake  
+      warehouse: COMPUTE_WH_S   # Medium for testing
+      # ... other connection details
+      
+    prod:
+      type: snowflake
+      warehouse: COMPUTE_WH_M   # Large for production
+      # ... other connection details
+```
+
+## Cost Monitoring Dashboard SQL
+
+```sql
+-- models/monitoring/warehouse_cost_analysis.sql
+{{ config(
+    materialized='table',
+    snowflake_warehouse=get_warehouse('light')
+) }}
+
+with warehouse_usage as (
+  select 
+    warehouse_name,
+    date_trunc('day', start_time) as usage_date,
+    sum(credits_used) as daily_credits,
+    sum(execution_time) / 1000 / 3600 as total_hours,
+    count(*) as query_count,
+    avg(execution_time) / 1000 as avg_execution_seconds
+  from snowflake.account_usage.query_history
+  where start_time >= dateadd(day, -30, current_timestamp())
+  and warehouse_name is not null
+  group by 1, 2
+),
+
+cost_analysis as (
+  select 
+    warehouse_name,
+    usage_date,
+    daily_credits,
+    daily_credits * 3.0 as estimated_daily_cost_usd,  -- Assuming $3/credit
+    total_hours,
+    query_count,
+    avg_execution_seconds,
+    -- Efficiency metrics
+    daily_credits / nullif(total_hours, 0) as credits_per_hour,
+    daily_credits / nullif(query_count, 0) as credits_per_query
+  from warehouse_usage
+)
+
+select * from cost_analysis
+order by usage_date desc, estimated_daily_cost_usd desc
+```
