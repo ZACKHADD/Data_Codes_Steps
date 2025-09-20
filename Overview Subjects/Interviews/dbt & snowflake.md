@@ -1158,6 +1158,903 @@ Examples :
 
 #### 15- Exposures : 
 
+In dbt, exposures are a way to define and document the downstream uses of your dbt models - essentially the "endpoints" where your data gets consumed. They represent dashboards, reports, ML models, or any other data artifacts that depend on your dbt models.  
+
+Exposures are configured in a yaml file as follows:  
+
+```
+    version: 2
+    
+    exposures:
+      - name: executive_sales_dashboard
+        label: "Executive Sales Dashboard"
+        type: dashboard
+        maturity: high
+        url: https://bi.company.com/dashboards/exec-sales
+        description: |
+          Executive-level dashboard showing key sales metrics,
+          updated daily for C-suite consumption.
+        
+        depends_on:
+          - ref('mart_sales_summary')
+          - ref('dim_sales_territories')
+          - source('external_systems', 'market_data')
+        
+        owner:
+          name: Analytics Team
+          email: analytics@company.com
+        
+        tags: ['executive', 'sales', 'daily']
+        
+        meta:
+          refresh_schedule: "daily at 6am"
+          business_owner: "VP of Sales"
+```
+
+
 #### 16- Metrics : 
 
+In dbt, metrics are a way to define business logic for key performance indicators (KPIs) and standardize how metrics are calculated across organization. They provide a semantic layer on top of data models. It helps:  
+
+  - Standardize business definitions across teams
+  - Centralize metric logic in one place
+  - Enable self-service analytics with consistent calculations
+  - Document business context alongside technical definitions
+  - Generate metric queries programmatically
+
+Metrics are used to generate the semantic layer and, code generation and documentation ! **Note that in dbt the semantic layer requires dbt Cloud enterprise !**  
+
+The code generation part simplifies the model construction by specifiying the complexity of calculation in the metrics yaml then reference it in the model and dbt behind the scene will generate sql code with the complexe calculation for us !  
+
+We can specify dimentions in the metric config to add group by ability and also time intelegence or complexe atomatic model generation :  
+
+```
+    -- This automatically includes proper GROUP BY
+    {{ metric('total_revenue', dimensions=['product_category', 'region']) }}
+    
+    -- Generates:
+    sum(case when filters... then order_amount end) -- with GROUP BY product_category, region
+
+    -- Instead of complex window functions, just use offset
+    {{ metric('total_revenue', offset=-1) }}  -- Previous period
+    {{ metric('total_revenue', offset=-12) }} -- Year ago
+
+    -- Build different models for different stakeholders
+    {% for department in ['sales', 'marketing', 'finance'] %}
+        select 
+            '{{ department }}' as department,
+            {% for metric in department_metrics[department] %}
+                {{ metric(metric) }} as {{ metric }}
+                {%- if not loop.last -%},{%- endif -%}
+            {% endfor %}
+        from {{ ref('base_data') }}
+        {% if not loop.last %}union all{% endif %}
+    {% endfor %}
+  
+```
+
+Examples :  
+
+```
+
+    -- ==============================================
+    -- PART 1: METRIC DEFINITIONS (schema.yml)
+    -- ==============================================
+    
+    version: 2
+    
+    metrics:
+      - name: total_revenue
+        label: "Total Revenue"
+        model: ref('fct_orders')
+        calculation_method: sum
+        expression: order_amount
+        timestamp: order_date
+        time_grains: [day, week, month, quarter, year]
+        filters:
+          - field: order_status
+            operator: '='
+            value: "'completed'"
+          - field: is_refund
+            operator: '='
+            value: "false"
+        dimensions:
+          - product_category
+          - region
+          - customer_segment
+    
+      - name: unique_customers
+        label: "Unique Customers"
+        model: ref('fct_orders')
+        calculation_method: count_distinct
+        expression: customer_id
+        timestamp: order_date
+        time_grains: [day, week, month, quarter, year]
+        filters:
+          - field: order_status
+            operator: '='
+            value: "'completed'"
+        dimensions:
+          - product_category
+          - region
+    
+      - name: average_order_value
+        label: "Average Order Value"
+        model: ref('fct_orders')
+        calculation_method: average
+        expression: order_amount
+        timestamp: order_date
+        time_grains: [day, week, month, quarter, year]
+        filters:
+          - field: order_status
+            operator: '='
+            value: "'completed'"
+          - field: is_refund
+            operator: '='
+            value: "false"
+    
+      - name: conversion_rate
+        label: "Conversion Rate"
+        calculation_method: ratio
+        numerator:
+          name: conversions
+          model: ref('fct_events')
+          expression: count(*)
+          filters:
+            - field: event_type
+              operator: '='
+              value: "'purchase'"
+        denominator:
+          name: sessions
+          model: ref('fct_sessions')
+          expression: count(distinct session_id)
+        timestamp: event_date
+        time_grains: [day, week, month]
+    
+    -- ==============================================
+    -- PART 2: CODE GENERATION IN MODELS
+    -- ==============================================
+    
+    -- models/marts/daily_metrics.sql
+    -- Example 1: Basic metric usage
+    
+    {{ config(materialized='table') }}
+    
+    select 
+        order_date,
+        
+        -- These metric() calls generate actual SQL aggregations
+        {{ metric('total_revenue', grain='day') }} as daily_revenue,
+        {{ metric('unique_customers', grain='day') }} as daily_customers,
+        {{ metric('average_order_value', grain='day') }} as daily_aov
+        
+    from {{ ref('fct_orders') }}
+    group by 1
+    order by 1
+    
+    -- COMPILED OUTPUT (what dbt actually runs):
+    /*
+    select 
+        order_date,
+        
+        -- Generated from total_revenue metric
+        sum(case when order_status = 'completed' and is_refund = false 
+            then order_amount else null end) as daily_revenue,
+            
+        -- Generated from unique_customers metric  
+        count(distinct case when order_status = 'completed' 
+            then customer_id else null end) as daily_customers,
+            
+        -- Generated from average_order_value metric
+        avg(case when order_status = 'completed' and is_refund = false 
+            then order_amount else null end) as daily_aov
+        
+    from analytics.fct_orders
+    group by 1
+    order by 1
+    */
+    
+    -- ==============================================
+    -- Example 2: Multi-dimensional metrics
+    -- ==============================================
+    
+    -- models/marts/product_metrics.sql
+    
+    select 
+        date_trunc('month', order_date) as month_date,
+        product_category,
+        region,
+        
+        -- Metrics automatically include dimension filtering
+        {{ metric('total_revenue', grain='month', dimensions=['product_category', 'region']) }} as monthly_revenue,
+        {{ metric('unique_customers', grain='month', dimensions=['product_category', 'region']) }} as monthly_customers
+        
+    from {{ ref('fct_orders') }}
+    group by 1, 2, 3
+    
+    -- COMPILED OUTPUT:
+    /*
+    select 
+        date_trunc('month', order_date) as month_date,
+        product_category,
+        region,
+        
+        sum(case when order_status = 'completed' and is_refund = false 
+            then order_amount else null end) as monthly_revenue,
+            
+        count(distinct case when order_status = 'completed' 
+            then customer_id else null end) as monthly_customers
+        
+    from analytics.fct_orders
+    group by 1, 2, 3
+    */
+    
+    -- ==============================================
+    -- Example 3: Time-based analysis with offsets
+    -- ==============================================
+    
+    -- models/marts/growth_analysis.sql
+    
+    select 
+        date_trunc('month', order_date) as month_date,
+        
+        -- Current month metrics
+        {{ metric('total_revenue', grain='month') }} as current_month_revenue,
+        
+        -- Previous month metrics using offset
+        {{ metric('total_revenue', grain='month', offset=-1) }} as prev_month_revenue,
+        
+        -- Year-over-year comparison
+        {{ metric('total_revenue', grain='month', offset=-12) }} as yoy_revenue,
+        
+        -- Calculate growth rates using generated metrics
+        case 
+            when {{ metric('total_revenue', grain='month', offset=-1) }} > 0 
+            then ({{ metric('total_revenue', grain='month') }} - {{ metric('total_revenue', grain='month', offset=-1) }}) 
+                 / {{ metric('total_revenue', grain='month', offset=-1) }} * 100
+            else null 
+        end as mom_growth_percent
+    
+    from {{ ref('fct_orders') }}
+    group by 1
+    
+    -- COMPILED OUTPUT:
+    /*
+    select 
+        date_trunc('month', order_date) as month_date,
+        
+        -- Current month
+        sum(case when order_status = 'completed' and is_refund = false 
+            then order_amount else null end) as current_month_revenue,
+        
+        -- Previous month with window function
+        sum(case when order_status = 'completed' and is_refund = false 
+            then order_amount else null end) 
+            over (order by date_trunc('month', order_date) 
+                  rows between 1 preceding and 1 preceding) as prev_month_revenue,
+        
+        -- Year-over-year with window function
+        sum(case when order_status = 'completed' and is_refund = false 
+            then order_amount else null end) 
+            over (order by date_trunc('month', order_date) 
+                  rows between 12 preceding and 12 preceding) as yoy_revenue,
+                  
+        -- Growth calculation using the same logic
+        case 
+            when [previous month calculation] > 0 
+            then ([current month] - [previous month]) / [previous month] * 100
+            else null 
+        end as mom_growth_percent
+    
+    from analytics.fct_orders
+    group by 1
+    */
+    
+    -- ==============================================
+    -- Example 4: Ratio metrics
+    -- ==============================================
+    
+    -- models/marts/conversion_analysis.sql
+    
+    select 
+        event_date,
+        traffic_source,
+        
+        -- Ratio metric generates complex SQL automatically
+        {{ metric('conversion_rate', grain='day', dimensions=['traffic_source']) }} as daily_conversion_rate
+        
+    from {{ ref('fct_events') }}
+    left join {{ ref('fct_sessions') }} using (session_id)
+    group by 1, 2
+    
+    -- COMPILED OUTPUT:
+    /*
+    select 
+        event_date,
+        traffic_source,
+        
+        -- Complex ratio calculation generated automatically
+        case 
+            when count(distinct case when s.session_id is not null then s.session_id else null end) > 0
+            then count(case when e.event_type = 'purchase' then 1 else null end) * 100.0 
+                 / count(distinct case when s.session_id is not null then s.session_id else null end)
+            else null 
+        end as daily_conversion_rate
+        
+    from analytics.fct_events e
+    left join analytics.fct_sessions s using (session_id)
+    group by 1, 2
+    */
+    
+    -- ==============================================
+    -- Example 5: Using metrics in macros
+    -- ==============================================
+    
+    -- macros/calculate_metric_targets.sql
+    
+    {% macro calculate_metric_targets(metric_name, target_increase_pct=10) %}
+    
+        select 
+            current_date as target_date,
+            '{{ metric_name }}' as metric_name,
+            
+            -- Use current metric value
+            {{ metric(metric_name, grain='month') }} as current_value,
+            
+            -- Calculate target based on percentage increase
+            {{ metric(metric_name, grain='month') }} * (1 + {{ target_increase_pct }}/100.0) as target_value,
+            
+            -- Show the gap
+            ({{ metric(metric_name, grain='month') }} * (1 + {{ target_increase_pct }}/100.0)) - 
+            {{ metric(metric_name, grain='month') }} as gap_to_target
+            
+        from {{ ref('fct_orders') }}
+    
+    {% endmacro %}
+    
+    -- Usage in model:
+    -- models/business/revenue_targets.sql
+    
+    {{ calculate_metric_targets('total_revenue', 15) }}
+    union all
+    {{ calculate_metric_targets('unique_customers', 20) }}
+    
+    -- ==============================================
+    -- Example 6: Conditional metric usage
+    -- ==============================================
+    
+    -- models/marts/adaptive_metrics.sql
+    
+    select 
+        order_date,
+        product_category,
+        
+        {% if var('include_revenue', true) %}
+            {{ metric('total_revenue', grain='day', dimensions=['product_category']) }} as revenue,
+        {% endif %}
+        
+        {% if var('include_customers', true) %}
+            {{ metric('unique_customers', grain='day', dimensions=['product_category']) }} as customers,
+        {% endif %}
+        
+        -- Always include this base metric
+        {{ metric('average_order_value', grain='day', dimensions=['product_category']) }} as aov
+    
+    from {{ ref('fct_orders') }}
+    group by 1, 2
+    
+    -- Usage with variables:
+    -- dbt run -m adaptive_metrics --vars '{"include_revenue": false}'
+    
+    -- ==============================================
+    -- Example 7: Testing metrics
+    -- ==============================================
+    
+    -- models/tests/metric_validation.sql
+    
+    with metric_test as (
+        select 
+            order_date,
+            
+            -- Generated metric
+            {{ metric('total_revenue', grain='day') }} as metric_revenue,
+            
+            -- Manual calculation for comparison
+            sum(case when order_status = 'completed' and is_refund = false 
+                then order_amount else null end) as manual_revenue
+                
+        from {{ ref('fct_orders') }}
+        group by 1
+    )
+    
+    select *
+    from metric_test
+    where abs(metric_revenue - manual_revenue) > 0.01  -- Find discrepancies
+    
+    -- ==============================================
+    -- Example 8: Dynamic metric queries
+    -- ==============================================
+    
+    -- models/marts/executive_dashboard.sql
+    
+    {% set executive_metrics = [
+        'total_revenue',
+        'unique_customers', 
+        'average_order_value'
+    ] %}
+    
+    select 
+        date_trunc('month', current_date) as reporting_month,
+        
+        {% for metric_name in executive_metrics %}
+            {{ metric(metric_name, grain='month') }} as {{ metric_name }}_current_month,
+            {{ metric(metric_name, grain='month', offset=-1) }} as {{ metric_name }}_prev_month,
+            
+            -- Calculate month-over-month change
+            case 
+                when {{ metric(metric_name, grain='month', offset=-1) }} > 0
+                then ({{ metric(metric_name, grain='month') }} - {{ metric(metric_name, grain='month', offset=-1) }})
+                     / {{ metric(metric_name, grain='month', offset=-1) }} * 100
+                else null 
+            end as {{ metric_name }}_mom_change_pct
+            
+            {%- if not loop.last -%},{%- endif -%}
+        {% endfor %}
+    
+    from {{ ref('fct_orders') }}
+    
+    -- This generates SQL for all metrics dynamically!
+    
+    -- ==============================================
+    -- ADVANCED: Using metric metadata
+    -- ==============================================
+    
+    -- macros/get_metric_info.sql
+    
+    {% macro get_metric_description(metric_name) %}
+        {% set metric_node = graph.nodes.values() | selectattr('name', 'eq', metric_name) | first %}
+        {% if metric_node %}
+            {{ return(metric_node.description or 'No description available') }}
+        {% else %}
+            {{ return('Metric not found') }}
+        {% endif %}
+    {% endmacro %}
+    
+    -- Usage in model documentation:
+    -- models/marts/documented_metrics.sql
+    
+    select 
+        '{{ get_metric_description("total_revenue") }}' as revenue_description,
+        {{ metric('total_revenue', grain='month') }} as total_revenue
+    from {{ ref('fct_orders') }}
+```
+
+Full possible configurations:  
+
+```
+      version: 2
+      
+      metrics:
+        # Simple Sum Metric with all configurations
+        - name: total_revenue
+          label: "Total Revenue (USD)"
+          model: ref('fct_sales')
+          description: |
+            Total revenue in USD across all channels and products.
+            Includes taxes and shipping fees but excludes refunds.
+            Updated hourly from the sales fact table.
+          
+          calculation_method: sum
+          expression: gross_revenue_amount
+          timestamp: sale_timestamp
+          time_grains: [hour, day, week, month, quarter, year]
+          
+          # Filtering conditions
+          filters:
+            - field: is_refund
+              operator: '='
+              value: "false"
+            - field: sale_status
+              operator: 'in'
+              value: "('completed', 'shipped')"
+            - field: gross_revenue_amount
+              operator: '>'
+              value: "0"
+          
+          # Available dimensions for grouping
+          dimensions:
+            - product_category
+            - sales_channel
+            - customer_segment
+            - region
+            - salesperson_id
+          
+          # Rolling window configuration
+          window:
+            count: 12
+            period: month
+          
+          # Metadata and tags
+          meta:
+            owner: "Revenue Analytics Team"
+            slack_channel: "#revenue-alerts"
+            business_definition: "Gross revenue excluding refunds"
+            data_source: "Salesforce + Shopify"
+            refresh_schedule: "Every hour"
+            sla_hours: 2
+            dashboard_links:
+              - "https://dashboard.company.com/revenue"
+              - "https://tableau.company.com/revenue-executive"
+            related_kpis: ['net_revenue', 'gross_margin']
+            certification_level: "gold"
+            last_audit_date: "2024-01-15"
+          
+          tags: ['revenue', 'kpi', 'executive', 'certified', 'hourly']
+          
+          # Model-level configurations
+          config:
+            enabled: true
+            materialized: table
+            
+        # Count Distinct Metric
+        - name: unique_customers
+          label: "Unique Active Customers"
+          model: ref('fct_customer_activity')
+          description: "Count of distinct customers who made at least one purchase in the period"
+          
+          calculation_method: count_distinct
+          expression: customer_id
+          timestamp: activity_date
+          time_grains: [day, week, month, quarter, year]
+          
+          filters:
+            - field: activity_type
+              operator: '='
+              value: "'purchase'"
+            - field: customer_status
+              operator: '='
+              value: "'active'"
+          
+          dimensions:
+            - customer_tier
+            - acquisition_channel
+            - geography
+          
+          meta:
+            team: "Customer Analytics"
+            business_critical: true
+          
+          tags: ['customers', 'acquisition', 'retention']
+      
+        # Average Metric with complex filtering
+        - name: average_order_value
+          label: "Average Order Value"
+          model: ref('fct_orders')
+          description: "Average value of orders excluding returns and cancelled orders"
+          
+          calculation_method: average
+          expression: order_total
+          timestamp: order_date
+          time_grains: [day, week, month, quarter, year]
+          
+          filters:
+            - field: order_status
+              operator: 'not in'
+              value: "('cancelled', 'returned', 'refunded')"
+            - field: order_total
+              operator: 'between'
+              value: "1 and 50000"
+            - field: is_test_order
+              operator: '='
+              value: "false"
+          
+          dimensions:
+            - product_category
+            - customer_type
+            - payment_method
+            - device_type
+          
+          window:
+            count: 3
+            period: month
+          
+          meta:
+            accuracy_threshold: 0.95
+            seasonality_adjusted: true
+          
+          tags: ['orders', 'average', 'commercial']
+      
+        # Min/Max Metrics
+        - name: minimum_order_value
+          label: "Minimum Order Value"
+          model: ref('fct_orders')
+          calculation_method: min
+          expression: order_total
+          timestamp: order_date
+          time_grains: [day, week, month]
+          
+          filters:
+            - field: order_total
+              operator: '>'
+              value: "0"
+          
+        - name: maximum_order_value
+          label: "Maximum Order Value"
+          model: ref('fct_orders')
+          calculation_method: max
+          expression: order_total
+          timestamp: order_date
+          time_grains: [day, week, month]
+      
+        # Ratio Metric
+        - name: conversion_rate
+          label: "Website Conversion Rate (%)"
+          description: "Percentage of website visitors who complete a purchase"
+          calculation_method: ratio
+          numerator: 
+            name: completed_purchases
+            model: ref('fct_conversions')
+            expression: count(*)
+            filters:
+              - field: conversion_type
+                operator: '='
+                value: "'purchase'"
+          denominator:
+            name: total_website_visits
+            model: ref('fct_website_sessions')
+            expression: count(distinct session_id)
+            filters:
+              - field: is_bot
+                operator: '='
+                value: "false"
+          
+          timestamp: event_date
+          time_grains: [day, week, month, quarter]
+          
+          dimensions:
+            - traffic_source
+            - device_category
+            - geography
+          
+          # Ratio-specific configuration
+          config:
+            treat_nulls_as_zero: false
+            
+          meta:
+            format: "percentage"
+            decimal_places: 2
+            benchmark_rate: 2.3
+          
+          tags: ['conversion', 'website', 'ratio', 'percentage']
+      
+        # Expression Metric (Custom SQL)
+        - name: customer_lifetime_value
+          label: "Customer Lifetime Value"
+          model: ref('fct_customer_metrics')
+          description: "Average revenue per customer over their entire relationship"
+          
+          calculation_method: expression
+          expression: |
+            sum(total_customer_revenue) / count(distinct customer_id)
+          timestamp: calculation_date
+          time_grains: [month, quarter, year]
+          
+          filters:
+            - field: customer_status
+              operator: '='
+              value: "'active'"
+            - field: total_customer_revenue
+              operator: '>'
+              value: "0"
+          
+          dimensions:
+            - acquisition_cohort
+            - customer_segment
+            - subscription_plan
+          
+          window:
+            count: 24
+            period: month
+          
+          meta:
+            calculation_complexity: "high"
+            model_version: "2.1"
+            confidence_interval: "95%"
+          
+          tags: ['ltv', 'customers', 'complex', 'predictive']
+      
+        # Derived Metric (calculated from other metrics)
+        - name: revenue_growth_rate
+          label: "Month-over-Month Revenue Growth Rate"
+          description: "Percentage change in revenue compared to previous month"
+          
+          calculation_method: derived
+          expression: |
+            (
+              {{ metric('total_revenue', grain='month') }} - 
+              {{ metric('total_revenue', grain='month', offset=-1) }}
+            ) / {{ metric('total_revenue', grain='month', offset=-1) }} * 100
+          
+          timestamp: sale_timestamp
+          time_grains: [month, quarter, year]
+          
+          dimensions:
+            - product_category
+            - region
+          
+          # Derived metric specific configs
+          config:
+            require_non_null_base_metrics: true
+          
+          meta:
+            format: "percentage"
+            growth_target: 10.0
+            alert_threshold_low: 0.0
+            alert_threshold_high: 50.0
+            seasonality_notes: "Typically higher in Q4"
+          
+          tags: ['growth', 'mom', 'derived', 'percentage', 'executive']
+      
+        # Advanced Count Metric with complex conditions
+        - name: high_value_customers
+          label: "High Value Customer Count"
+          model: ref('dim_customers')
+          description: "Count of customers with lifetime spend above $10,000"
+          
+          calculation_method: count
+          expression: "*"
+          timestamp: last_purchase_date
+          time_grains: [day, week, month, quarter]
+          
+          filters:
+            - field: lifetime_spend
+              operator: '>='
+              value: "10000"
+            - field: customer_status
+              operator: '='
+              value: "'active'"
+            - field: last_purchase_date
+              operator: '>='
+              value: "current_date - interval '365 days'"
+          
+          dimensions:
+            - customer_tier
+            - acquisition_channel
+            - geographic_region
+            - account_manager
+          
+          window:
+            count: 6
+            period: month
+          
+          meta:
+            threshold_amount: 10000
+            currency: "USD"
+            review_frequency: "monthly"
+            stakeholders: ['sales', 'customer_success', 'finance']
+          
+          tags: ['customers', 'high_value', 'segmentation', 'sales']
+      
+        # Time-based Metric with multiple time grains
+        - name: daily_active_users
+          label: "Daily Active Users (DAU)"
+          model: ref('fct_user_sessions')
+          description: "Count of unique users who had at least one session per day"
+          
+          calculation_method: count_distinct
+          expression: user_id
+          timestamp: session_date
+          time_grains: [day, week, month]
+          
+          filters:
+            - field: session_duration_minutes
+              operator: '>='
+              value: "1"
+            - field: is_test_user
+              operator: '='
+              value: "false"
+          
+          dimensions:
+            - user_segment
+            - platform
+            - feature_accessed
+            - subscription_tier
+          
+          # Rolling averages
+          window:
+            count: 7
+            period: day
+          
+          meta:
+            metric_type: "engagement"
+            reporting_level: "product"
+            benchmark_external: "industry_average"
+            data_freshness_sla: "30 minutes"
+          
+          tags: ['engagement', 'daily', 'users', 'product', 'dau']
+      
+        # Financial Metric with comprehensive metadata
+        - name: gross_margin_percentage
+          label: "Gross Margin %"
+          model: ref('fct_financial_summary')
+          description: |
+            Gross margin percentage calculated as (Revenue - COGS) / Revenue.
+            Excludes one-time charges and extraordinary items.
+          
+          calculation_method: expression
+          expression: |
+            case 
+              when sum(gross_revenue) > 0 
+              then (sum(gross_revenue) - sum(cost_of_goods_sold)) / sum(gross_revenue) * 100
+              else null 
+            end
+          
+          timestamp: financial_period_end_date
+          time_grains: [month, quarter, year]
+          
+          filters:
+            - field: is_extraordinary_item
+              operator: '='
+              value: "false"
+            - field: financial_period_type
+              operator: '='
+              value: "'regular'"
+          
+          dimensions:
+            - product_line
+            - business_unit
+            - geography
+            - sales_channel
+          
+          config:
+            enabled: true
+            materialized: table
+            post_hook: "{{ log('Gross margin calculated for period: ' ~ var('current_period'), info=true) }}"
+          
+          meta:
+            financial_statement: "P&L"
+            gaap_compliant: true
+            auditor_reviewed: true
+            target_margin: 65.0
+            industry_benchmark: 58.2
+            calculation_owner: "Finance Team"
+            approval_required: true
+            sensitivity: "confidential"
+            regulatory_reporting: true
+            variance_threshold: 5.0
+            forecast_accuracy: "±2%"
+          
+          tags: ['financial', 'margin', 'profitability', 'gaap', 'confidential', 'executive']
+      
+      # Global metric configurations (optional)
+      semantic_model_defaults:
+        materialized: table
+        
+      # Metric groups for organization
+      metric_groups:
+        - name: revenue_metrics
+          label: "Revenue & Financial Metrics"
+          description: "Key financial performance indicators"
+          metrics:
+            - total_revenue
+            - gross_margin_percentage
+            - revenue_growth_rate
+          
+        - name: customer_metrics
+          label: "Customer Analytics"
+          description: "Customer behavior and segmentation metrics"
+          metrics:
+            - unique_customers
+            - customer_lifetime_value
+            - high_value_customers
+          
+        - name: product_metrics
+          label: "Product & Engagement"
+          description: "Product usage and engagement metrics"
+          metrics:
+            - daily_active_users
+            - conversion_rate
+            - average_order_value
+```
 #### 17- dbt commands and Slim CI: 
+
