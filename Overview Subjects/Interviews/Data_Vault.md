@@ -29,7 +29,7 @@ Data Vault uses three core components, each serving a specific purpose in creati
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                         DATA VAULT ARCHITECTURE                                 │
-│                     (Showing Transactional Entities)                            │
+│                     (Showing Transactional Entities)                           │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                 │
 │  ┌─────────────┐    ┌─────────────────────┐    ┌─────────────┐                  │
@@ -93,24 +93,24 @@ Data Vault uses three core components, each serving a specific purpose in creati
 │  Separate satellites by:                                    │
 │                                                             │
 │  📊 CHANGE FREQUENCY                                        │
-│     • High frequency: Status, workflow states               │
+│     • High frequency: Status, workflow states              │
 │     • Medium frequency: Financial amounts, calculations     │
-│     • Low frequency: Basic details, references              │
+│     • Low frequency: Basic details, references             │
 │                                                             │
 │  🏢 SOURCE SYSTEM                                          │
-│     • Payment system updates → Financial satellite          │
-│     • Workflow engine updates → Status satellite            │
-│     • User interface updates → Details satellite            │
+│     • Payment system updates → Financial satellite         │
+│     • Workflow engine updates → Status satellite           │
+│     • User interface updates → Details satellite           │
 │                                                             │
-│  📋 FUNCTIONAL AREA                                         │
-│     • Financial team needs → Financial satellite            │
-│     • Operations team needs → Status satellite              │
-│     • Customer service needs → Details satellite            │
+│  📋 FUNCTIONAL AREA                                        │
+│     • Financial team needs → Financial satellite           │
+│     • Operations team needs → Status satellite             │
+│     • Customer service needs → Details satellite           │
 │                                                             │
 │  🔄 UPDATE PATTERNS                                        │
-│     • Real-time updates → Status satellite                  │
-│     • Batch updates → Financial satellite                   │
-│     • Manual updates → Details satellite                    │
+│     • Real-time updates → Status satellite                 │
+│     • Batch updates → Financial satellite                  │
+│     • Manual updates → Details satellite                   │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -398,59 +398,311 @@ INSERT INTO sat_order_status VALUES (
 -- All with timestamps and who/what changed it!
 ```
 
-### The Banking Vault Analogy Summary
+## The Insert-Only Principle: Core of Data Vault
 
-| Component | Bank Vault Analogy | Data Warehouse Purpose |
-|-----------|-------------------|------------------------|
-| **Hub** | Safe deposit box with unique number | Stores unique business identities |
-| **Link** | Relationship logbook | Records which entities are connected |
-| **Satellite** | Detailed file folders | Stores descriptive data with full history |
+### The Golden Rules
+
+**Data Vault Raw Layer: NEVER UPDATE - ONLY INSERT**
+- Hubs: Insert-only (never update)
+- Links: Insert-only (never update) 
+- Satellites: Insert-only with `load_end_date` updates for closing records
+
+**Information Marts: Present "Current" Views**
+- Use flags, window functions, or filtering to show current state
+- Rebuild-able from the raw vault at any time
+
+### How Insert-Only Works in Practice
+
+#### 1. Hub Tables - Pure Insert-Only
+
+```sql
+-- Hub Customer - NEVER gets updated, only new customers inserted
+INSERT INTO hub_customer (customer_hk, customer_id, load_date, record_source)
+SELECT 
+    generate_hash_key(customer_id),
+    customer_id,
+    CURRENT_TIMESTAMP(),
+    'CRM_SYSTEM'
+FROM staging_customer s
+WHERE NOT EXISTS (
+    SELECT 1 FROM hub_customer h 
+    WHERE h.customer_id = s.customer_id
+);
+
+-- Result: Hub grows, but existing records never change
+-- CUST001 inserted 2024-01-01 → Stays forever unchanged
+-- CUST002 inserted 2024-01-02 → Stays forever unchanged
+-- CUST003 inserted 2024-01-03 → Stays forever unchanged
+```
+
+#### 2. Satellite Tables - Insert + End-Dating Pattern
+
+```sql
+-- When customer email changes from john@old.com to john@new.com
+
+-- STEP 1: Close the current record (ONLY update allowed)
+UPDATE sat_customer_details 
+SET load_end_date = CURRENT_TIMESTAMP()
+WHERE customer_hk = 'ABC123...' 
+  AND load_end_date IS NULL;  -- Only the current record
+
+-- STEP 2: Insert new record with changed data
+INSERT INTO sat_customer_details (
+    customer_hk, load_date, load_end_date, hash_diff,
+    customer_name, email, phone, address
+) VALUES (
+    'ABC123...', 
+    CURRENT_TIMESTAMP(), 
+    NULL,  -- This is now the current record
+    'NEW_HASH_VALUE',
+    'John Smith', 
+    'john@new.com',  -- Changed value
+    '555-1234', 
+    '123 Main St'
+);
+```
+
+#### 3. The Historical Timeline Result
+
+After several changes, your satellite looks like this:
+
+```sql
+-- sat_customer_details table contents:
+customer_hk | load_date           | load_end_date       | email           | customer_name
+------------|--------------------|--------------------|-----------------|---------------
+ABC123...   | 2024-01-01 10:00  | 2024-02-15 14:30  | john@old.com   | John Smith
+ABC123...   | 2024-02-15 14:30  | 2024-03-10 09:15  | john@new.com   | John Smith  
+ABC123...   | 2024-03-10 09:15  | 2024-04-22 16:45  | john@new.com   | John Smith Jr.
+ABC123...   | 2024-04-22 16:45  | NULL              | j.smith@new.com| John Smith Jr.
+```
+
+**Perfect Historical Preservation:**
+- January: We can see he was "john@old.com" 
+- February: Email changed to "john@new.com"
+- March: Name changed to "John Smith Jr."
+- April: Email changed to "j.smith@new.com" (current)
+
+### Information Marts: How to Show "Current" Values
+
+#### Method 1: Using load_end_date IS NULL Filter
+
+```sql
+-- Current Customer View - Most Common Approach
+CREATE OR REPLACE VIEW mart_current_customers AS
+SELECT 
+    h.customer_id,
+    s.customer_name,
+    s.email,
+    s.phone,
+    s.address,
+    s.load_date as last_updated
+FROM hub_customer h
+JOIN sat_customer_details s ON h.customer_hk = s.customer_hk
+WHERE s.load_end_date IS NULL;  -- Only current records
+
+-- Result: Shows only latest values
+-- customer_id | customer_name   | email            | last_updated
+-- CUST001     | John Smith Jr.  | j.smith@new.com | 2024-04-22 16:45
+```
+
+#### Method 2: Using Row Number (Alternative Pattern)
+
+```sql
+-- If you prefer not to use load_end_date
+CREATE OR REPLACE VIEW mart_current_customers_v2 AS
+SELECT 
+    h.customer_id,
+    s.customer_name,
+    s.email,
+    s.phone,
+    s.address,
+    s.load_date as last_updated
+FROM hub_customer h
+JOIN (
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY customer_hk ORDER BY load_date DESC) as rn
+    FROM sat_customer_details
+) s ON h.customer_hk = s.customer_hk
+WHERE s.rn = 1;  -- Most recent record only
+```
+
+#### Method 3: Historical Point-in-Time Views
+
+```sql
+-- "What did customer look like on specific date?"
+CREATE OR REPLACE FUNCTION get_customer_as_of(as_of_date DATE)
+RETURNS TABLE (
+    customer_id VARCHAR(50),
+    customer_name VARCHAR(100),
+    email VARCHAR(100)
+)
+AS
+$
+SELECT 
+    h.customer_id,
+    s.customer_name,
+    s.email
+FROM hub_customer h
+JOIN (
+    SELECT *,
+           ROW_NUMBER() OVER (
+               PARTITION BY customer_hk 
+               ORDER BY load_date DESC
+           ) as rn
+    FROM sat_customer_details
+    WHERE load_date <= as_of_date
+) s ON h.customer_hk = s.customer_hk
+WHERE s.rn = 1;
+$;
+
+-- Usage: SELECT * FROM get_customer_as_of('2024-02-20');
+-- Shows customer data as it was on February 20th
+```
+
+### Why This Pattern is Powerful
+
+#### 1. **Time Travel Queries**
+```sql
+-- Compare customer data between two dates
+WITH customer_jan AS (
+    SELECT * FROM get_customer_as_of('2024-01-31')
+),
+customer_mar AS (
+    SELECT * FROM get_customer_as_of('2024-03-31')  
+)
+SELECT 
+    j.customer_id,
+    j.email as email_january,
+    m.email as email_march,
+    CASE WHEN j.email != m.email THEN 'CHANGED' ELSE 'SAME' END as status
+FROM customer_jan j
+JOIN customer_mar m ON j.customer_id = m.customer_id;
+```
+
+#### 2. **Audit Trail Queries**
+```sql
+-- "Show me all changes to customer CUST001"
+SELECT 
+    h.customer_id,
+    s.load_date as change_date,
+    s.customer_name,
+    s.email,
+    s.record_source as changed_by_system,
+    LAG(s.email) OVER (ORDER BY s.load_date) as previous_email
+FROM hub_customer h
+JOIN sat_customer_details s ON h.customer_hk = s.customer_hk
+WHERE h.customer_id = 'CUST001'
+ORDER BY s.load_date;
+
+-- Result: Complete change history
+-- customer_id | change_date         | email           | previous_email
+-- CUST001     | 2024-01-01 10:00   | john@old.com    | NULL
+-- CUST001     | 2024-02-15 14:30   | john@new.com    | john@old.com
+-- CUST001     | 2024-04-22 16:45   | j.smith@new.com | john@new.com
+```
+
+#### 3. **Data Quality Monitoring**
+```sql
+-- "Find customers whose email changed more than 3 times"
+SELECT 
+    h.customer_id,
+    COUNT(*) as number_of_email_changes
+FROM hub_customer h
+JOIN sat_customer_details s ON h.customer_hk = s.customer_hk
+GROUP BY h.customer_id
+HAVING COUNT(*) > 3;
+```
+
+### The Business Value
+
+**Traditional Approach:**
+```sql
+-- Lost forever: What was the customer's email in February?
+-- Lost forever: How many times has this customer changed their address?
+-- Lost forever: Which system updated this customer last month?
+```
+
+**Data Vault Approach:**
+```sql
+-- Available forever: Complete timeline of every change
+-- Available forever: Full audit trail with source system attribution
+-- Available forever: Point-in-time reconstruction for any date
+```
+
+### Performance Considerations in Snowflake
+
+```sql
+-- Cluster satellites by the hub key and load_date for optimal performance
+ALTER TABLE sat_customer_details CLUSTER BY (customer_hk, load_date);
+
+-- Use Snowflake's automatic clustering
+ALTER TABLE sat_customer_details SET AUTOMATIC_CLUSTERING = TRUE;
+
+-- Create materialized views for frequently accessed "current" data
+CREATE MATERIALIZED VIEW mv_current_customers AS
+SELECT 
+    h.customer_id,
+    s.customer_name,
+    s.email,
+    s.load_date
+FROM hub_customer h
+JOIN sat_customer_details s ON h.customer_hk = s.customer_hk
+WHERE s.load_end_date IS NULL;
+```
+
+### Key Takeaways
+
+✅ **Data Vault Raw Layer**: Insert-only preserves perfect history
+✅ **Information Marts**: Present business-friendly current views  
+✅ **Time Travel**: Query any point in time
+✅ **Audit Trail**: Complete lineage always available
+✅ **Performance**: Materialize current views for fast queries
 
 ### Data Flow Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           COMPLETE DATA VAULT ARCHITECTURE                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  SOURCE SYSTEMS              STAGING               DATA VAULT LAYERS        │
-│                                                                             │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           COMPLETE DATA VAULT ARCHITECTURE                   │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  SOURCE SYSTEMS              STAGING               DATA VAULT LAYERS         │
+│                                                                              │
 │  ┌─────────────┐            ┌─────────────┐      ┌─────────────────────────┐ │
-│  │    CRM      │            │             │      │     RAW DATA VAULT     │ │
+│  │    CRM      │            │             │      │     RAW DATA VAULT      │ │
 │  │  System     │──────────► │   STAGING   │────► │                         │ │
 │  │             │            │    AREA     │      │  ┌─────┐  ┌─────┐       │ │
 │  └─────────────┘            │             │      │  │ HUB │  │ HUB │       │ │
-│                              │             │      │  │CUST │  │ORDER│       │ │
+│                             │             │      │  │CUST │  │ORDER│       │ │
 │  ┌─────────────┐            │             │      │  └──┬──┘  └──┬──┘       │ │
 │  │   E-COMMERCE│            │ - Data      │      │     │        │          │ │
 │  │   Platform  │──────────► │   Cleaning  │      │     │   ┌────┴────┐     │ │
 │  │             │            │ - Hash Key  │      │     │   │  LINK   │     │ │
 │  └─────────────┘            │   Generation│      │     └───┤CUST_ORD ├─────┘ │
-│                              │ - Validation│      │         └─────────┘       │ │
-│  ┌─────────────┐            │             │      │              │            │ │
-│  │   BILLING   │            │             │      │         ┌────▼────┐       │ │
-│  │   System    │──────────► │             │      │         │   SAT   │       │ │
-│  │             │            │             │      │         │  CUST   │       │ │
-│  └─────────────┘            └─────────────┘      │         │ DETAILS │       │ │
-│                                                  │         └─────────┘       │ │
-│                                 │                └─────────────────────────────┘ │
-│                                 │                                               │
-│                                 ▼                                               │
-│                         ┌─────────────────┐      ┌─────────────────────────────┐ │
-│                         │ BUSINESS DATA   │      │    INFORMATION MARTS       │ │
-│                         │     VAULT       │────► │                             │ │
-│                         │                 │      │  ┌─────────────────────┐   │ │
-│                         │ - Business Rules│      │  │   Customer 360      │   │ │
-│                         │ - Calculations  │      │  │       View          │   │ │
-│                         │ - Derived Keys  │      │  └─────────────────────┘   │ │
-│                         │                 │      │                             │ │
-│                         └─────────────────┘      │  ┌─────────────────────┐   │ │
-│                                                  │  │   Order Analytics   │   │ │
-│                                                  │  │      Mart           │   │ │
-│                                                  │  └─────────────────────┘   │ │
-│                                                  └─────────────────────────────┘ │
-│                                                                                  │
-└──────────────────────────────────────────────────────────────────────────────────┘
+│                             │ - Validation│      │         └─────────┘       │ 
+│  ┌─────────────┐            │             │      │              │            │ 
+│  │   BILLING   │            │             │      │         ┌────▼────┐       │ 
+│  │   System    │──────────► │             │      │         │   SAT   │       │ 
+│  │             │            │             │      │         │  CUST   │       │ 
+│  └─────────────┘            └─────────────┘      │         │ DETAILS │       │ 
+│                                                  │         └─────────┘       │ 
+│                                 │                └───────────────────────────┘ 
+│                                 │                                            │
+│                                 ▼                                            │
+│                         ┌─────────────────┐      ┌────────────────────────────┐ 
+│                         │ BUSINESS DATA   │      │    INFORMATION MARTS       │ 
+│                         │     VAULT       │────► │                            │ 
+│                         │                 │      │  ┌─────────────────────┐   │ 
+│                         │ - Business Rules│      │  │   Customer 360      │   │ 
+│                         │ - Calculations  │      │  │       View          │   │ 
+│                         │ - Derived Keys  │      │  └─────────────────────┘   │ 
+│                         │                 │      │                            │ 
+│                         └─────────────────┘      │  ┌─────────────────────┐   │ 
+│                                                  │  │   Order Analytics   │   │ 
+│                                                  │  │      Mart           │   │ 
+│                                                  │  └─────────────────────┘   │ 
+│                                                  └────────────────────────────┘
+│                                                                               │
+└───────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Why This Layered Approach?
