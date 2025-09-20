@@ -2415,7 +2415,7 @@ A typical workflow would be :
 7. Test stage : after dev success it deploys to test so that business can test
 8. Prod : after manual approaval (Continuous delivery), deployment happens in PROD
 
-sqlfluff :  
+**sqlfluff** :  
 
 The sqlfluff-templater-dbt plugin is critical — without it, sqlfluff won’t understand Jinja, ref(), source(), macros, etc.  
 ```
@@ -2426,19 +2426,66 @@ The sqlfluff-templater-dbt plugin is critical — without it, sqlfluff won’t u
 We add the .sqlfluff config file to your repo, Example:  
 
 ```
-  [sqlfluff]
-  dialect = snowflake
-  templater = dbt
-  
-  [sqlfluff:rules]
-  # Example rules — tune to your org's standards
-  L010 = warn   # Keywords should be upper case
-  L013 = ignore # Column references should be consistent
-  L014 = error  # Unquoted identifiers should be consistent
-  
-  [sqlfluff:templater:dbt]
-  project_dir = .
-  profiles_dir = .dbt
+    # .sqlfluff
+    # SQLFluff configuration for SQL linting
+    
+    [sqlfluff]
+    # Supported dialects https://docs.sqlfluff.com/en/stable/dialects.html
+    dialect = snowflake
+    templater = dbt
+    large_file_skip_byte_limit = 40000
+    
+    # Rules to exclude
+    exclude_rules = L034,L036,L044
+    
+    [sqlfluff:indentation]
+    # Indentation configuration
+    tab_space_size = 2
+    indent_unit = space
+    
+    [sqlfluff:templater]
+    unwrap_wrapped_queries = true
+    
+    [sqlfluff:templater:dbt]
+    # Configure dbt templater
+    project_dir = ./
+    profiles_dir = ./profiles
+    profile = default
+    
+    [sqlfluff:rules]
+    # Rule-specific configuration
+    max_line_length = 120
+    single_table_references = consistent
+    unquoted_identifiers_policy = all
+    
+    [sqlfluff:rules:L010]
+    # Keywords should be consistently upper case
+    capitalisation_policy = upper
+    
+    [sqlfluff:rules:L030]
+    # Function names should be consistently upper case
+    extended_capitalisation_policy = upper
+    
+    [sqlfluff:rules:L040]
+    # Null & Boolean Literals should be consistently upper case
+    capitalisation_policy = upper
+    
+    [sqlfluff:rules:L047]
+    # Trailing commas within select clause
+    select_clause_trailing_comma = forbid
+    
+    [sqlfluff:rules:L052]
+    # Semi-colon formatting approach
+    multiline_newline = true
+    require_final_semicolon = false
+    
+    [sqlfluff:rules:L054]
+    # GROUP BY/ORDER BY column references
+    group_by_and_order_by_style = consistent
+    
+    [sqlfluff:rules:L063]
+    # Data Types should be consistently upper case
+    extended_capitalisation_policy = upper
 ```
 
 This tells sqlfluff:
@@ -2583,3 +2630,431 @@ CICD Workflow Example :
           - if: $CI_COMMIT_BRANCH == "main"
 ```
 
+
+--------------------------------------------------------------------
+### Complete dbt Functions & Macros Reference Guide
+---------------------------------------------------------------------
+
+
+#### Core dbt Jinja Functions
+
+### 1. `ref()`
+**Purpose**: Reference other models in your dbt project and establish lineage
+```sql
+-- Basic usage
+select * from {{ ref('my_model') }}
+
+-- With package
+select * from {{ ref('my_package', 'my_model') }}
+
+-- In a macro
+{% macro get_payment_methods() %}
+    select distinct payment_method 
+    from {{ ref('fct_orders') }}
+{% endmacro %}
+```
+
+### 2. `source()`
+**Purpose**: Reference raw data sources defined in schema.yml
+```sql
+-- Basic usage
+select * from {{ source('raw_data', 'customers') }}
+
+-- In a macro
+{% macro get_latest_orders(days_back=7) %}
+    select * from {{ source('raw_data', 'orders') }}
+    where order_date >= current_date - {{ days_back }}
+{% endmacro %}
+```
+
+### 3. `var()`
+**Purpose**: Use variables for configuration and dynamic behavior
+```sql
+-- In dbt_project.yml
+vars:
+  start_date: '2023-01-01'
+  include_test_data: false
+
+-- In model
+select * from orders 
+where order_date >= '{{ var("start_date") }}'
+{% if var("include_test_data") %}
+    -- include test records
+{% else %}
+    and is_test = false
+{% endif %}
+
+-- With default value
+where status = '{{ var("order_status", "completed") }}'
+```
+
+### 4. `target`
+**Purpose**: Access information about the current target (environment)
+```sql
+-- Environment-specific logic
+{% if target.name == 'prod' %}
+    select * from {{ ref('dim_customers') }}
+{% else %}
+    select * from {{ ref('dim_customers') }} limit 1000
+{% endif %}
+
+-- Different schemas per environment
+{% if target.name == 'dev' %}
+    {{ config(schema='dev_' + target.user) }}
+{% endif %}
+
+-- Available target properties:
+-- target.name, target.schema, target.type, target.user, target.warehouse
+```
+
+### 5. `this`
+**Purpose**: Reference the current model being built
+```sql
+-- In pre/post hooks
+{{ config(
+    pre_hook="delete from {{ this }} where updated_at < current_date - 30"
+) }}
+
+-- In macros
+{% macro log_model_info() %}
+    {% do log("Building model: " ~ this, info=true) %}
+{% endmacro %}
+```
+
+### 6. `graph`
+**Purpose**: Access the dbt project graph information
+```sql
+-- Get all models that reference current model
+{% for node in graph.nodes.values() %}
+    {% if this in node.depends_on.nodes %}
+        -- {{ node.name }} depends on this model
+    {% endif %}
+{% endfor %}
+```
+
+## Jinja Control Structures
+
+### 1. Conditionals
+```sql
+-- Basic if/else
+{% if var('include_deleted') %}
+    select * from customers
+{% else %}
+    select * from customers where deleted_at is null
+{% endif %}
+
+-- Multiple conditions
+{% if target.name == 'prod' and var('full_refresh', false) %}
+    truncate table {{ this }}
+{% elif target.name == 'dev' %}
+    -- dev logic
+{% endif %}
+```
+
+### 2. Loops
+```sql
+-- For loop with list
+{% set payment_methods = ['card', 'cash', 'bank_transfer'] %}
+select 
+  order_id,
+  {% for method in payment_methods %}
+  sum(case when payment_method = '{{ method }}' then amount else 0 end) as {{ method }}_total
+  {%- if not loop.last -%},{%- endif %}
+  {% endfor %}
+from payments group by 1
+
+-- For loop with dictionary
+{% set status_mapping = {'P': 'Pending', 'C': 'Complete', 'F': 'Failed'} %}
+case 
+  {% for key, value in status_mapping.items() %}
+  when status = '{{ key }}' then '{{ value }}'
+  {% endfor %}
+end as status_description
+```
+
+### 3. Macros
+```sql
+-- Basic macro
+{% macro cents_to_dollars(column_name, precision=2) %}
+  ({{ column_name }} / 100)::numeric(16, {{ precision }})
+{% endmacro %}
+
+-- Usage: {{ cents_to_dollars('price_in_cents') }}
+
+-- Macro with multiple parameters
+{% macro generate_alias_name(custom_alias_name=none, node=none) %}
+    {%- if custom_alias_name is none -%}
+        {{ node.name }}
+    {%- else -%}
+        {{ custom_alias_name | trim }}
+    {%- endif -%}
+{% endmacro %}
+
+-- Macro that returns SQL
+{% macro get_date_dimension(start_date, end_date) %}
+  {% set query %}
+    select 
+      date_day,
+      extract(year from date_day) as year,
+      extract(month from date_day) as month,
+      extract(dayofweek from date_day) as day_of_week
+    from (
+      select dateadd(day, seq4(), '{{ start_date }}') as date_day
+      from table(generator(rowcount => datediff(day, '{{ start_date }}', '{{ end_date }}') + 1))
+    )
+  {% endset %}
+  {{ return(query) }}
+{% endmacro %}
+```
+
+## dbt-utils Functions
+
+### 1. Key Generation
+```sql
+-- surrogate_key: Generate surrogate keys
+select 
+  {{ dbt_utils.surrogate_key(['customer_id', 'order_date']) }} as order_key,
+  customer_id,
+  order_date
+from orders
+
+-- generate_surrogate_key (newer version)
+select 
+  {{ dbt_utils.generate_surrogate_key(['customer_id', 'order_date']) }} as order_key
+from orders
+```
+
+### 2. Data Type Utilities
+```sql
+-- safe_cast: Cast with error handling
+select 
+  {{ dbt_utils.safe_cast("'2023-13-45'", api.Column.translate_type("date")) }} as invalid_date
+
+-- cast_bool_to_text: Convert boolean to text
+select 
+  {{ dbt_utils.cast_bool_to_text("is_active") }} as is_active_text
+```
+
+### 3. Date/Time Functions
+```sql
+-- date_trunc: Cross-database date truncation
+select 
+  {{ dbt_utils.date_trunc('month', 'order_date') }} as order_month,
+  count(*) as order_count
+from orders
+group by 1
+
+-- dateadd: Cross-database date addition
+select 
+  order_date,
+  {{ dbt_utils.dateadd('day', 30, 'order_date') }} as due_date
+from orders
+
+-- datediff: Cross-database date difference
+select 
+  {{ dbt_utils.datediff('order_date', 'shipped_date', 'day') }} as days_to_ship
+from orders
+
+-- last_day: Get last day of period
+select 
+  {{ dbt_utils.last_day('order_date', 'month') }} as month_end
+from orders
+```
+
+### 4. String Functions
+```sql
+-- split_part: Cross-database string splitting
+select 
+  {{ dbt_utils.split_part('full_name', "' '", 1) }} as first_name,
+  {{ dbt_utils.split_part('full_name', "' '", 2) }} as last_name
+from customers
+
+-- right: Get rightmost characters
+select 
+  {{ dbt_utils.right('phone_number', 4) }} as last_four_digits
+
+-- replace: Cross-database string replacement
+select 
+  {{ dbt_utils.replace('phone_number', "'-'", "''") }} as clean_phone
+```
+
+### 5. Cross-Database Functions
+```sql
+-- listagg: Cross-database string aggregation
+select 
+  customer_id,
+  {{ dbt_utils.listagg('product_name', "', '", "order by product_name") }} as products_ordered
+from order_items
+group by 1
+
+-- bool_or: Cross-database boolean OR aggregation
+select 
+  customer_id,
+  {{ dbt_utils.bool_or('is_returned') }} as has_any_returns
+from orders
+group by 1
+```
+
+### 6. Pivot/Unpivot
+```sql
+-- pivot: Dynamic pivot tables
+select *
+from (
+  select 
+    customer_id,
+    product_category,
+    order_count
+  from customer_product_summary
+) 
+{{ dbt_utils.pivot(
+    'product_category',
+    dbt_utils.get_column_values(ref('customer_product_summary'), 'product_category'),
+    agg='sum',
+    then_value='order_count'
+) }}
+
+-- unpivot: Convert columns to rows
+{{ dbt_utils.unpivot(
+  relation=ref('monthly_sales'),
+  cast_to='numeric',
+  exclude=['customer_id', 'year'],
+  remove=['total'],
+  field_name='month',
+  value_name='sales_amount'
+) }}
+```
+
+### 7. Data Generation
+```sql
+-- generate_series: Create series of numbers/dates
+select * from (
+  {{ dbt_utils.generate_series(1, 100) }}
+) as series(generated_number)
+
+-- date_spine: Generate date range
+{{ dbt_utils.date_spine(
+    datepart="day",
+    start_date="cast('2023-01-01' as date)",
+    end_date="cast('2023-12-31' as date)"
+) }}
+```
+
+### 8. Data Quality
+```sql
+-- get_column_values: Extract unique values
+{% set payment_methods = dbt_utils.get_column_values(ref('orders'), 'payment_method') %}
+
+-- equal_rowcount: Test for equal row counts
+{{ dbt_utils.equal_rowcount(ref('orders'), ref('order_items_summary')) }}
+
+-- fewer_rows_than: Test row count relationship
+{{ dbt_utils.fewer_rows_than(ref('returned_orders'), ref('orders')) }}
+```
+
+### 9. Table Operations
+```sql
+-- union_relations: Union multiple tables
+{{ dbt_utils.union_relations(
+    relations=[ref('orders_2022'), ref('orders_2023')],
+    column_override={"order_date": "date", "order_id": "varchar(50)"}
+) }}
+
+-- deduplicate: Remove duplicates
+select * from (
+  {{ dbt_utils.deduplicate(
+      relation=ref('raw_customers'),
+      partition_by='customer_id',
+      order_by='updated_at desc'
+  ) }}
+)
+```
+
+### 10. URL/Web Functions
+```sql
+-- get_url_host: Extract host from URL
+select 
+  {{ dbt_utils.get_url_host('page_url') }} as website_host
+
+-- get_url_path: Extract path from URL
+select 
+  {{ dbt_utils.get_url_path('page_url') }} as page_path
+```
+
+## Advanced Macro Patterns
+
+### 1. Dynamic Table Creation
+```sql
+{% macro create_monthly_partitions(table_name, start_month, end_month) %}
+  {% for month in range(start_month, end_month + 1) %}
+    create table {{ table_name }}_{{ month }} as
+    select * from {{ ref(table_name) }}
+    where extract(month from order_date) = {{ month }};
+  {% endfor %}
+{% endmacro %}
+```
+
+### 2. Environment-Specific Logic
+```sql
+{% macro get_warehouse_size() %}
+  {% if target.name == 'prod' %}
+    {{ return('LARGE') }}
+  {% elif target.name == 'dev' %}
+    {{ return('XSMALL') }}
+  {% else %}
+    {{ return('SMALL') }}
+  {% endif %}
+{% endmacro %}
+
+-- Usage in model config
+{{ config(
+    snowflake_warehouse=get_warehouse_size()
+) }}
+```
+
+### 3. Custom Test Macros
+```sql
+-- Custom test for checking business rules
+{% test expect_column_values_to_be_in_set(model, column_name, value_set) %}
+  select *
+  from {{ model }}
+  where {{ column_name }} not in (
+    {% for value in value_set %}
+    '{{ value }}'{% if not loop.last %},{% endif %}
+    {% endfor %}
+  )
+{% endtest %}
+```
+
+### 4. Data Quality Macros
+```sql
+{% macro test_not_null_proportion(model, column_name, at_least=0.95) %}
+  select 
+    count(*) as total_rows,
+    count({{ column_name }}) as non_null_rows,
+    count({{ column_name }}) * 1.0 / count(*) as non_null_proportion
+  from {{ model }}
+  having non_null_proportion < {{ at_least }}
+{% endmacro %}
+```
+
+### 5. Performance Optimization Macros
+```sql
+{% macro optimize_table(table_name) %}
+  {% if target.type == 'snowflake' %}
+    alter table {{ table_name }} cluster by (order_date);
+  {% elif target.type == 'bigquery' %}
+    -- BigQuery optimization logic
+  {% endif %}
+{% endmacro %}
+```
+
+## Best Practices
+
+1. **Use meaningful variable names** in your macros
+2. **Add documentation** to complex macros using comments
+3. **Handle edge cases** with proper conditionals
+4. **Test macros thoroughly** in different environments
+5. **Keep macros focused** on single responsibilities
+6. **Use proper indentation** for readability
+7. **Leverage dbt-utils** for cross-database compatibility
+8. **Version control your macros** and document changes
