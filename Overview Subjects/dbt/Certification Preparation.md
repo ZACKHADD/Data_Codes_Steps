@@ -260,4 +260,13 @@
 ```yml
           revision: 1.2.0
 ```
+- Avoid unpinned packages : this can avoid to dbt installing diffrent version each time dbt deps is run which may break the project ! dbt throw a warning if unpinned packges are detected !
+
+```yml
+          packages:
+            - package: dbt-labs/dbt_utils
+              version: ">=1.0.0"
+```
+- Removing a package from packages.yml will not remove the package from the project ! it still exists in your dbt_packages/ directory. If you want to completely uninstall a package, you should either: delete the package directory in dbt_packages/ or run dbt clean to delete all packages (and any compiled models), followed by dbt deps.
 - 
+
