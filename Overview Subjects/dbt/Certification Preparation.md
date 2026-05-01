@@ -180,4 +180,84 @@
 - When using --select : "tag:nightly config.materialized:incremental" means AND condition while "tag:nightly,config.materialized:incremental" means OR condition
 - Views are the most cost-effective option for simple, infrequently used models.
 - if we have the same model with different versions and we call it without specifying the version dbt resolves to the version marked as 'latest' or with the highest version number
+- run 'dbt run' and 'dbt seed' simultaneously may result in potential data integrity problems
+- dbt recognizes YAML files for tests and descriptions based on two primary criteria: the file must be located in the appropriate resource directory (such as models/, seeds/, snapshots/, or macros/) and have a .yml file extension.
+- Implement post-hooks to automatically assign permission grants during model execution is the most effecient way to handel permissions in dbt
+- Block names must consist only of alphanumeric characters and underscores, and cannot start with a digit
+- Assign each developer a unique schema using a convention like `dbt_<username>` is powerful to avoid overriding work of other developpers
+- dbt Docs requires manual deployment for static sites; Catalog updates automatically after each job run providing dynamic, always-current documentation.
+- Table-level 'freshness' settings completely replace source-level configurations for the specific table
+- Ephemeral materialization provides reusable logic without persisting data in the warehouse
+- In dbt, the runtime does not improve beyond a certain thread count because the Directed Acyclic Graph (DAG) structure inherently constrains parallel model execution. The actual number of models that can be built concurrently is limited by the project's dependency relationships, even if more threads are available.
+- in dbt contracts when we set 'alis_types: false (it is true by default)' dbt will pass data types from YAML to the database exactly as specified without converting them to platform-specific types
+- Use the --select test_type:unit flag to target specific test types
+- To override configs of sources of a package we do that in dbt_project file not in the sources.yml of the pachakge, otherwise it gets override when we run dbt deps :
+```yml
+                    sources:
+                      package_name:
+                        source_name:
+                          table_name:
+                            enabled: false
+```
+- table level freshness configs completely overrides source level freshness configs :
+```yml
+                    sources:
+                      - name: stripe
+                        loaded_at_field: updated_at
+                        freshness:
+                          warn_after: {count: 24, period: hour}
+                          error_after: {count: 48, period: hour}
+                    
+                        tables:
+                          - name: payments
+                            freshness:
+                              warn_after: {count: 1, period: hour}
+                    
+                          - name: customers
+```
+- statement block vs run_query :
+
+```jinja
+          {% set results = run_query("select distinct country from {{ ref('customers') }}") %}
+          
+          {% if execute %}
+            {% set countries = results.columns[0].values() %}
+          {% else %}
+            {% set countries = [] %}
+          {% endif %}
+          
+          # statement block is more flexible and can run multiple queries at once
+
+          {% call statement('create_and_count', fetch_result=True) %}
+            create temp table t as select * from {{ ref('orders') }};
+            select count(*) from t;
+          {% endcall %}
+```
+- dbt run --empty may be used in dry runs which skip parts of rendering and avoid fully evaluating Jinja for performance.
+- To ensure that Jinja expressions like ref() and source() are fully resolved to capture all dependencies correctly, we use  .render() method :
+```yml
+          {% set _ = ref('payments').render() %}
+          
+          {% if some_flag %}
+            select * from {{ ref('payments') }}
+          {% endif %}
+```
+- if our warehouse supports only 10 concurrent queries, raising the thread will just make it slower : alwyas reduce the thread count to match warehouse concurrency limits to avoid queuing!
+- Add '+schema: marketing' under the models:your_project:marketing section in dbt_project.yml to build marketing models in marketing schema.
+- 'invalidate_hard_deletes' config in snapshots finds hard deleted records in source, and set dbt_valid_to current time if no longer exists.
+- snapshots metadate fields : dbt_valid_from, dbt_valid_to, dbt_scd_id, dbt_updated_at
+- Timestamp (updated_at column needed) & Check (list of columns to check unique rows to track in case updated_at column is not reliable) are snapshots strategies
+- {{ % docs _overview_ % }} ....... {{ % enddocs % }} block costumizes the landing page of dbt docs web site
+- To store test failures results we invok dbt test --store-failures'. the location of which can be configured in the dbt_project.yml file.
+- dbt_test__audit is the default schema to store the results of a test failure
+- In incremental models : on_schema_change can have 3 values {fail, append_new_columns (only adds new columns), sync_all_columns(remove deleted columns)}
+- if we specify a new schema for a model, dbt will concatenate default schema in profiles.yml file with that new schema : <target_schema>_<custom_schema> (unless if we override the generate_schema_name macro)
+- for databases if we specify a new database for some models it will override the default one (not concatenate like schemas) ! the macro handeling that is "generate_database_name"
+- We define variables in dbt_project file or in the commande line
+- To override a variabel in dbt for a run we use --vars command line
+- When installing packages in dbt the value of the revision parameter can be : a branch name, a tagged release or a specific commit (full 40-character hash)  or even pull request reference (for dbt hub we use version and not revision):
+
+```yml
+          revision: 1.2.0
+```
 - 
