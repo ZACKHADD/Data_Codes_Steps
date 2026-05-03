@@ -268,5 +268,168 @@
               version: ">=1.0.0"
 ```
 - Removing a package from packages.yml will not remove the package from the project ! it still exists in your dbt_packages/ directory. If you want to completely uninstall a package, you should either: delete the package directory in dbt_packages/ or run dbt clean to delete all packages (and any compiled models), followed by dbt deps.
-- 
+- A metric is a timeseries aggregation over a table that supports zero or more dimensions. They appear in pink
+- To define a metric we use :
+```yml
+          metrics:
+            - name: total_revenue
+              label: Total Revenue
+              model: ref('orders')
+              calculation_method: sum
+              expression: amount
+              timestamp: order_date
+              time_grains: [day, week, month]
+              filter:
+                - field: status
+                  operator: "="
+                  value: completed
+
+          # we can also reuse the logic for several metrics :
+          
+          - name: conversion_rate
+            calculation_method: derived
+            expression: orders / visitors
+            metrics:
+              - name: orders
+              - name: visitors
+
+          # newer approche (semantic layer):
+          
+          Name,
+          Model (not required for expression metrics),
+          Type,
+          Sql,
+          Timestamp,
+          time_grains
+
+          # For expressions No model needed because it uses other metrics
+          metrics:
+            - name: conversion_rate
+              type: expression
+              sql: orders / visitors
+
+```
+- Expression metrics : This metric type is defined as any non-aggregating calculation of 1 or more metrics : we can create with that ratios, subtractions, any arbitrary calculation
+- Available types are count, count_distinct, sum, average, min, max, expression
+- --select, --exclude --selector are the only arguments used with dbt snapshot command (no --defer allowed)
+- dbt run --select 3+my_model+4 : select the model and un to its 3 parent and down to its 4 child
+- graph selectors : +, n+n, @, * (@ to be used in complex selections using tags states ..)
+- dbt run -s @my_model writes the command to select 'my_model, it's children and the parents of it's children
+- 3 ways to run models in a sub folder :
+```bash
+          dbt run -s staging.harvest.* or
+          dbt run -s models/staging/harvest or
+          dbt run -s path:models/staging/harvest
+```
+- set operators in dbt commands : union (,) and intersection (space)
+- select all models of a source: dbt run --select source:snowplow+
+- we can select models also based on configs (depends on warehouses) for example clustering column in snowflake : dbt run -s config.cluster_by:client_id
+- Deferral requires both --defer and --state flags to be set.
+- states in dbt selector :
+
+| Selector           | Meaning                                                                     |
+| ------------------ | --------------------------------------------------------------------------- |
+| `state:modified`   | Models that changed vs reference state                                      |
+| `state:unmodified` | Models that did NOT change                                                  |
+| `state:new`        | Models that exist in current project but not in state                       |
+| `state:deleted`    | Models that existed in state but no longer exist in current project         |
+| `state:old`        | (less common alias in some docs/tools) same idea as deleted/orphaned models |
+
+- if we want to compare what was deleted compared to a state (prod for example) we use dbt ls --state prod --select state:deleted (even run and build will not materialize since we no longer the code)
+- the defer and state flages can be passed in the cli or we can set two environment variable : DBT_DEFER_TO_STATE and DBT_ARTIFACT_STATE_PATH (dbt checks for these variables and if set it uses them in simple commandes like : dbt build ( it adds --defer --state path/to/prod)
+- if tests of parent models fail the build of the child models is skipped
+- manifest.json for DAG graphs, catalog.json for metadata from datawarehouse (freshness ...) and perf_info.json for dbt performance debug, sources.json for sources freshness details(dbt source freshness), semantic_manifest/json (Semantic layer / metrics artifacts), partial_parse.msgpack (for fast startup and partial parse)
+
+| Artifact                 | Purpose                  |
+| ------------------------ | ------------------------ |
+| `manifest.json`          | DAG + metadata           |
+| `catalog.json`           | warehouse schema         |
+| `run_results.json`       | execution results        |
+| `sources.json`           | freshness results        |
+| `perf_info.json`         | performance profiling    |
+| `semantic_manifest.json` | metrics & semantic layer |
+| `partial_parse.msgpack`  | parsing cache            |
+| `graph_summary.json`     | DAG summary              |
+| `compiled/`              | compiled SQL             |
+| `run/`                   | executed SQL             |
+| `index.html`             | docs UI                  |
+
+
+- dbt debug --config-dir will show where .dbt configuration directory is located.
+- parse in dbt creates a perf_info.json where it writes time of each operation : it makes it easy to debug why dbt is slow
+```json
+          {
+            "parse_project_elapsed": 1.23,
+            "load_macros_elapsed": 0.45,
+            "compile_elapsed": 2.10,
+            "execute_elapsed": 15.67,
+            "adapter_timings": [
+              {
+                "connection_open": 0.2,
+                "execute": 14.9
+              }
+            ]
+          }
+```
+- the -o (or --output) flag is used to override the file destination in target folder i.e. dbt source freshness --output target/file_name.json to override sources.json
+- dbt ls -s config.materialized:view --output json this creates a file .json that lists all the models materialized as views
+- -x and --fail-fast flags makes dbt exit immediately if a single resource fails to build
+- dbt --version and dbt -r or --record-timing-info are cli supported dbt commands
+- global config can be set in CLI, Environment Variables or Yaml configs (usually profiles.yml)
+- to cache schemas related to selected resources for the current run we need cache_selected_only: true (to be set in the dbt_project.yml file or profiles.yml) ! it only only cache schemas that are relevant to the selected resources in the current run which improve performance since dbt will not scan all the schemas (default behaviour) !
+- dbt --no-version-check run disable the --version-check config (faster CI/CD) especially if we controle dbt version
+- we use 'quiet' config to show only error logs in stdout
+- By disabling write_json config we stop dbt from writing json artifacts (eg. manifest.json, run_results.json) to the target/ directory (this can be useful to speed up the CI in ephemeral envs)
+- exit code 0 means the dbt invocation completed without error
+- full re-parsing is trigegred if one of these changes :
+```yml
+          --vars
+          profiles.yml content (or env_var values used within)
+          dbt_project.yml content (or env_var values used within)
+          installed packages
+          dbt version
+          certain widely-used macros, e.g. builtins overrides or generate_x_name for database/schema/alias
+```
+- ways to optimize dbt performance :
+
+```yml
+- LibYAML bindings for PyYAML (uses C (compiled code) instead of pure python to parse yml files which is faster)
+- Partial parsing, which avoids re-parsing unchanged files between invocations
+- An experimental parser, which extracts information from simple models much more quickly (it falls back to full parsing if we have macros, loops or conditionnal models and operations)
+- RPC server, which keeps a manifest in memory, and re-parses the project at server startup/hangup : dbt stays alive instead of restarting each time
+```
+- After parsing the project, dbt stores an internal manifest in partial_parse.msgpack
+- we can override the seeds folder using seed-paths: ["cust_seeds", "other_seeds"]
+- By default, dbt will search in all resource paths for docs blocks (i.e. the combined list of model-paths, seed-paths, analysis-paths, macro-paths and snapshot-paths). If this option is configured, dbt will only look in the specified directory for docs blocks. Example: docs-paths: ["docs"]
+- dispatch to override packages :
+```yml
+          dispatch:
+            - macro_namespace: dbt_utils
+              search_order: ['my_project', 'dbt_utils']
+```
+- the network representation of the dbt resource DAG is stored in graph.gpickle
+- git branch -m feature_products renames the current branch
+- git branch -d feature_a to delete branchs but only merged ones otherwise it throws an error and ask to use : git branch -D feature_a
+- git branch -r : list all remote branchs
+- 'git branch <branchname>' creates the branch but does not selects it so we need to checkout
+- git reset dim_orders unstage dim_orders file
+- using git commit -am "commit message" or git commit -a -m "commit message" makes it possible to add changes and commit them in the same time
+- git reset HEAD~2 (Removes the last 2 commits from project history)
+- persist_docs:
+```yml
+          models:
+            my_project:
+              +persist_docs:
+                relation: true
+                columns: true
+```
+- source supports only one config wich is enabled (other things are properties)
+- quote_columns and column_types are seeds configurations
+- sql_header (sql queries that run before for example sql_header="set timezone = 'UTC';" ) ( and materialized are two configs in models
+- configs for tests : where, severity, warn_if, error_if, limit, fail_calc, store_failures.
+- configs for snapshots : target_schema, target_database, unique_key, strategy, updated_at, check_cols, invalidate_hard_deletes
+- if {{ config( full_refresh = false) }} if set the --full-refresh command will not work when invoked ! The config takes precedence over the flag.
+- the leading + is in fact only required when you need to disambiguate between resource paths and configs.
+
+
 
