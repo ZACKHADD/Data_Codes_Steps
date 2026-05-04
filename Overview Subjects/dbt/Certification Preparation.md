@@ -430,6 +430,112 @@
 - configs for snapshots : target_schema, target_database, unique_key, strategy, updated_at, check_cols, invalidate_hard_deletes
 - if {{ config( full_refresh = false) }} if set the --full-refresh command will not work when invoked ! The config takes precedence over the flag.
 - the leading + is in fact only required when you need to disambiguate between resource paths and configs.
+- just like sql models, we can configure python models configs in the config, the dbt_project.yml and the schema.yml files :
 
+```yml
+          # Model level
+          def model(dbt, session):
+              dbt.config(
+                  materialized="table",
+                  tags=["finance", "daily"],
+                  schema="analytics"
+              )
+          
+              df = dbt.ref("stg_orders")
+              return df
+          # dbt_project.yml
+          models:
+            my_project:
+              python_models:
+                +materialized: table
+                +tags:
+                  - finance
+                finance:
+                  +schema: analytics
+                  +tags:
+                    - daily
+          # schema.yml
+          models:
+            - name: my_python_model
+              description: "A Python model for finance data"
+              config:
+                materialized: table
+                tags:
+                  - finance
+                  - daily
+                schema: analytics
+              columns:
+                - name: order_id
+                  description: "Primary key"
+                  tests:
+                    - unique
+                    - not_null
+```
+- It is recommended to include as many columns as possible in the snapshot, even if they do not seem useful at the moment, as snapshots cannot be recreated
+- by default dbt does not quote name but we can change that using the quote config
+- When running a dbt project with dbt run --select python_model, dbt will prepare and pass in both arguments (dbt and session) to the model() function:
+          - dbt: A class compiled by abt Core, unique to each model, enables you to run your Python code in the context of your dbt project and DAG.
+          - session: A class representing your data platform's connection to the Python backend. The session is needed to read in tables as DataFrames, and to write DataFrames back to tables. In PySpark, by convention, the SparkSession is named spark, and available globally. For consistency across platforms, we always pass it into the model function as an explicit argument called session.
+- log outputs : we can controle that :
+```bash
+          dbt run --log-level warn     # only show warnings and errors
+          dbt run --debug              # show all debug logs
+          dbt run --log-format json    # structured JSON logs for ingestion into log tools
+```
+Here's everything consolidated into one table:The visualizer seems to be timing out. Here's the full consolidated table in Markdown instead:
 
+| Command | Severity | Log / Message | Cause |
+|---|---|---|---|
+| `dbt run` | ERROR | `Database Error` | SQL compilation or execution failure in the warehouse |
+| `dbt run` | ERROR | `Relation already exists` | Model conflicts with an existing warehouse object |
+| `dbt run` | ERROR | `Runtime Error: Got X results, expected Y` | `unique_key` returning multiple rows during incremental run |
+| `dbt run` | ERROR | `Node not found` | A `ref()` or `source()` points to a non-existent model |
+| `dbt run` | ERROR | `Compilation Error` | Jinja syntax error in a `.sql` or `.py` model |
+| `dbt run` | ERROR | `Permission denied` | Warehouse user lacks CREATE/INSERT rights on target schema |
+| `dbt run` | WARN | `On-run-start/end hook failed` | A hook ran but did not block execution |
+| `dbt run` | WARN | `Deprecation Warning: config X is deprecated` | Using an old config key that will be removed in a future dbt version |
+| `dbt run` | WARN | `Model is disabled` | A model is referenced but has `enabled: false` in config |
+| `dbt test` | ERROR | `Test failed: X failures` | Data test found rows that violated the assertion |
+| `dbt test` | ERROR | `Database Error in test` | The test SQL itself failed to execute (not a data failure) |
+| `dbt test` | ERROR | `Compilation Error in test` | Jinja error in a custom or generic test definition |
+| `dbt test` | ERROR | `Node not found` | Test references a model or source that doesn't exist |
+| `dbt test` | WARN | `Test is disabled` | Test has `enabled: false` |
+| `dbt test` | WARN | `No tests defined for model X` | Model exists but has no tests in `.yml` |
+| `dbt test` | WARN | `warn_if / error_if threshold met` | Test uses `warn_if: ">0"` and the threshold is reached |
+| `dbt compile` | ERROR | `Compilation Error` | Invalid Jinja, bad `ref()`, or malformed SQL |
+| `dbt compile` | ERROR | `Node not found` | A `ref()` or `source()` target doesn't exist in the project |
+| `dbt compile` | ERROR | `Ambiguous ref: X` | Multiple models share the same name across packages |
+| `dbt compile` | ERROR | `Invalid config value` | A config key has the wrong type or invalid value |
+| `dbt compile` | WARN | `Unused variable in Jinja` | A `set` variable is defined but never used |
+| `dbt compile` | WARN | `Deprecation Warning` | Using deprecated Jinja functions or config keys |
+| `dbt build` | ERROR | `Build failed for node X` | Any node (model, test, seed, snapshot) failed, halting downstream nodes |
+| `dbt build` | ERROR | `Depends on a node that failed` | A downstream model was skipped because an upstream node errored |
+| `dbt build` | WARN | `Skipping X because of earlier failure` | Upstream failure caused this node to be skipped |
+| `dbt source freshness` | ERROR | `Source X is past error threshold` | Latest record is older than the `error_after` config |
+| `dbt source freshness` | ERROR | `Database Error` | Query against the source table failed (missing table, bad permissions) |
+| `dbt source freshness` | ERROR | `Column X not found` | The `loaded_at_field` column doesn't exist in the source table |
+| `dbt source freshness` | WARN | `Source X is past warn threshold` | Latest record is older than `warn_after` but within `error_after` |
+| `dbt source freshness` | WARN | `No freshness config for source X` | Source is defined but has no `freshness` block — check is skipped |
+| `dbt deps` | ERROR | `Version conflict` | Two packages require incompatible versions of the same dependency |
+| `dbt deps` | ERROR | `Could not find package X` | Package doesn't exist on dbt Hub or the given git repo |
+| `dbt deps` | ERROR | `Authentication error` | Private git repo requires credentials that aren't configured |
+| `dbt deps` | ERROR | `Invalid packages.yml` | Malformed YAML in `packages.yml` |
+| `dbt deps` | WARN | `Package X is deprecated` | The package author has flagged it as deprecated |
+| `dbt deps` | WARN | `Unpinned package` | A package is listed without a version — reproducibility risk |
+| `dbt deps` | WARN | `Newer version available` | A pinned package has a newer release available |
+| `dbt seed` | ERROR | `Database Error` | Failed to create or insert into the seed table |
+| `dbt seed` | ERROR | `Column type mismatch` | CSV data doesn't match the explicitly declared `column_types` config |
+| `dbt seed` | ERROR | `File not found` | A seed file is referenced but missing from the `seeds/` directory |
+| `dbt seed` | ERROR | `Duplicate column name` | CSV has two columns with the same header |
+| `dbt seed` | WARN | `Seed X is too large` | File exceeds recommended size — seeds aren't meant for large datasets |
+| `dbt seed` | WARN | `Seed quoting differs from project config` | Column quoting inconsistency between CSV headers and project settings |
+| All commands | ERROR | `Profile not found` | `profiles.yml` is missing or profile name doesn't match `dbt_project.yml` |
+| All commands | ERROR | `Target schema does not exist` | The target schema hasn't been created in the warehouse |
+| All commands | ERROR | `Cycle detected in DAG` | Two models reference each other, creating a circular dependency |
+| All commands | ERROR | `dbt version mismatch` | Project's `require-dbt-version` doesn't match the installed dbt version |
+| All commands | ERROR | `Dispatch could not find macro X` | An `adapter.dispatch()` call found no matching macro for the current adapter |
+| All commands | WARN | `Environment variable X is not set` | An `env_var()` call has no default and the variable is missing |
+| All commands | WARN | `Partial parse warning` | Cached parsing state is stale — dbt falls back to full re-parse |
 
+- Python model in dbt has the capability to incorporate additional functions either through importing external functions or by defining its own. This allows for the creation of non-dbt functions within the same Python model file for use in the model. However, it's currently not possible to import and reuse Python functions defined in one dbt model in other models
+- 
