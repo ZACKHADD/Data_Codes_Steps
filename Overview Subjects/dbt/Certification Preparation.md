@@ -538,4 +538,118 @@ Here's everything consolidated into one table:The visualizer seems to be timing 
 | All commands | WARN | `Partial parse warning` | Cached parsing state is stale — dbt falls back to full re-parse |
 
 - Python model in dbt has the capability to incorporate additional functions either through importing external functions or by defining its own. This allows for the creation of non-dbt functions within the same Python model file for use in the model. However, it's currently not possible to import and reuse Python functions defined in one dbt model in other models
+- It is recommended to configure the necessary packages and their versions within the dbt project metadata(config.yml) for better tracking and implementation purposes, especially on certain platforms
+- To define or override variables for a run of dbt, the -vars command line option can be used with a YAML dictionary as a string
+- to create surrogate keys, it's recommended to pass those columns as a list (e.g. ['user_id', 'session_number']) instead of a string expression (e.g. 'concat(user _id, session _number)'). This is a more universal syntax and dbt will use it to create your incremental model materialization that is appropriate for your database.
+- The on_schema_change feature in dbt only tracks changes to the top-level columns, and not changes to nested columns. For instance, if you add, remove, or modify a nested column in BigQuery, it won't be detected as a schema change even if the on_schema_change is set.
+- the order of precedence for env variables in dbt cloud (and CI/CD also) : Job Level > Environment Level > Project Level > Default Argument
+- to run dependencies of a specific exposure : dbt run -s +exposure:exposure_name
+- dbt-py gives the ability to perform analyses using tools available in the open-source Python ecosystem, including state-of-the-art packages for data science and statistics. Before, we would have needed separate infrastructure and orchestration to run Python transformations in production.
+- dbt could provides two APIs :
+          - Administrative API for managing the dbt Cloud account
+          - Metadata API for fetching metadata on the status and condition of the dbt project.
+Accounts on the Team and Enterprise plans can use these APIs. There are two types of APIs supported: a REST API with JSON responses and a Graphql API with GraphQL queries.
+- incremental predicates are filters that can be set in the configs (model level or dbt_project) that applies more filters on the incremental model to limit the scan of the destination table :
+```jinja
+          {{ config(
+              materialized='incremental',
+              incremental_strategy='merge',
+              unique_key='event_id',
+              incremental_predicates=[
+                  "DBT_INTERNAL_DEST.event_date >= dateadd(day, -3, current_date)"
+              ]
+          ) }}
+          
+          # Generated sql code
+          MERGE INTO my_table AS DBT_INTERNAL_DEST
+          USING (
+              SELECT *
+              FROM stg_events
+              WHERE event_date >= (SELECT MAX(event_date) FROM my_table)  -- ← your is_incremental() filter
+          ) AS DBT_INTERNAL_SOURCE
+          ON DBT_INTERNAL_DEST.event_id = DBT_INTERNAL_SOURCE.event_id
+          AND DBT_INTERNAL_DEST.event_date >= '2024-01-01'   -- ← predicate, limits scan on DEST
+          AND DBT_INTERNAL_DEST.event_date < '2024-04-01'    -- ← predicate, limits scan on DEST
+```
+- dbt class makes it possible Returning DataFrames by referencing the locations of other resources in dbt: dbt.ref) and abt.source) for models and sources respectively
+, Accessing the database location of the current model: dbt.this() (also: dbt.this.database, schema, identifier) and Determining if the current model's run is incremental: dbt.is_incremental It is possible to extend this context by "getting" them via dbt.config.get() after they are configured in the model's config. This includes inputs such as var, env _var, and target. If we want to use these values to power conditional logic in our model, it will require setting them through a dedicated yml file config (config.yml)
+- hooks can be defined at several levels and have the following order :
+```yml
+          # inside a package (we don't controle that)
+          # dbt_packages/dbt_utils/dbt_project.yml
+          on-run-start:
+            - "{{ dbt_utils.log_info('dbt_utils package starting') }}"
+          
+          on-run-end:
+            - "{{ dbt_utils.log_info('dbt_utils package finished') }}"
+          
+          # in dbt_project.yml active package
+          # dbt_project.yml
+          models:
+            dbt_utils:               # ← targeting an installed package's models
+              +post-hook:
+                - "GRANT SELECT ON {{ this }} TO ROLE reporter"
+                - "ALTER TABLE {{ this }} SET TAG sensitivity = 'low'"
+          # model level hooks
+          -- models/finance/revenue.sql
+          
+          {{ config(
+              materialized='table',
+              pre_hook=[
+                  "ALTER TABLE {{ this }} SET STAGE_COPY_OPTIONS = (PURGE = TRUE)",
+                  "DELETE FROM {{ this }} WHERE created_at < dateadd(year, -2, current_date)"
+              ],
+              post_hook=[
+                  "GRANT SELECT ON {{ this }} TO ROLE finance_role",
+                  "INSERT INTO audit.model_runs (model, run_at) VALUES ('{{ this }}', current_timestamp)"
+              ]
+          ) }}
+          
+          SELECT
+              order_id,
+              revenue,
+              created_at
+          FROM {{ ref('stg_orders') }}
+          
+          #dbt_project hooks
+          # dbt_project.yml
+          
+          on-run-start:
+            - "CREATE SCHEMA IF NOT EXISTS {{ target.schema }}"
+            - "{{ logging.log_run_start() }}"
+          
+          on-run-end:
+            - "GRANT USAGE ON SCHEMA {{ target.schema }} TO ROLE reporter"
+            - "{{ logging.log_run_end() }}"
+```
+- It is recommended to use the timestamp strategy when working with snapshot tables in dbt. This strategy provides better handling of changes to the source data, including additions and deletions of columns, compared to the check_cols strategy. With timestamp, dbt only looks at one column — updated_at. Schema changes in the source are completely irrelevant to whether a row is detected as changed. Using the timestamp strategy is considered a best practice for snapshot configurations.
+- When using the IDE in dbt Cloud, if we change the value of an environment variable while in a session, we may need to refresh the IDE for the change to take effect.
+- unique key and target_schema are mendatory in snapshots
+- When the columns of a source query change, dbt updates the snapshot table to reflect those changes. This includes adding new columns and increasing the size of string columns if necessary. However, dbt will not remove columns that are no longer in the source query, and it will not change the type of a column.
+- If a package installed in your project includes its own generate_schema_name macro, dbt will ignore it, giving priority to the custom macro defined in your dbt project.
+- By default, MetricFlow generates its own internal time spine to handle date aggregations (daily, weekly, monthly, etc.) for metrics. However, if we need custom fiscal calendars, business calendars, or non-standard date granularities, we need to bring your own calendar table — called a time spine in MetricFlow terminology: Must have a primary date column date_day, Must be declared as a time_spine in a semantic model,  The primary time dimension must be at day granularity, Must be a materialized dbt model
+```yml
+semantic_models:
+  - name: my_time_spine
+    model: ref('my_calendar')   # ← points to your dbt model
+    defaults:
+      agg_time_dimension: date_day
+
+    dimensions:
+      - name: date_day
+        type: time               # ← must be type: time
+        type_params:
+          time_granularity: day  # ← must declare granularity
+        primary_time_dimension: true  # ← must mark as primary
+
+      - name: date_week
+        type: time
+        type_params:
+          time_granularity: week
+
+      - name: fiscal_quarter
+        type: time
+        type_params:
+          time_granularity: quarter
+```
 - 
