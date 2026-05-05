@@ -652,4 +652,37 @@ semantic_models:
         type_params:
           time_granularity: quarter
 ```
+- require-dbt-version: [">=1.5.0", "<2.0.0"] : It enforces that the project runs only with compatible dbt versions otherwise dbt raises an error.
+- packages-install-path is used to specify the path where packages are installed
+- docs-paths are also used to specify where md files are located
+- asset-paths is used to specify where assets are located (like images, CSS, or other files):
+```bash
+          my_project/
+          ├── dbt_project.yml
+          ├── models/
+          ├── docs/
+          ├── assets/
+          │   ├── logo.png
+          │   └── styles.css
+```
+- if we don't specify the config-version in dbt_project then dbt uses by default version 1 syntax
+- the default behavior of dispatch is to look in the root project first for macro implementations and then in the package named by the macro_namespace.
+- The log path can be set using the --log-path CLI flag, the DBT_LOG_PATH environment variable, or the log-path configuration in the dbt_project.yml file. The precedence order is CLI flag > environment variable > dbt_project.yml.
+- version config in dbt_project.yml is metadata one that refers to the version of our project as a package ! it is like software project version! the version property in yml files however enables model versionning :
+```yml
+          #dbt_project.yml
+          name: my_project
+          version: 1.0.0
+          
+          #in models yml files:
+          models:
+            - name: my_model
+              latest_version: 2
+              versions:
+                - v: 1
+                - v: 2
+```
+- By default, dbt inserts a JSON comment at the top of the query containing information like the dbt version, profile and target names, and node ids for the resources it runs.
+- To disable query comments in dbt we leave query-comment blank or set query-comment: null
+- Quoting is set to true by default for snowflake (for other adapters it is not the case !)
 - 
