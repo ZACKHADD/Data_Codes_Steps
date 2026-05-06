@@ -700,3 +700,6 @@ semantic_models:
           4. state:modified.persisted_descriptions - Changes to descriptions (if persist docs is enabled)
           5. state:modified.macros - Changes to upstream macros (directly or indirectly called)
 ```
+- Namespaces allow models with identical names to coexist in different packages
+- we can clone objects using dbt directly : dbt clone --state ../prod_run/target ! this needs an existing state !
+- Currently, Python functions defined in one dbt model cannot be directly imported and reused in other models. The recommended approach is to register the function as a User-Defined Function (UDF) at the platform level, which allows invocation across multiple models while being subject to the specific platform's UDF support.
