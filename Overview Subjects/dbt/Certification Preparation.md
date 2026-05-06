@@ -685,4 +685,18 @@ semantic_models:
 - By default, dbt inserts a JSON comment at the top of the query containing information like the dbt version, profile and target names, and node ids for the resources it runs.
 - To disable query comments in dbt we leave query-comment blank or set query-comment: null
 - Quoting is set to true by default for snowflake (for other adapters it is not the case !)
-- 
+- Most configurations are "clobbered" when applied hierarchically. Whenever a more-specific value is available, it will completely replace the less-specific value.
+- To run the intersection ancestors of two or more models : dbt run --select +snowplow_sessions,+ft_orders
+- dbt test --select result:fail runs tests that failed during the last run
+- dbt run --select result:error runs all models that failed in the last run
+- if we want to run all models defined within the 'ecommerce' package : dbt run --select package:ecommerce dbt run --select ecommerce or dbt run --select ecommerce.*
+- dbt ls -s config.grants.select:reporter : list all models with a 'select' grant for the 'reporter' role.
+- dbt test --select test_name:unique run all instances of unique test
+- Dbt supports subselectors for specific modified criteria, including:
+```bash
+          1. state:modified.body - Changes to node body (model SQL, seed values)
+          2. state:modified.configs - Changes to node configs (excluding database/schema/alias)
+          3. state:modified.relation - Changes to database representation (regardless of target values/generate × name macros)
+          4. state:modified.persisted_descriptions - Changes to descriptions (if persist docs is enabled)
+          5. state:modified.macros - Changes to upstream macros (directly or indirectly called)
+```
