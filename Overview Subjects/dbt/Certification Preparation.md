@@ -703,3 +703,45 @@ semantic_models:
 - Namespaces allow models with identical names to coexist in different packages
 - we can clone objects using dbt directly : dbt clone --state ../prod_run/target ! this needs an existing state !
 - Currently, Python functions defined in one dbt model cannot be directly imported and reused in other models. The recommended approach is to register the function as a User-Defined Function (UDF) at the platform level, which allows invocation across multiple models while being subject to the specific platform's UDF support.
+- Defining tags in the config property enhances flexibility and allows inheritance, whereas top-level 'tags' keys are supported mainly for backward compatibility (to maintain old projects).
+- Python models can reference both SQL and Python models using the dbt.ref() method. However, there is a specific limitation that ephemeral models cannot be referenced in Python models. This is because ephemeral models are not materialized in the data platform, and Python models require materialized upstream models (table or incremental) to function properly not like sql models.
+- By setting restrict-access: True in the package's dbt_project.yml, the package maintainer enforces that only models explicitly marked as 'public' can be referenced externally. This prevents external projects from accessing protected or private models within the package.
+- When a package has 'restrict-access: True' enabled, only models with 'access: public' can be referenced externally. Protected or private models in that package cannot be referenced from outside the package, causing reference failures during parsing.
+- The 'depends_on' property is crucial as it explicitly lists all upstream dbt resources (such as models, sources, and metrics) that an exposure uses:
+```yml
+          exposures:
+            - name: revenue_dashboard
+              type: dashboard
+              depends_on:
+                - ref('fct_revenue')
+                - ref('dim_customers')
+```
+- Applying a 'filter' property globally is not supported; freshness filters are configured per source or table to target specific queries, so a global filter cannot selectively limit freshness checks to recent records.
+- By default, dbt searches for dbt_project.yml in the current and parent directories. To override this default behavior and specify a custom directory, users can use the --project-dir CLI flag or set the DBT_PROJECT_DIR environment variable. This allows explicitly directing dbt to the location of the project configuration file in a different directory.
+- The --empty flag performs a schema-only dry run by limiting input data to zero rows. This allows you to validate model dependencies and confirm that models can be built without executing expensive data reads or transformations, minimizing impact on the production warehouse.
+- When you test models that use non-deterministic functions (like current_timestamp, uuid, random()), you need a way to override those values during tests so results are predictable:
+  ``` yml
+  # model
+  select
+    id,
+    current_timestamp as created_at,
+    md5(id || random()::text) as hash_value
+  from users
+
+  unit_tests:
+  - name: test_users_model
+    model: users_model
+
+    overrides:
+      macros:
+        current_timestamp: "timestamp '2024-01-01 00:00:00'"
+        random: "0.42"
+
+    input:
+      format: sql
+      rows: |
+        select 1 as id
+  ```
+  - When a selector method is omitted (path:customers for ex), dbt automatically interprets the value as a 'path', 'file', or 'fqn' selector based on the context. This approach maintains intuitive selection behavior and allows for more flexible and concise selector syntax. The documentation specifically states: "While it is recommended to explicitly denote the method, you can omit it (the default value will be one of path, file or fqn)".
+  - Direct test selection involves targeting tests by their specific attributes like tags, while indirect selection runs all tests associated with a selected model resource, even if those tests are not directly referenced or tagged. This means in indirect selection, tests linked to the model will be executed automatically, whereas direct selection requires explicit targeting of the test's own characteristics.
+  - Properties in properties.yml files provide centralized, organized metadata and column expectations, while the flexible configuration options allow teams to override materializations using dbt_project.yml or inline config() macros. This method supports both consistent documentation and team-specific customization of resource build processes.
