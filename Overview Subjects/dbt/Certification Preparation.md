@@ -745,3 +745,43 @@ semantic_models:
   - When a selector method is omitted (path:customers for ex), dbt automatically interprets the value as a 'path', 'file', or 'fqn' selector based on the context. This approach maintains intuitive selection behavior and allows for more flexible and concise selector syntax. The documentation specifically states: "While it is recommended to explicitly denote the method, you can omit it (the default value will be one of path, file or fqn)".
   - Direct test selection involves targeting tests by their specific attributes like tags, while indirect selection runs all tests associated with a selected model resource, even if those tests are not directly referenced or tagged. This means in indirect selection, tests linked to the model will be executed automatically, whereas direct selection requires explicit targeting of the test's own characteristics.
   - Properties in properties.yml files provide centralized, organized metadata and column expectations, while the flexible configuration options allow teams to override materializations using dbt_project.yml or inline config() macros. This method supports both consistent documentation and team-specific customization of resource build processes.
+  - generally we snapshot sources and rarely downstream models.
+  - it is best to configure snapshots in yml files :
+  ```yml
+          snapshots:
+            - name: orders_snapshot
+              description: desc
+              relation: ref('stg_orders')
+              config:
+                schema: snapshots
+                unique_key: order_id
+                strategy: check
+                check_cols:
+                  - status
+                  - is_cancelled
+                updated_at: updated_at
+                snapshot_meta_column_names={
+                      "dbt_valid_from": "valid_from",
+                      "dbt_valid_to": "valid_to",
+                      "dbt_scd_id": "scd_id",
+                      "dbt_updated_at": "snapshot_updated_at"
+                  }
+               dbt_valid_to_current: "to_date('9999-12-31')" # replaces the NULL for active rows
+               hard_deletes = new_record # this replaces invalidate_hard_deletes adds a new record in the snapshots for the deleted rows with a flag is_deleted as true !
+  ```
+ - we don’t nest {{ }} inside {% set %} : {% set env = env_var('DBT_ENV_NAME') %} but outside set block for rendering context select '{{ var("country") }}':
+```yml
+          {% macro generate_schema_name(custom_schema_name, node) -%}
+              {%- set default_schema = target.schema -%}
+              {%- set env = env_var('DBT_ENV_NAME') -%}
+              {%- if custom_schema_name is none or env == 'dev' -%}
+                  {{ default_schema }}
+              {%- else -%}
+                  {{ custom_schema_name | trim }}
+              {%- endif -%}
+          {%- endmacro %}
+```
+- in dbt cloud and semantic layer functionality we can run in the CLI metrics with filters and group by clauses (this is not a dbt core feature):
+```bash
+          dbt sl query --metrics order_total --group-by order_date --grain day
+```
