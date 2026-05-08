@@ -785,3 +785,113 @@ semantic_models:
 ```bash
           dbt sl query --metrics order_total --group-by order_date --grain day
 ```
+- the best practice in dbt is to have everything in lower case
+- generally we follow the order of CTEs : import ctes (all models that we will call in the model just like python we usually call these models raw_) => logical ctes (joins and transformations) => final cte (final join or transformation with all needed columns specified explicitly) => final select (select * from the final cte
+- layers in dbt project : staging (selecting from source and casting along with simple transformations), intermediate and marts (facts and dims)
+- audit_helper package is great for TNRs in a project ! ex: audit_helper.compare_all_columns
+- with dbt version 1.11+ we can define UDFs as a first class resource in dbt :
+```yml
+          #functions/
+          #├── is_positive_int.sql
+          #└── schema.yml
+          
+          functions:
+            - name: is_positive_int       # required
+              description: My UDF that returns 1 if a string represents a naked positive integer (like "10", "+8" is not allowed). # optional
+              config:
+                schema: udf_schema
+                database: udf_db
+                volatility: deterministic
+              arguments:                  # optional
+                - name: a_string          # required if arguments is specified
+                  data_type: string       # required if arguments is specified
+                  description: The string that I want to check if it's representing a positive integer (like "10") 
+                  default_value: "'1'"    # optional, available in Snowflake and Postgres
+              returns:                    # required
+                data_type: integer        # required
+          
+          
+          # call the function in the model :
+          
+          select
+              {{ function('is_positive_int') }}(customer_code)
+          from {{ ref('customers') }}
+
+          OR
+
+          select udf_schema.is_positive_int(customer_code)
+```
+- we can also import existing UDFs in the plateform into our dbt project
+- two ways to implement version in dbt : diff only (recommended where we specify only what changes) vs fully specified (whare we specify the whole new model including non changed parts)
+- we use _V1 to version our models
+- in the yml we specify the properties of our diffs of versions :
+```yml
+          models:
+            - name: customers
+              latest_version: 3 # (means that the latest stable version is 3 and that 4 is prerelease version)
+              columns:
+                - name: customer_id
+                  description: Unique identifier for this table
+                  data_type: text
+                  constraints:
+                    - type: not_null
+                  data_tests:
+                    - unique
+                - name: customer_country
+                  data_type: text
+                  description: "Country where the customer currently lives"
+                - name: first_purchase_date
+                  data_type: date
+              
+              versions:
+                - v: 4
+                  
+                - v: 3
+                  configs:
+                     alias : custumers # (otherwise dbt will implement it as customers_v3 in the database this throws warning if we use this version instead of the latest)
+                  columns:
+                    - include: "*"
+                    - name: customer_country
+                      data_type: text
+                      description: "Country where the customer first lived at time of first purchase"
+                
+                - v: 2
+                  deprecation_date: 2025-12-18 # date of the last adoption of this version  
+                  columns:
+                    - include: "*"
+                      exclude:
+                        - customer_country
+                
+                - v: 1
+                  columns:
+                    - include: []
+                    - name: id
+                      data_type: int
+
+
+# Because v4 has not specified any columns, it will include all of the top-level columns.
+# Each other version has declared a modification from the top-level property:
+# v3 will include all columns, but it reimplements the customer_country column with a different description.
+# v2 will include all columns except customer_country.
+# v1 doesn't include any of the top-level columns. Instead, it declares only a single integer column named id.
+
+# then we can call the model in other models using : select * from {{ref('model'), v=3}} ! by default dbt will call the latest version
+# however we need to respect he standard convention for naming model versions is <model_name>_v<v>. This holds for the file where dbt expects to find the model's definition (SQL or Python), and the alias it will use by default when materializing the model in the database. getdbt
+#So dbt expects files named customers_v1.sql and customers_v2.sql — not cust_old.sql and cust_new.sql.
+
+# if we need to name our sql models differently we need to use defined_in property :
+
+models:
+  - name: customers
+    latest_version: 2
+    versions:
+      - v: 1
+        defined_in: cust_old   # points to cust_old.sql
+      - v: 2
+        defined_in: cust_new   # points to cust_new.sql
+
+# It's also possible to define the "latest" version in dim_customers.sql (no suffix), without additional configuration.
+```
+- in dbt cloud we can use the cross project ref() by setting dependencies.yml where we reference all the upstream project we want to use and that is using the name in the dbt_project.yml files then inside our models we use {{ref('project','model')}}
+- in the dbt clould we have a catalog and we can have lineage for all projects and we can have a node for an entire project and we can then expend it !
+- 
