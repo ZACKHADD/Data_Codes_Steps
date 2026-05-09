@@ -894,4 +894,24 @@ models:
 ```
 - in dbt cloud we can use the cross project ref() by setting dependencies.yml where we reference all the upstream project we want to use and that is using the name in the dbt_project.yml files then inside our models we use {{ref('project','model')}}
 - in the dbt clould we have a catalog and we can have lineage for all projects and we can have a node for an entire project and we can then expend it !
-- 
+- `source_status:fresher+` selector requires both the current and previous runs' `sources.json` files to be present. dbt compares the current freshness check against the previous one stored in --state. This allows dbt to compare source freshness between runs and select sources that have become fresher, along with their dependent models. 
+- generic test inherit column level tags not like singular tests
+- --indirect-selection This flag controls how strictly dbt includes tests when they depend on multiple models and only some are selected.
+
+| Mode | Runs relationship test if only `orders` selected? | Use case |
+|---|---|---|
+| `eager` | ✅ Always | Default dev workflow |
+| `cautious` | ❌ Only if all parents selected | Safe partial builds |
+| `buildable` | ✅ If missing parents exist in previous `--state` | CI with deferred prod state |
+| `empty` | ❌ Never indirectly | Maximum precision. Most restrictive |
+
+- dbt build uses --indirect-selection cautious by default (unlike dbt test which defaults to eager) 
+- in partial builds scenario, buildable mode (and not coutious since we use --state here): runs the test if all its parents are either selected or available via --defer from a prior state. Designed for CI with deferred state. Tests with unselected parents can still run if those parents exist in production.
+- The '+' prefix is a unique marker in dbt_project.yml used to distinguish configuration keys under a specific resource. It is exclusively used in dbt_project.yml and does not apply to config() Jinja macros or other YAML files, making it a precise configuration demarcation tool.
+- When '+schema: null' is set for tests, dbt automatically stores test failures in the default schema specified by the profile. This means the test failure tables will be created in the same schema as the default profile schema, without generating a separate or temporary schema.
+- source level freshness vs column level : Source-level 'freshness' applies by default, with table-level settings providing optional granular overrides
+- to select the resources of a group : group:finance it is first class selector and it does not require config anymore
+- we can install packages remotely (from gitlab or github ..) or locally if we have the files locally ! we need to add the package in the package.yml file !
+- namespaces makes it possible to have two models with the same name ! we need just to specify the namespace when ref() the model
+- defer flag makes it possible to build a resource based on other resources already build in another environment : building customer table using the upstreams tables of prod ! that will need a manifest.json of prod environment
+- clone or defer ? 
