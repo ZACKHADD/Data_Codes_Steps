@@ -914,4 +914,15 @@ models:
 - we can install packages remotely (from gitlab or github ..) or locally if we have the files locally ! we need to add the package in the package.yml file !
 - namespaces makes it possible to have two models with the same name ! we need just to specify the namespace when ref() the model
 - defer flag makes it possible to build a resource based on other resources already build in another environment : building customer table using the upstreams tables of prod ! that will need a manifest.json of prod environment
-- clone or defer ? 
+- in dbt logs we can control what to see the the cli logs using the flag --log-level (none, info, warn, error) ! it just shows what we have in the logs file (dbt_logs)
+- we can also control the log format using the flag --log-format (json) (or in dbt_project.yml) or using DBT_ defaul environment variables 
+```yml
+# in dbt_project.yml
+
+flags:
+  log_format: json      # text (default) or json
+  log_level: info       # debug, info, warn, error
+  log_level_file: debug # can differ from console level (decides what gets written to the file)
+```
+- dbt generates a dbt_log file for each run and we have a max number of files of 5
+- 
