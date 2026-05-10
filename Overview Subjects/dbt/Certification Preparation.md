@@ -925,4 +925,4 @@ flags:
   log_level_file: debug # can differ from console level (decides what gets written to the file)
 ```
 - dbt generates a dbt_log file for each run and we have a max number of files of 5
-- 
+- when --fail-fast is used if we have models run in parralel they get canceled if one of them fails !
