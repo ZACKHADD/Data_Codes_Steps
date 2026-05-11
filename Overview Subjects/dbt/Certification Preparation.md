@@ -955,3 +955,8 @@ flags:
                 on_schema_change: append_new_columns
                 schema: marts
 ```
+- catalog.json is created by the docs generate command and it contains metadata from the database
+- dbt's state:modified selector identifies any resource that has changed compared to the provided state (usually from a manifest.json). Because the 30+ models call the macro, they are considered downstream dependents of that macro in the project DAG. The + operator expands the selection to include these models and any of their own downstream children.
+- <img width="782" height="813" alt="image" src="https://github.com/user-attachments/assets/a3a74d6a-ebd9-4a3a-82fc-a67ddbaab499" />
+- <img width="760" height="872" alt="image" src="https://github.com/user-attachments/assets/ec338cd5-8173-4bb4-974a-4dbe2fd3fd2f" />
+
