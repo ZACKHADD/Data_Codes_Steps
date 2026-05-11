@@ -928,3 +928,30 @@ flags:
 - when --fail-fast is used if we have models run in parralel they get canceled if one of them fails !
 - the md files for doc in dbt should be under models or in a subfolder to be parsed by dbt ! otherwise if we don't specify the path for that it will not be parsed
 - dbt allows to override configurations for models provided by installed packages by referencing the package name directly under the models: key in your dbt_project.yml. This is the standard and recommended way to customize package behavior without modifying the source code of the package itself.
+- we can use anchors in yaml files to reduce redundance and reuse yml bolcks :
+```yml
+          model_defaults: &model_defaults
+            materialized: incremental
+            on_schema_change: append_new_columns
+          
+          models:
+            my_project:
+              staging:
+                <<: *model_defaults
+          
+              marts:
+                <<: *model_defaults
+                schema: marts
+
+          # Equivalent to
+          models:
+            my_project:
+              staging:
+                materialized: incremental
+                on_schema_change: append_new_columns
+          
+              marts:
+                materialized: incremental
+                on_schema_change: append_new_columns
+                schema: marts
+```
