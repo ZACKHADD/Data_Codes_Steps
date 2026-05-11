@@ -321,7 +321,7 @@
           dbt run -s models/staging/harvest or
           dbt run -s path:models/staging/harvest
 ```
-- set operators in dbt commands : union (,) and intersection (space)
+- set operators in dbt commands : union (space) and intersection (,)
 - select all models of a source: dbt run --select source:snowplow+
 - we can select models also based on configs (depends on warehouses) for example clustering column in snowflake : dbt run -s config.cluster_by:client_id
 - Deferral requires both --defer and --state flags to be set.
@@ -926,3 +926,5 @@ flags:
 ```
 - dbt generates a dbt_log file for each run and we have a max number of files of 5
 - when --fail-fast is used if we have models run in parralel they get canceled if one of them fails !
+- the md files for doc in dbt should be under models or in a subfolder to be parsed by dbt ! otherwise if we don't specify the path for that it will not be parsed
+- dbt allows to override configurations for models provided by installed packages by referencing the package name directly under the models: key in your dbt_project.yml. This is the standard and recommended way to customize package behavior without modifying the source code of the package itself.
