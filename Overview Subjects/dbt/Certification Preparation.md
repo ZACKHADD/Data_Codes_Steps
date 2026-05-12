@@ -177,7 +177,7 @@
 - properties are metadata and tests elements while configurations control how dbt materializes objects in the data warehouse
 - Environment variable keys in dbt are case-sensitive and must be referenced with exact casing
 - The effective way to correlate execution metadata with project structure is: Join run_results.json with manifest.json using unique_id (and optionally invocation_id)
-- When using --select : "tag:nightly config.materialized:incremental" means AND condition while "tag:nightly,config.materialized:incremental" means OR condition
+- When using --select : "tag:nightly config.materialized:incremental" means OR condition while "tag:nightly,config.materialized:incremental" means AND condition
 - Views are the most cost-effective option for simple, infrequently used models.
 - if we have the same model with different versions and we call it without specifying the version dbt resolves to the version marked as 'latest' or with the highest version number
 - run 'dbt run' and 'dbt seed' simultaneously may result in potential data integrity problems
