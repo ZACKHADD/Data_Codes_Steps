@@ -325,6 +325,7 @@
 - select all models of a source: dbt run --select source:snowplow+
 - we can select models also based on configs (depends on warehouses) for example clustering column in snowflake : dbt run -s config.cluster_by:client_id
 - Deferral requires both --defer and --state flags to be set.
+- defer is used in the ci to reference dependencies from another environment state (ex prod)
 - states in dbt selector :
 
 | Selector           | Meaning                                                                     |
@@ -957,6 +958,13 @@ flags:
 ```
 - catalog.json is created by the docs generate command and it contains metadata from the database
 - dbt's state:modified selector identifies any resource that has changed compared to the provided state (usually from a manifest.json). Because the 30+ models call the macro, they are considered downstream dependents of that macro in the project DAG. The + operator expands the selection to include these models and any of their own downstream children.
+- when writing singular tests we need to design it so that it won't return any raws if it succeeds : ex ensuring that all rows have flag true we need to set a test to count rows having a flag set to false (the opposite) so that it it returns a result the test fails 
+- dbt build is the key if we want the the downstreams of models get skipped if tests of parents fail
+- The persist_docs configuration accepts an object with two primary keys: relation (which controls model-level descriptions/table comments) and columns (which controls individual column comments). By setting relation: false and columns: true, dbt will push column descriptions to Snowflake while skipping the table-level comments.
+- groups must be declared in the dbt_project.yml file. Models are then associated with these groups using the group configuration, which can be applied in the project file, a YAML property file, or a model's config block.
 - <img width="782" height="813" alt="image" src="https://github.com/user-attachments/assets/a3a74d6a-ebd9-4a3a-82fc-a67ddbaab499" />
 - <img width="760" height="872" alt="image" src="https://github.com/user-attachments/assets/ec338cd5-8173-4bb4-974a-4dbe2fd3fd2f" />
+- <img width="875" height="272" alt="image" src="https://github.com/user-attachments/assets/21635385-e314-4b59-843f-ad82d2f4b55e" />
+
+
 
